@@ -5,7 +5,10 @@
 [![GitHub release](https://img.shields.io/github/v/release/oalabs/hashdb-ida.svg)](https://github.com/OALabs/hashdb-ida/releases) [![Chat](https://img.shields.io/badge/chat-Discord-blueviolet)](https://discord.gg/cw4U3WHvpn) 
 
 # HashDB IDA Plugin
-Malware string hash lookup plugin for IDA Pro. This plugin connects to the OALABS [HashDB Lookup Service](https://hashdb.openanalysis.net).
+Malware string hash lookup plugin for IDA Pro. This plugin connects to the OALABS [HashDB Lookup Service](https://hashdb.openanalysis.net). 
+
+## Adding New Hash Algorithms
+The hash algorithm database is open source and new algorithms can be added on [GitHub here](https://github.com/OALabs/hashdb). Pull requests are automated and as lthe tests pass the new algorithm will be usable on HashDB within minutes.
 
 ## Using HashDB
 HashDB can be used to look up strings that have been hashed in malware by right-clicking on the hash constant in the IDA disassembly view and launching the `HashDB Lookup` client. 
@@ -53,3 +56,4 @@ Once you have the requests module installed simply copy the latest release of [`
 
 ## ❗Compatibility Issues
 FindYara has been developed for use with the __IDA 7+__ and __Python 3__ it is not backwards compatible. 
+
