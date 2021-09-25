@@ -8,13 +8,13 @@
 Malware string hash lookup plugin for IDA Pro. This plugin connects to the OALABS [HashDB Lookup Service](https://hashdb.openanalysis.net). 
 
 ## Adding New Hash Algorithms
-The hash algorithm database is open source and new algorithms can be added on [GitHub here](https://github.com/OALabs/hashdb). Pull requests are automated and as lthe tests pass the new algorithm will be usable on HashDB within minutes.
+The hash algorithm database is open source and new algorithms can be added on [GitHub here](https://github.com/OALabs/hashdb). Pull requests are mostly automated and as long as our automated tests pass the new algorithm will be usable on HashDB within minutes.
 
 ## Using HashDB
 HashDB can be used to look up strings that have been hashed in malware by right-clicking on the hash constant in the IDA disassembly view and launching the `HashDB Lookup` client. 
 
 ### Settings
-Before using the plugin can be used to look up hashes the settings must be configured. The settings window can be launched from the plugins menu `Edit->Plugins->HashDB`.
+Before the plugin can be used to look up hashes the HashDB settings must be configured. The settings window can be launched from the plugins menu `Edit->Plugins->HashDB`.
 
 <p align="center">
 <img width="516" alt="Screen Shot 2021-09-24 at 4 23 19 PM" src="https://user-images.githubusercontent.com/5906222/134735719-3c08b87f-313e-4805-aae1-3e440da9ddc2.png">
@@ -40,7 +40,7 @@ Once the plugin settings have been configured you can right-click on any constan
  </p>
 
 ### Bulk Import
-If a hash identified by HashDB is part of a module a prompt will ask if you want to import all the hashes from that module. This is a quick way to pull hashes in bulk. For example, if one of the hashes identified is `Sleep` from the `kernel32` module, HashDB can then pull all the hashed exports from `kernel32`.
+If a hash is part of a module a prompt will ask if you want to import all the hashes from that module. This is a quick way to pull hashes in bulk. For example, if one of the hashes identified is `Sleep` from the `kernel32` module, HashDB can then pull all the hashed exports from `kernel32`.
 
 <p align="center">
 <img width="367" alt="Screen Shot 2021-09-24 at 4 24 06 PM" src="https://user-images.githubusercontent.com/5906222/134738243-b4a6b8f2-2784-4a8a-9393-e7b676655249.png">
@@ -55,5 +55,5 @@ Once you have the requests module installed simply copy the latest release of [`
 
 
 ## ❗Compatibility Issues
-FindYara has been developed for use with the __IDA 7+__ and __Python 3__ it is not backwards compatible. 
+The HashDB plugin has been developed for use with the __IDA 7+__ and __Python 3__ it is not backwards compatible. 
 
