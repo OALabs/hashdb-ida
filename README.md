@@ -46,6 +46,18 @@ If a hash is part of a module a prompt will ask if you want to import all the ha
 <img width="367" alt="Screen Shot 2021-09-24 at 4 24 06 PM" src="https://user-images.githubusercontent.com/5906222/134738243-b4a6b8f2-2784-4a8a-9393-e7b676655249.png">
 </p>
 
+### Algorithm Search
+HashDB also includes a basic algorithm search that will attempt to identify the hash algorithm based on a hash value. **The search will return all algorithms that contain the hash value, it is up to the analyst to decide which (if any) algorithm is correct.** To use this functionality right-click on the hash constant and select `HashDB Hunt Algorithm`.
+
+<p align="center">
+<img width="285" alt="Screen Shot 2021-09-29 at 5 34 05 PM" src="https://user-images.githubusercontent.com/5906222/135352570-771f5b03-4730-41e3-9757-a32ad31bec3b.png">
+</p>
+
+All algorithms that contain this hash will be displayed in a chooser box. The chooser box can be used to directly select the algorithm for HashDB to use. If `Cancel` is selected no algorithm will be selected.
+
+<p align="center">
+<img width="370" alt="Screen Shot 2021-09-29 at 5 34 31 PM" src="https://user-images.githubusercontent.com/5906222/135352732-4a18ee03-c1f3-4a67-9c80-811121365448.png">
+</p>
 
 ## Installing HashDB 
 Before using the plugin you must install the python **requests** module in your IDA environment. The simplest way to do this is to use pip from a shell outside of IDA.  
