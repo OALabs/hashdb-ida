@@ -121,6 +121,28 @@ XOR_ICON_DATA = b"".join([b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10\
                          b'\xc8\xc4\xcc\xc4\x1c\xc4\x07\xcb\x80H\xa0J.\x00\xea\x17\x11t\xf2B5\x95\x00\x00',
                          b'\x00\x00IEND\xaeB`\x82'])
 XOR_ICON = ida_kernwin.load_custom_icon(data=XOR_ICON_DATA, format="png")
+HUNT_ICON_DATA = b"".join([b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10\x00\x00\x00\x10\x08\x04',
+                          b'\x00\x00\x00\xb5\xfa7\xea\x00\x00\x00\x04gAMA\x00\x00\xb1\x8f\x0b\xfca\x05\x00',
+                          b'\x00\x00 cHRM\x00\x00z&\x00\x00\x80\x84\x00\x00\xfa\x00\x00\x00\x80\xe8\x00\x00u0',
+                          b'\x00\x00\xea`\x00\x00:\x98\x00\x00\x17p\x9c\xbaQ<\x00\x00\x00\x02bKGD\x00\xff\x87',
+                          b'\x8f\xcc\xbf\x00\x00\x00\tpHYs\x00\x00\x0b\x13\x00\x00\x0b\x13\x01\x00\x9a\x9c\x18',
+                          b'\x00\x00\x00\x07tIME\x07\xe5\t\x1d\x10#"R\xd1XW\x00\x00\x01.IDAT(\xcf\x8d\xd1;K\x9b',
+                          b'\x01\x18\xc5\xf1\x9fI\xa8C\xbd\xf1\x0e\xdd\xd2\xc5NJ\x07;h\xd5\xa1\xf1\x0bT\xd4M',
+                          b'\x14//\x82\xad\x8b\x83\x93`\xf1\x02~\x84\x08-b\x1c\xea\xe6\xe2 \x08^\x9aAQ\x07\x87',
+                          b'R\x9d:\x99Atx\x15\xab`\xbc\xd0\x0eitS\xcf\xf2\xc0\xe1\xf0\x1c\xf8\x9f\x12\x0f*Q!@',
+                          b'\xe4\xdc\xdf\x07\xb3xkuz\xe7\x05\xae\xedY\xb0_\x08\x15\x02\t=\x06l\xdap\x89\x97Z4',
+                          b'\xfbf\xde-\t\xd0#4\xa1J\xef\xff\x8aE\xab\xc60[\xf8\xf0\xd6W\x93\xde\xfb`\xce!^\xeb',
+                          b'\x93\xb5\xed\x8b\x01\xbf\xe2\x18v\xe4T\xbbQ\xcd\xba\xa4\\I\xebw\xe0N\x8d\xb5\x98Ju~h',
+                          b'\x93\xd1\xaa\xda\xb8q\xd5>\xcah\x93U\xa72&P\xeaB \xa7\xde\x8cA\x83f4\xc8\t\xfcQ*\x88yB',
+                          b'\t\x91\xbc2\x91\xa4]\x9f\xa4\xf1\xd9\x8e\xa4H\xb9\xbc(.\xaf\xd6\x1b\xebBi\xaftK\xf9i',
+                          b'\xc9\x88\xef\x1a\xe5,\xc7ql\xc8\x8a;\xa1UK\xb2n\x8c\xc8\xfa\xad\xcb\xb4\x93\x02\xc9PhJ',
+                          b'\x95\x8e{Pg\xc6\xcc\x16A\x15Qo\xd9p\x812-\x9a\x8a\xa8\x9f9\xd6#s\xff\x03\xabm^\xab\xaf',
+                          b'\xe8z\xc0\x00\x00\x00%tEXtdate:create\x002021-09-29T16:35:34+00:00\xf4Q\xb1\xe8\x00\x00',
+                          b'\x00%tEXtdate:modify\x002021-09-29T16:35:34+00:00\x85\x0c\tT\x00\x00\x00WzTXtRaw prof',
+                          b'ile type iptc\x00\x00x\x9c\xe3\xf2\x0c\x08qV((\xcaO\xcb\xccI\xe5R\x00\x03#\x0b.c\x0b',
+                          b'\x13#\x13K\x93\x14\x03\x13 D\x804\xc3d\x03#\xb3T \xcb\xd8\xd4\xc8\xc4\xcc\xc4\x1c',
+                          b'\xc4\x07\xcb\x80H\xa0J.\x00\xea\x17\x11t\xf2B5\x95\x00\x00\x00\x00IEND\xaeB`\x82'])
+HUNT_ICON = ida_kernwin.load_custom_icon(data=HUNT_ICON_DATA, format="png")
 
 
 #--------------------------------------------------------------------------
@@ -160,6 +182,23 @@ def get_module_hashes(module_name, algorithm, permutation, api_url='https://hash
         raise HashDBError("Get hash API request failed, status %s" % r.status_code)
     results = r.json()
     return results
+
+
+def hunt_hash(hash_value, api_url='https://hashdb.openanalysis.net'):
+    matches = []
+    hash_list = [hash_value]
+    module_url = api_url + '/hunt'
+    r = requests.post(module_url, json={"hashes": hash_list})
+    if not r.ok:
+        print(module_url)
+        print(hash_list)
+        print(r.json())
+        raise HashDBError("Get hash API request failed, status %s" % r.status_code)
+    for hit in r.json().get('hits',[]):
+        algo = hit.get('algorithm',None)
+        if (algo != None) and (algo not in matches):
+            matches.append(algo)
+    return matches
 
 
 #--------------------------------------------------------------------------
@@ -379,7 +418,93 @@ More than one string matches this hash!
 
 
 #--------------------------------------------------------------------------
-# Modle import select form
+# Hash hunt results form
+#--------------------------------------------------------------------------
+
+class hunt_result_form_t(ida_kernwin.Form):
+
+    class algorithm_chooser_t(ida_kernwin.Choose):
+        """
+        A simple chooser to be used as an embedded chooser
+        """
+        def __init__(self, algo_list):
+            ida_kernwin.Choose.__init__(
+                self,
+                "",
+                [
+                    ["Algorithm", 30]
+                ],
+                flags=0,
+                embedded=True,
+                width=30,
+                height=6)
+            self.items = algo_list
+            self.icon = None
+
+        def OnGetLine(self, n):
+            return self.items[n]
+
+        def OnGetSize(self):
+            return len(self.items)
+
+    def __init__(self, algo_list, msg):
+        self.invert = False
+        F = ida_kernwin.Form
+        F.__init__(
+            self,
+            r"""BUTTON YES* OK
+Matched Algorithms
+
+{FormChangeCb}
+{cStrStatus}
+<:{cAlgoChooser}>
+""", {
+            'cStrStatus': F.StringLabel(msg),
+            'FormChangeCb': F.FormChangeCb(self.OnFormChange),
+            'cAlgoChooser' : F.EmbeddedChooserControl(hunt_result_form_t.algorithm_chooser_t(algo_list))
+        })
+
+    def OnFormChange(self, fid):
+        if fid == -1:
+            # Hide algorithm chooser if empty
+            if self.cAlgoChooser.chooser.items == []:
+                self.ShowField(self.cAlgoChooser, False)
+        return 1
+
+    def show(algo_list):
+        global HASHDB_API_URL
+        global HASHDB_USE_XOR
+        global HASHDB_XOR_VALUE
+        global HASHDB_ALGORITHM
+        # Set default values
+        if len(algo_list) == 0:
+            msg = "No algorithms matched the hash."
+            f = hunt_result_form_t(algo_list, msg)
+        else:
+            msg = "The following algorithms contain a matching hash.\nSelect an algorithm to set as the default for HashDB."
+            # Convert algo_list into matrix format for chooser
+            algo_matrix = []
+            for algo in algo_list:
+                algo_matrix.append([algo])
+            f = hunt_result_form_t(algo_matrix, msg)
+        f, args = f.Compile()
+        # Show form
+        ok = f.Execute()
+        if ok == 1:
+            if f.cAlgoChooser.selection == None:
+                # No algorithm selected bail!
+                f.Free()
+                return False
+            HASHDB_ALGORITHM = f.cAlgoChooser.chooser.items[f.cAlgoChooser.selection[0]][0]
+            f.Free()
+            return True
+        else:
+            f.Free()
+            return False
+
+
+#--------------------------------------------------------------------------
+# Module import select form
 #--------------------------------------------------------------------------
 class api_import_select_t(ida_kernwin.Form):
     """Simple form to select module to import apis from"""
@@ -648,6 +773,45 @@ def hash_lookup():
 
 
 #--------------------------------------------------------------------------
+# Algorithm search function
+#--------------------------------------------------------------------------
+def hunt_algorithm():
+    global HASHDB_API_URL
+    global HASHDB_USE_XOR
+    global HASHDB_XOR_VALUE
+    # Get selected hash
+    identifier = None
+    hash_value = None
+    v = ida_kernwin.get_current_viewer()
+    thing = ida_kernwin.get_highlight(v)
+    if thing and thing[1]:
+        identifier = thing[0]
+    if identifier == None:
+        idaapi.msg("ERROR: Not a valid hash selection\n")
+        return
+    elif ('h' in identifier) or ('0x' in identifier):
+        hash_value = int(identifier.replace('h',''),16)
+        idaapi.msg("Hex value found %s\n" % hex(hash_value))
+    else:
+        hash_value = int(identifier)
+    # If xor is set then xor hash first
+    if HASHDB_USE_XOR:
+        hash_value ^=HASHDB_XOR_VALUE
+    # Hunt for an algorithm
+    try:
+        ida_kernwin.show_wait_box("HIDECANCEL\nPlease wait...")
+        match_results = hunt_hash(hash_value, api_url=HASHDB_API_URL)
+    except Exception as e:
+        idaapi.msg("ERROR: HashDB API request failed: %s\n" % e)
+        return
+    finally:
+        ida_kernwin.hide_wait_box()
+    # Show results chooser
+    # Results chooser will set algorithm
+    results = hunt_result_form_t.show(match_results)
+
+
+#--------------------------------------------------------------------------
 # Plugin
 #--------------------------------------------------------------------------
 class HashDB_Plugin_t(idaapi.plugin_t):
@@ -690,6 +854,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
             # initialize the menu actions our plugin will inject
             self._init_action_hash_lookup()
             self._init_action_set_xor()
+            self._init_action_hunt()
             # initialize plugin hooks
             self._init_hooks()
             return idaapi.PLUGIN_KEEP
@@ -714,6 +879,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         # unregister our actions & free their resources
         self._del_action_hash_lookup()
         self._del_action_set_xor()
+        self._del_action_hunt()
         # done
         idaapi.msg("%s terminated...\n" % self.wanted_name)
 
@@ -723,7 +889,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
     #--------------------------------------------------------------------------
     ACTION_HASH_LOOKUP  = "hashdb:hash_lookup"
     ACTION_SET_XOR  = "hashdb:set_xor"
-
+    ACTION_HUNT  = "hashdb:hunt"
 
     def _init_action_hash_lookup(self):
         """
@@ -755,6 +921,22 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         # register the action with IDA
         assert idaapi.register_action(action_desc), "Action registration failed"
 
+
+    def _init_action_hunt(self):
+        """
+        Register the hunt action with IDA.
+        """
+        action_desc = idaapi.action_desc_t(
+            self.ACTION_HUNT,         # The action name.
+            "HashDB Hunt Algorithm",                     # The action text.
+            IDACtxEntry(hunt_algorithm),        # The action handler.
+            None,                  # Optional: action shortcut
+            "Identify algorithm based on hash",   # Optional: tooltip
+            HUNT_ICON
+        )
+        # register the action with IDA
+        assert idaapi.register_action(action_desc), "Action registration failed"
+
     
     def _del_action_hash_lookup(self):
         idaapi.unregister_action(self.ACTION_HASH_LOOKUP)
@@ -763,6 +945,9 @@ class HashDB_Plugin_t(idaapi.plugin_t):
     def _del_action_set_xor(self):
         idaapi.unregister_action(self.ACTION_SET_XOR)
 
+
+    def _del_action_hunt(self):
+        idaapi.unregister_action(self.ACTION_HUNT)
     #--------------------------------------------------------------------------
     # Initialize Hooks
     #--------------------------------------------------------------------------
@@ -826,6 +1011,13 @@ class Hooks(idaapi.UI_Hooks):
                 "HashDB set XOR key",
                 idaapi.SETMENU_APP,
             )
+            idaapi.attach_action_to_popup(
+                form,
+                popup,
+                HashDB_Plugin_t.ACTION_HUNT,
+                "HashDB Hunt Algorithm",
+                idaapi.SETMENU_APP,
+            )
 
         # done
         return 0
@@ -859,6 +1051,14 @@ def inject_actions(form, popup, form_type):
             popup,
             HashDB_Plugin_t.ACTION_SET_XOR,
             "HashDB set XOR key",
+            idaapi.SETMENU_APP
+        )
+
+        idaapi.attach_action_to_popup(
+            form,
+            popup,
+            HashDB_Plugin_t.ACTION_HUNT,
+            "HashDB Hunt Algorithm",
             idaapi.SETMENU_APP
         )
 
