@@ -559,17 +559,16 @@ Do you want to import all function hashes from this module?
 #--------------------------------------------------------------------------
 # IDA helper functions
 #--------------------------------------------------------------------------
-def add_enums(hash_list):
+def add_enums(enum_name, hash_list):
     '''
     Add a list of string,hash pairs to enum.
     hash_list = [(string1,hash1),(string2,hash2)]
     '''
-    global ENUM_NAME
     # Create enum
-    enum_id = idc.add_enum(-1, ENUM_NAME, ida_bytes.dec_flag())
+    enum_id = idc.add_enum(-1, enum_name, ida_bytes.dec_flag())
     if enum_id == idaapi.BADNODE:
         # Enum already exists attempt to find it
-        enum_id = ida_enum.get_enum(ENUM_NAME)
+        enum_id = ida_enum.get_enum(enum_name)
     if enum_id == idaapi.BADNODE:
         # Can't create or find enum
         return None
@@ -732,7 +731,7 @@ def hash_lookup():
 
     idaapi.msg("Hash match found: %s\n" % string_value)
     # Add hash to enum
-    enum_id = add_enums([(string_value,hash_value)])
+    enum_id = add_enums(ENUM_NAME, [(string_value,hash_value)])
     # Exit if we can't create the enum
     if enum_id == None:
         idaapi.msg("ERROR: Unable to create or find enum: %s\n" % ENUM_NAME)
@@ -759,7 +758,7 @@ def hash_lookup():
                     else:
                         enum_list.append((function_entry.get('string',{}).get('api',''),function_entry.get('hash',0)))
                 # Add hashes to enum
-                enum_id = add_enums(enum_list)
+                enum_id = add_enums(ENUM_NAME, enum_list)
                 if enum_id == None:
                     idaapi.msg("ERROR: Unable to create or find enum: %s\n" % ENUM_NAME)
                 else:
