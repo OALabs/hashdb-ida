@@ -71,7 +71,7 @@ HASHDB_USE_XOR = False
 HASHDB_XOR_VALUE = 0
 HASHDB_ALGORITHM = None
 ENUM_NAME = "hashdb_strings"
-NETNODE_NAME = "$ hashdb"
+NETNODE_NAME = "$hashdb"
 
 #--------------------------------------------------------------------------
 # Setup Icon
@@ -143,6 +143,28 @@ HUNT_ICON_DATA = b"".join([b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10
                           b'\x13#\x13K\x93\x14\x03\x13 D\x804\xc3d\x03#\xb3T \xcb\xd8\xd4\xc8\xc4\xcc\xc4\x1c',
                           b'\xc4\x07\xcb\x80H\xa0J.\x00\xea\x17\x11t\xf2B5\x95\x00\x00\x00\x00IEND\xaeB`\x82'])
 HUNT_ICON = ida_kernwin.load_custom_icon(data=HUNT_ICON_DATA, format="png")
+SCAN_ICON_DATA = b"".join([b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10\x00\x00\x00\x10\x08\x04\x00\x00',
+                          b'\x00\xb5\xfa7\xea\x00\x00\x00\x04gAMA\x00\x00\xb1\x8f\x0b\xfca\x05\x00\x00\x00 cHRM',
+                          b'\x00\x00z&\x00\x00\x80\x84\x00\x00\xfa\x00\x00\x00\x80\xe8\x00\x00u0\x00\x00\xea`\x00',
+                          b'\x00:\x98\x00\x00\x17p\x9c\xbaQ<\x00\x00\x00\x02bKGD\x00\xff\x87\x8f\xcc\xbf\x00\x00',
+                          b'\x00\tpHYs\x00\x00\x0b\x13\x00\x00\x0b\x13\x01\x00\x9a\x9c\x18\x00\x00\x00\x07tIME\x07',
+                          b'\xe5\n\x08\x17\x1c\x04\xfd*<n\x00\x00\x01#IDAT(\xcfe\xd1\xb1K\xe2\x01\x18\xc6\xf1\x8f',
+                          b'\xf6\xcb\xeb\xd0\x04\xc7 \xa8Ii\x89\xa2\xed~\x16\xc4m\xd6\xbf\xd0\x18\xed\xd1m\x07F-ECK',
+                          b'\xa0K\xc49_\rACk\x10\xdc\x12\x04\x91qR\xd2\xd0PS\xd7\xa0h\x905\xe8\x85\xd9\xf7\x1d\xdfgx',
+                          b'\xdf\xe7K\x9b@\xa8\xa8\xa2aO\x9f.\x02\x90\xb2l\xc9\x80\xb2s\'ZzH)i\xda\x17\x8a\x8b\x89',
+                          b'\xf6\xae\xa3\xd65m\x88\xcbXud\xa57\x12z\xf0[\xc2\xbc\xaa\xbaK?{\x03EO\xa6e\\\xbb\x94',
+                          b'\x93\xfcx"\xfc\xf5GB^MN\xca\x8a\x1f\x86\x0c\xf8\xda\x99\xfe\xc0\xb0s\xcf\xa6T\x9dZ\xb4',
+                          b'\xe5\xc5\x82G-\x11Q-\xd5\xc0g^}1\xe9\x9f\x8aq\x13\x81;#b\xce|\x97\xb5\x8bW\xbf\xcc*)',
+                          b'\xd8q,A\xe1\xfd\xc8\xb2\x9c\xa4\xa49W\xae\xa5\xcdxR t\xdfy\xf3F\xdd\x85\x0bu7\xe6\r:p/',
+                          b'\xec.*-\xef\xd0\xa1\xbc\xb4\x84MMk\xedN\xfeW\x9d\x15\x17\x13\x13\x97u\xa0\xa9$E\xe4\x83',
+                          b'\xac+\xb7\x185\xa6\xa1h\xdbc\xb7\xd5\xb6\xee\x9a\x9a\x8a\xa2o\x1d\xcf\xde\x00\x9fhY\xc0',
+                          b'\x9b\x9d\xab^\x00\x00\x00%tEXtdate:create\x002021-10-08T23:28:04+00:00\xee\x90\xd3~\x00',
+                          b'\x00\x00%tEXtdate:modify\x002021-10-08T23:28:04+00:00\x9f\xcdk\xc2\x00\x00\x00WzTXtRaw ',
+                          b'profile type iptc\x00\x00x\x9c\xe3\xf2\x0c\x08qV((\xcaO\xcb\xccI\xe5R\x00\x03#\x0b.c\x0b',
+                          b'\x13#\x13K\x93\x14\x03\x13 D\x804\xc3d\x03#\xb3T \xcb\xd8\xd4\xc8\xc4\xcc\xc4\x1c\xc4\x07',
+                          b'\xcb\x80H\xa0J.\x00\xea\x17\x11t\xf2B5\x95\x00\x00\x00\x00IEND\xaeB`\x82'])
+SCAN_ICON = ida_kernwin.load_custom_icon(data=SCAN_ICON_DATA, format="png")
+
 
 
 #--------------------------------------------------------------------------
@@ -262,6 +284,32 @@ def save_settings():
 #--------------------------------------------------------------------------
 class hashdb_settings_t(ida_kernwin.Form):
     """Global settings form for hashdb"""
+
+    class algorithm_chooser_t(ida_kernwin.Choose):
+        """
+        A simple chooser to be used as an embedded chooser
+        """
+        def __init__(self, algo_list):
+            ida_kernwin.Choose.__init__(
+                self,
+                "",
+                [
+                    ["Algorithm", 30]
+                ],
+                flags=0,
+                embedded=True,
+                width=30,
+                height=6)
+            self.items = algo_list
+            self.icon = None
+
+        def OnGetLine(self, n):
+            return self.items[n]
+
+        def OnGetSize(self):
+            return len(self.items)
+
+
     def __init__(self, algorithms):
         self.__n = 0
         F = ida_kernwin.Form
@@ -274,17 +322,14 @@ HashDB Settings
 <##API URL          :{iServer}>
 <##Enum Name        :{iEnum}>
 <Enable XOR:{rXor}>{cXorGroup}>  |  <##:{iXor}>(hex)
-<Select algorithm :{cbAlgorithm}><Refresh Algorithms:{iBtnRefresh}>
+<Select algorithm :{cAlgoChooser}><Refresh Algorithms:{iBtnRefresh}>
 
 """, {      'FormChangeCb': F.FormChangeCb(self.OnFormChange),
             'iServer': F.StringInput(),
             'iEnum': F.StringInput(),
             'cXorGroup': F.ChkGroupControl(("rXor",)),
             'iXor': F.NumericInput(tp=F.FT_RAWHEX),
-            'cbAlgorithm': F.DropdownListControl(
-                        items=algorithms,
-                        readonly=True,
-                        selval=0),
+            'cAlgoChooser' : F.EmbeddedChooserControl(hashdb_settings_t.algorithm_chooser_t(algorithms)),
             'iBtnRefresh': F.ButtonInput(self.OnBtnRefresh),
         })
 
@@ -297,8 +342,13 @@ HashDB Settings
             idaapi.msg("ERROR: HashDB API request failed: %s\n" % e)
         finally:
             ida_kernwin.hide_wait_box()
-        self.cbAlgorithm.set_items(algorithms)
-        self.RefreshField(self.cbAlgorithm)
+        # Convert algorithms into matrix
+        sorted_algorithms = sorted(algorithms, key=str.lower)
+        algo_matrix = []
+        for algo in sorted_algorithms:
+            algo_matrix.append([algo])
+        self.cAlgoChooser.chooser.items = algo_matrix
+        self.RefreshField(self.cAlgoChooser)
 
 
     def OnFormChange(self, fid):
@@ -309,14 +359,12 @@ HashDB Settings
                 self.EnableField(self.iXor, True)
             else:
                 self.EnableField(self.iXor, False)
-            self.SetFocusedField(self.cbAlgorithm)
+            self.SetFocusedField(self.cAlgoChooser)
         elif fid == self.cXorGroup.id:
             if self.GetControlValue(self.cXorGroup) == 1:
                 self.EnableField(self.iXor, True)
             else:
                 self.EnableField(self.iXor, False)
-        elif fid == self.cbAlgorithm.id:
-            sel_idx = self.GetControlValue(self.cbAlgorithm)
         else:
             pass
             #print("Unknown fid %r" % fid)
@@ -333,7 +381,12 @@ HashDB Settings
         global HASHDB_XOR_VALUE
         global HASHDB_ALGORITHM
         global ENUM_NAME
-        f = hashdb_settings_t(algorithms)
+        # Convert algorithms into matrix
+        sorted_algorithms = sorted(algorithms, key=str.lower)
+        algo_matrix = []
+        for algo in sorted_algorithms:
+            algo_matrix.append([algo])
+        f = hashdb_settings_t(algo_matrix)
         f, args = f.Compile()
         # Set default values
         f.iServer.value = api_url
@@ -346,16 +399,18 @@ HashDB Settings
         # Show form
         ok = f.Execute()
         if ok == 1:
-            if f.cbAlgorithm.value == -1:
-                # No algorithm selected bail!
-                idaapi.msg("HashDB: No algorithm selected!\n")
-                f.Free()
-                return False
-            HASHDB_ALGORITHM = f.cbAlgorithm[f.cbAlgorithm.value]
+            # Save default settings first
             HASHDB_USE_XOR = f.rXor.checked
             HASHDB_XOR_VALUE = f.iXor.value
             HASHDB_API_URL = f.iServer.value
             ENUM_NAME = f.iEnum.value
+            # Check if algorithm is selected
+            if f.cAlgoChooser.selection == None:
+                # No algorithm selected bail!
+                idaapi.msg("HashDB: No algorithm selected!\n")
+                f.Free()
+                return False
+            HASHDB_ALGORITHM = f.cAlgoChooser.chooser.items[f.cAlgoChooser.selection[0]][0]
             f.Free()
             return True
         else:
@@ -581,15 +636,19 @@ def make_const_enum(enum_id, hash_value):
     # We are in the disassembler we can set the enum directly
     ea = idc.here()
     start = idaapi.get_item_head(ea)
-    # Find the operand position
-    if idc.get_operand_value(ea,0) == hash_value:
-        ida_bytes.op_enum(start, 0, enum_id, 0)
-        return True
-    elif idc.get_operand_value(ea,1) == hash_value:
-        ida_bytes.op_enum(start, 1, enum_id, 0)
-        return True
+    # Determind if this is code or data/undefined
+    if ida_bytes.is_code(ea):
+        # Find the operand position
+        if idc.get_operand_value(ea,0) == hash_value:
+            ida_bytes.op_enum(start, 0, enum_id, 0)
+            return True
+        elif idc.get_operand_value(ea,1) == hash_value:
+            ida_bytes.op_enum(start, 1, enum_id, 0)
+            return True
+        else:
+            return False
     else:
-        return False
+        ida_bytes.op_enum(start, 0, enum_id, 0)
 
 
 #--------------------------------------------------------------------------
@@ -772,6 +831,108 @@ def hash_lookup():
 
 
 #--------------------------------------------------------------------------
+# Dynamic IAT hash scan
+#--------------------------------------------------------------------------
+def hash_scan():
+    """
+    Lookup hash from highlighted text
+    """
+    global HASHDB_API_URL
+    global HASHDB_USE_XOR
+    global HASHDB_XOR_VALUE
+    global HASHDB_ALGORITHM
+    global ENUM_NAME
+    # Only scan for data in the dissassembler
+    if ida_kernwin.get_viewer_place_type(ida_kernwin.get_current_viewer()) != ida_kernwin.TCCPT_IDAPLACE:
+        idaapi.msg("ERROR: Scan only available in dissassembler. \n")
+        return
+    # Get highlighted range
+    start = idc.read_selection_start()
+    end = idc.read_selection_end()
+    if idaapi.BADADDR in (start, end):
+        ea = idc.here()
+        start = idaapi.get_item_head(ea)
+        end = idaapi.get_item_end(ea)
+    # If there is no algorithm give the user a chance to choose one
+    if HASHDB_ALGORITHM == None:
+        warn_result = idaapi.warning("Please select a hash algorithm before using HashDB.")
+        settings_results = hashdb_settings_t.show(api_url=HASHDB_API_URL, 
+                                                  enum_name=ENUM_NAME,
+                                                  use_xor=HASHDB_USE_XOR,
+                                                  xor_value=HASHDB_XOR_VALUE,
+                                                  algorithms=[])
+        if settings_results:
+            idaapi.msg("HashDB configured successfully!\nHASHDB_API_URL: %s\nHASHDB_USE_XOR: %s\nHASHDB_XOR_VALUE: %s\nHASHDB_ALGORITHM: %s\n" % 
+                       (HASHDB_API_URL, HASHDB_USE_XOR, hex(HASHDB_XOR_VALUE), HASHDB_ALGORITHM))
+        else:
+            idaapi.msg("HashDB configuration cancelled!\n")
+            return 
+    try:
+        # Open waiting window
+        ida_kernwin.show_wait_box("HIDECANCEL\nPlease wait...")
+        # Loop through selected range and look up each DWORD
+        ea = start 
+        while ea < end:
+            # Convert data to DWORD for readability
+            ida_bytes.create_dword(ea, 4, 0)
+            hash_value = ida_bytes.get_dword(ea)
+            if HASHDB_USE_XOR:
+                hash_results = get_strings_from_hash(HASHDB_ALGORITHM, hash_value, xor_value=HASHDB_XOR_VALUE, api_url=HASHDB_API_URL)
+            else:
+                hash_results = get_strings_from_hash(HASHDB_ALGORITHM, hash_value, api_url=HASHDB_API_URL)
+            # Extract hash info from results
+            hash_list = hash_results.get('hashes',[])
+            if len(hash_list) == 0:
+                # No hash found 
+                # Increment the counter and continue 
+                ea += 4
+                continue 
+            elif len(hash_list) == 1:
+                hash_string = hash_list[0].get('string',{})
+            else:
+                # Multiple hashes found
+                # Allow the user to select the best match
+                # Hide wait box 
+                ida_kernwin.hide_wait_box()
+                # Open chooser for user to select best match
+                collisions = {}
+                for string_match in hash_list:
+                    string_value = string_match.get('string','')
+                    if string_value.get('is_api',False):
+                        collisions[string_value.get('api','')] = string_value
+                    else:
+                        collisions[string_value.get('string','')] = string_value
+                selected_string = match_select_t.show(list(collisions.keys()))
+                hash_string = collisions[selected_string]
+                # Re-Open waiting window
+                ida_kernwin.show_wait_box("HIDECANCEL\nPlease wait...")
+            # Parse string from hash_string match
+            if hash_string.get('is_api',False):
+                string_value = hash_string.get('api','')
+            else:
+                string_value = hash_string.get('string','')
+            idaapi.msg("Hash match found: %s\n" % string_value)
+            # Add hash to enum
+            enum_id = add_enums(ENUM_NAME, [(string_value,hash_value)])
+            # Exit if we can't create the enum
+            if enum_id == None:
+                idaapi.msg("ERROR: Unable to create or find enum: %s\n" % ENUM_NAME)
+                return
+            # Make DWORD an enum
+            ida_bytes.op_enum(ea, 0, enum_id, 0)
+            # Add a label to the DWORD
+            idc.set_name(ea, "ptr_"+string_value, idc.SN_CHECK)
+            # Move pointer to next DWORD
+            ea += 4
+    except Exception as e:
+        idaapi.msg("HashDB ERROR: %s\n" % e)
+        return
+    finally:
+        ida_kernwin.hide_wait_box()
+    return
+
+
+#--------------------------------------------------------------------------
 # Algorithm search function
 #--------------------------------------------------------------------------
 def hunt_algorithm():
@@ -854,6 +1015,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
             self._init_action_hash_lookup()
             self._init_action_set_xor()
             self._init_action_hunt()
+            self._init_action_iat_scan()
             # initialize plugin hooks
             self._init_hooks()
             return idaapi.PLUGIN_KEEP
@@ -879,6 +1041,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         self._del_action_hash_lookup()
         self._del_action_set_xor()
         self._del_action_hunt()
+        self._del_action_iat_scan()
         # done
         idaapi.msg("%s terminated...\n" % self.wanted_name)
 
@@ -889,6 +1052,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
     ACTION_HASH_LOOKUP  = "hashdb:hash_lookup"
     ACTION_SET_XOR  = "hashdb:set_xor"
     ACTION_HUNT  = "hashdb:hunt"
+    ACTION_IAT_SCAN = "hashdb:iat_scan"
 
     def _init_action_hash_lookup(self):
         """
@@ -936,6 +1100,22 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         # register the action with IDA
         assert idaapi.register_action(action_desc), "Action registration failed"
 
+
+    def _init_action_iat_scan(self):
+        """
+        Register the scan action with IDA.
+        """
+        action_desc = idaapi.action_desc_t(
+            self.ACTION_IAT_SCAN,         # The action name.
+            "HashDB Scan IAT",                     # The action text.
+            IDACtxEntry(hash_scan),        # The action handler.
+            None,                  # Optional: action shortcut
+            "Scan dynamic import address table hashes",   # Optional: tooltip
+            SCAN_ICON
+        )
+        # register the action with IDA
+        assert idaapi.register_action(action_desc), "Action registration failed"
+
     
     def _del_action_hash_lookup(self):
         idaapi.unregister_action(self.ACTION_HASH_LOOKUP)
@@ -947,6 +1127,11 @@ class HashDB_Plugin_t(idaapi.plugin_t):
 
     def _del_action_hunt(self):
         idaapi.unregister_action(self.ACTION_HUNT)
+
+    def _del_action_iat_scan(self):
+        idaapi.unregister_action(self.ACTION_IAT_SCAN)
+
+
     #--------------------------------------------------------------------------
     # Initialize Hooks
     #--------------------------------------------------------------------------
@@ -1017,6 +1202,13 @@ class Hooks(idaapi.UI_Hooks):
                 "HashDB Hunt Algorithm",
                 idaapi.SETMENU_APP,
             )
+            idaapi.attach_action_to_popup(
+                form,
+                popup,
+                HashDB_Plugin_t.ACTION_IAT_SCAN,
+                "HashDB Scan IAT",
+                idaapi.SETMENU_APP,
+            )
 
         # done
         return 0
@@ -1060,6 +1252,14 @@ def inject_actions(form, popup, form_type):
             "HashDB Hunt Algorithm",
             idaapi.SETMENU_APP
         )
+        if form_type != idaapi.BWN_PSEUDOCODE:
+            idaapi.attach_action_to_popup(
+                form,
+                popup,
+                HashDB_Plugin_t.ACTION_IAT_SCAN,
+                "HashDB Scan IAT",
+                idaapi.SETMENU_APP
+            )
 
     # done
     return 0
