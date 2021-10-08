@@ -696,7 +696,7 @@ def set_xor_key():
         idaapi.msg("ERROR: Not a valid xor selection\n")
         return False
     elif ('h' in identifier) or ('0x' in identifier):
-        xor_value = int(identifier.replace('h',''),16)
+        xor_value = int(identifier.replace('h','').replace('u',''),16)
         idaapi.msg("Hex value found %s\n" % hex(xor_value))
     else:
         xor_value = int(identifier)
@@ -731,7 +731,7 @@ def hash_lookup():
         idaapi.msg("ERROR: Not a valid hash selection\n")
         return
     elif ('h' in identifier) or ('0x' in identifier):
-        hash_value = int(identifier.replace('h',''),16)
+        hash_value = int(identifier.replace('h','').replace('u',''),16)
         idaapi.msg("Hex value found %s\n" % hex(hash_value))
     else:
         hash_value = int(identifier)
@@ -950,7 +950,7 @@ def hunt_algorithm():
         idaapi.msg("ERROR: Not a valid hash selection\n")
         return
     elif ('h' in identifier) or ('0x' in identifier):
-        hash_value = int(identifier.replace('h',''),16)
+        hash_value = int(identifier.replace('h','').replace('u',''),16)
         idaapi.msg("Hex value found %s\n" % hex(hash_value))
     else:
         hash_value = int(identifier)
