@@ -59,6 +59,15 @@ All algorithms that contain this hash will be displayed in a chooser box. The ch
 <img width="370" alt="Screen Shot 2021-09-29 at 5 34 31 PM" src="https://user-images.githubusercontent.com/5906222/135352732-4a18ee03-c1f3-4a67-9c80-811121365448.png">
 </p>
 
+### Dynamic Import Address Table Hash Scanning
+Instead of resolving API hashes individually (inline in code) some malware developers will create a block of import hashes in memory. These hashes are then all resolved within a single function creating a dynamic import address table which is later referenced in the code. In these scenarios the **HashDB Scan IAT** function can be used.
+
+<p align="center">
+<img width="800" alt="IAT Scan" src="https://user-images.githubusercontent.com/5906222/136636374-a1cba974-9da7-49fc-b963-f1d3d281b38d.gif">
+</p>
+
+Simply select the import hash block, right-click and choose `HashDB Scan IAT`. HashDB will attempt to resolve each individual DWORD in the selected range.
+
 ## Installing HashDB 
 Before using the plugin you must install the python **requests** module in your IDA environment. The simplest way to do this is to use pip from a shell outside of IDA.  
 `pip install requests`
