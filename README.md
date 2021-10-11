@@ -2,7 +2,7 @@
 <img src="https://user-images.githubusercontent.com/5906222/134734091-5640ba7e-ac08-423e-8e7d-983ffc044a18.gif">
 </p>
 
-[![GitHub release](https://img.shields.io/github/v/release/oalabs/hashdb-ida.svg)](https://github.com/OALabs/hashdb-ida/releases) [![Chat](https://img.shields.io/badge/chat-Discord-blueviolet)](https://discord.gg/cw4U3WHvpn) 
+[![GitHub release](https://img.shields.io/github/v/release/oalabs/hashdb-ida.svg)](https://github.com/OALabs/hashdb-ida/releases) [![Chat](https://img.shields.io/badge/chat-Discord-blueviolet)](https://discord.gg/cw4U3WHvpn) [![Support](https://img.shields.io/badge/Support-Patreon-FF424D)](https://www.patreon.com/oalabs)
 
 # HashDB IDA Plugin
 Malware string hash lookup plugin for IDA Pro. This plugin connects to the OALABS [HashDB Lookup Service](https://hashdb.openanalysis.net). 
