@@ -1007,7 +1007,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
             print(r"  \_| |_/\__,_|___/_| |_|___/ \____/ ")
             print("")                 
             print("\nHashDB v{0} by @herrcore".format(VERSION))
-            print("\nFindYara search shortcut key is {0}".format(PLUGIN_HOTKEY))
+            print("\nHashDB search shortcut key is {0}".format(PLUGIN_HOTKEY))
             print("=" * 80)
             # Load saved settings if they exist
             load_settings()
