@@ -730,8 +730,22 @@ def hash_lookup():
     if identifier == None:
         idaapi.msg("ERROR: Not a valid hash selection\n")
         return
-    elif ('h' in identifier) or ('0x' in identifier):
-        hash_value = int(identifier.replace('h','').replace('u',''),16)
+
+    # 64-bit immediates end with "i64", we need to strip these suffixes to parse the actual value
+    is_hex = False
+    if identifier.endswith('h'): # IDA View
+        identifier = identifier[:-1]
+        is_hex = True
+    else: # Pseudocode
+        if identifier.endswith('ui64'): # unsigned type
+            identifier = identifier[:-4]
+        elif identifier.endswith('i64'):
+            identifier = identifier[:-3]
+        if identifier.startswith('0x'):
+            is_hex = True
+    
+    if is_hex:
+        hash_value = int(identifier,16)
         idaapi.msg("Hex value found %s\n" % hex(hash_value))
     else:
         hash_value = int(identifier)
