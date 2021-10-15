@@ -651,6 +651,44 @@ def make_const_enum(enum_id, hash_value):
         ida_bytes.op_enum(start, 0, enum_id, 0)
 
 
+def parse_highlighted_value(error_message, print = True):
+    identifier = None
+    hash_value = None
+
+    v = ida_kernwin.get_current_viewer()
+    thing = ida_kernwin.get_highlight(v)
+    if thing and thing[1]:
+        identifier = thing[0]
+    if identifier == None:
+        idaapi.msg(error_message)
+        return None
+
+    # 64-bit immediates end with "i64", we need to strip these suffixes to parse the actual value
+    is_hex = False
+    if identifier.endswith('h'): # IDA View
+        identifier = identifier[:-1]
+        is_hex = True
+    else: # Pseudocode
+        if identifier.endswith('ui64'):
+            identifier = identifier[:-4]
+        elif identifier.endswith('i64'):
+            identifier = identifier[:-3]
+        elif identifier.endswith('u'):
+            identifier = identifier[:-1]
+        if identifier.startswith('0x'):
+            is_hex = True
+
+    if is_hex:
+        hash_value = int(identifier,16)
+        if print:
+            idaapi.msg("Hex value found %s\n" % hex(hash_value))
+    else:
+        hash_value = int(identifier)
+        if print:
+            idaapi.msg("Decimal value found %s\n" % hex(hash_value))
+    return hash_value
+
+
 #--------------------------------------------------------------------------
 # Global settings
 #--------------------------------------------------------------------------
@@ -686,21 +724,7 @@ def set_xor_key():
     """
     global HASHDB_USE_XOR
     global HASHDB_XOR_VALUE
-    identifier = None
-    xor_value = None
-    v = ida_kernwin.get_current_viewer()
-    thing = ida_kernwin.get_highlight(v)
-    if thing and thing[1]:
-        identifier = thing[0]
-    if identifier == None:
-        idaapi.msg("ERROR: Not a valid xor selection\n")
-        return False
-    elif ('h' in identifier) or ('0x' in identifier):
-        xor_value = int(identifier.replace('h','').replace('u',''),16)
-        idaapi.msg("Hex value found %s\n" % hex(xor_value))
-    else:
-        xor_value = int(identifier)
-        idaapi.msg("Decimal value found %s\n" % hex(xor_value))
+    xor_value = parse_highlighted_value("ERROR: Not a valid xor selection\n")
     HASHDB_XOR_VALUE = xor_value
     HASHDB_USE_XOR = True
     idaapi.msg("XOR key set: %s\n" % hex(xor_value))
@@ -721,38 +745,7 @@ def hash_lookup():
     global ENUM_NAME
     # If algorithm not selected pop up box to select
     # Lookup hash with algorithm 
-    identifier = None
-    hash_value = None
-    v = ida_kernwin.get_current_viewer()
-    thing = ida_kernwin.get_highlight(v)
-    if thing and thing[1]:
-        identifier = thing[0]
-    if identifier == None:
-        idaapi.msg("ERROR: Not a valid hash selection\n")
-        return
-
-    # 64-bit immediates end with "i64", we need to strip these suffixes to parse the actual value
-    is_hex = False
-    if identifier.endswith('h'): # IDA View
-        identifier = identifier[:-1]
-        is_hex = True
-    else: # Pseudocode
-        if identifier.endswith('ui64'): # unsigned type
-            identifier = identifier[:-4]
-        elif identifier.endswith('i64'):
-            identifier = identifier[:-3]
-        elif identifier.endswith('u'):
-            identifier = identifier[:-1]
-        if identifier.startswith('0x'):
-            is_hex = True
-    
-    if is_hex:
-        hash_value = int(identifier,16)
-        idaapi.msg("Hex value found %s\n" % hex(hash_value))
-    else:
-        hash_value = int(identifier)
-        idaapi.msg("Decimal value found %s\n" % hex(hash_value))
-    
+    hash_value = parse_highlighted_value("ERROR: Not a valid hash selection\n")
     # If there is no algorithm selected pop settings window
     if HASHDB_ALGORITHM == None:
         warn_result = idaapi.warning("Please select a hash algorithm before using HashDB.")
@@ -956,20 +949,7 @@ def hunt_algorithm():
     global HASHDB_USE_XOR
     global HASHDB_XOR_VALUE
     # Get selected hash
-    identifier = None
-    hash_value = None
-    v = ida_kernwin.get_current_viewer()
-    thing = ida_kernwin.get_highlight(v)
-    if thing and thing[1]:
-        identifier = thing[0]
-    if identifier == None:
-        idaapi.msg("ERROR: Not a valid hash selection\n")
-        return
-    elif ('h' in identifier) or ('0x' in identifier):
-        hash_value = int(identifier.replace('h','').replace('u',''),16)
-        idaapi.msg("Hex value found %s\n" % hex(hash_value))
-    else:
-        hash_value = int(identifier)
+    hash_value = parse_highlighted_value("ERROR: Not a valid hash selection\n", False)
     # If xor is set then xor hash first
     if HASHDB_USE_XOR:
         hash_value ^=HASHDB_XOR_VALUE
