@@ -725,6 +725,8 @@ def set_xor_key():
     global HASHDB_USE_XOR
     global HASHDB_XOR_VALUE
     xor_value = parse_highlighted_value("ERROR: Not a valid xor selection\n")
+    if xor_value is None:
+        return False
     HASHDB_XOR_VALUE = xor_value
     HASHDB_USE_XOR = True
     idaapi.msg("XOR key set: %s\n" % hex(xor_value))
@@ -746,6 +748,8 @@ def hash_lookup():
     # If algorithm not selected pop up box to select
     # Lookup hash with algorithm 
     hash_value = parse_highlighted_value("ERROR: Not a valid hash selection\n")
+    if hash_value is None:
+        return
     # If there is no algorithm selected pop settings window
     if HASHDB_ALGORITHM == None:
         warn_result = idaapi.warning("Please select a hash algorithm before using HashDB.")
@@ -950,6 +954,8 @@ def hunt_algorithm():
     global HASHDB_XOR_VALUE
     # Get selected hash
     hash_value = parse_highlighted_value("ERROR: Not a valid hash selection\n", False)
+    if hash_value is None:
+        return
     # If xor is set then xor hash first
     if HASHDB_USE_XOR:
         hash_value ^=HASHDB_XOR_VALUE
