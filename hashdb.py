@@ -741,6 +741,8 @@ def hash_lookup():
             identifier = identifier[:-4]
         elif identifier.endswith('i64'):
             identifier = identifier[:-3]
+        elif identifier.endswith('u'):
+            identifier = identifier[:-1]
         if identifier.startswith('0x'):
             is_hex = True
     
