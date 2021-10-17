@@ -883,12 +883,24 @@ def hash_scan():
     try:
         # Open waiting window
         ida_kernwin.show_wait_box("HIDECANCEL\nPlease wait...")
+        # Hack to determine if we should use QWORDs or DWORDs
+        is_32bit = True 
+        int_size = 4
+        cpu_info = idaapi.get_inf_structure()
+        if cpu_info.is_64bit():
+            is_32bit = False
+            int_size = 8
         # Loop through selected range and look up each DWORD
         ea = start 
         while ea < end:
-            # Convert data to DWORD for readability
-            ida_bytes.create_dword(ea, 4, 0)
-            hash_value = ida_bytes.get_dword(ea)
+            if is_32bit:
+                # Convert data to DWORD for readability
+                ida_bytes.create_dword(ea, 4, 0)
+                hash_value = ida_bytes.get_dword(ea)
+            else:
+                # Convert data to QWORD for readability
+                ida_bytes.create_qword(ea, 8, 0)
+                hash_value = ida_bytes.get_qword(ea)
             if HASHDB_USE_XOR:
                 hash_results = get_strings_from_hash(HASHDB_ALGORITHM, hash_value, xor_value=HASHDB_XOR_VALUE, api_url=HASHDB_API_URL)
             else:
@@ -898,7 +910,7 @@ def hash_scan():
             if len(hash_list) == 0:
                 # No hash found 
                 # Increment the counter and continue 
-                ea += 4
+                ea += int_size
                 continue 
             elif len(hash_list) == 1:
                 hash_string = hash_list[0].get('string',{})
@@ -931,12 +943,12 @@ def hash_scan():
             if enum_id == None:
                 idaapi.msg("ERROR: Unable to create or find enum: %s\n" % ENUM_NAME)
                 return
-            # Make DWORD an enum
+            # Make value an enum
             ida_bytes.op_enum(ea, 0, enum_id, 0)
-            # Add a label to the DWORD
+            # Add a label to the value
             idc.set_name(ea, "ptr_"+string_value, idc.SN_CHECK)
-            # Move pointer to next DWORD
-            ea += 4
+            # Move pointer to next value
+            ea += int_size
     except Exception as e:
         idaapi.msg("HashDB ERROR: %s\n" % e)
         return
