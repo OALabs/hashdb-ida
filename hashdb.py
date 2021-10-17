@@ -70,6 +70,7 @@ HASHDB_API_URL ="https://hashdb.openanalysis.net"
 HASHDB_USE_XOR = False
 HASHDB_XOR_VALUE = 0
 HASHDB_ALGORITHM = None
+HASHDB_ALGORITHM_SIZE = 0
 ENUM_NAME = "hashdb_strings"
 NETNODE_NAME = "$hashdb"
 
@@ -183,7 +184,14 @@ def get_algorithms(api_url='https://hashdb.openanalysis.net'):
     if not r.ok:
         raise HashDBError("Get algorithms API request failed, status %s" % r.status_code)
     results = r.json()
-    algorithms = [a.get('algorithm') for a in results.get('algorithms',[])]
+
+    algorithms = []
+    for algorithm in results.get('algorithms',[]):
+        size = determine_algorithm_size(algorithm.get('type', None))
+        if size == 'Unknown':
+            # TODO: should we raise an exception here?
+            idaapi.msg("ERROR: Unknown algorithm type encountered when fetching algorithms: %s" % size)
+        algorithms.append([algorithm.get('algorithm'), size])
     return algorithms
 
 
@@ -244,8 +252,10 @@ def load_settings():
                 HASHDB_USE_XOR = False
         if bool(node.hashstr("HASHDB_XOR_VALUE")):
             HASHDB_XOR_VALUE = int(node.hashstr("HASHDB_XOR_VALUE"))
-        if bool(node.hashstr("HASHDB_ALGORITHM")):
-            HASHDB_ALGORITHM = node.hashstr("HASHDB_ALGORITHM")
+        if bool(node.hashstr("HASHDB_ALGORITHM")) and bool(node.hashstr("HASHDB_ALGORITHM_SIZE")):
+            successful = set_algorithm(node.hashstr("HASHDB_ALGORITHM"), node.hashstr("HASHDB_ALGORITHM_SIZE"))
+            if not successful:
+                idaapi.msg("HashDB failed to set the algorithm when parsing the saved config!\n")
         if bool(node.hashstr("ENUM_NAME")):
             ENUM_NAME = node.hashstr("ENUM_NAME")
         idaapi.msg("HashDB configuration loaded!\n")
@@ -271,6 +281,8 @@ def save_settings():
             node.hashset_buf("HASHDB_XOR_VALUE", str(HASHDB_XOR_VALUE))
         if HASHDB_ALGORITHM != None:
             node.hashset_buf("HASHDB_ALGORITHM", str(HASHDB_ALGORITHM))
+        if HASHDB_ALGORITHM != None:
+            node.hashset_buf("HASHDB_ALGORITHM_SIZE", str(HASHDB_ALGORITHM_SIZE))
         if ENUM_NAME != None:
             node.hashset_buf("ENUM_NAME", str(ENUM_NAME))
         idaapi.msg("HashDB settings saved\n")
@@ -294,7 +306,8 @@ class hashdb_settings_t(ida_kernwin.Form):
                 self,
                 "",
                 [
-                    ["Algorithm", 30]
+                    ["Algorithm", 15],
+                    ["Size (Bits)", 5]
                 ],
                 flags=0,
                 embedded=True,
@@ -342,12 +355,9 @@ HashDB Settings
             idaapi.msg("ERROR: HashDB API request failed: %s\n" % e)
         finally:
             ida_kernwin.hide_wait_box()
-        # Convert algorithms into matrix
-        sorted_algorithms = sorted(algorithms, key=str.lower)
-        algo_matrix = []
-        for algo in sorted_algorithms:
-            algo_matrix.append([algo])
-        self.cAlgoChooser.chooser.items = algo_matrix
+        # Sort the algorithms by algorithm name (lowercase)
+        sorted_algorithms = sorted(algorithms, key = lambda algorithm: algorithm[0].lower())
+        self.cAlgoChooser.chooser.items = sorted_algorithms
         self.RefreshField(self.cAlgoChooser)
 
 
@@ -381,12 +391,9 @@ HashDB Settings
         global HASHDB_XOR_VALUE
         global HASHDB_ALGORITHM
         global ENUM_NAME
-        # Convert algorithms into matrix
-        sorted_algorithms = sorted(algorithms, key=str.lower)
-        algo_matrix = []
-        for algo in sorted_algorithms:
-            algo_matrix.append([algo])
-        f = hashdb_settings_t(algo_matrix)
+        # Sort the algorithms
+        sorted_algorithms = sorted(algorithms, key = lambda algorithm: algorithm[0].lower())
+        f = hashdb_settings_t(sorted_algorithms)
         f, args = f.Compile()
         # Set default values
         f.iServer.value = api_url
@@ -410,7 +417,9 @@ HashDB Settings
                 idaapi.msg("HashDB: No algorithm selected!\n")
                 f.Free()
                 return False
-            HASHDB_ALGORITHM = f.cAlgoChooser.chooser.items[f.cAlgoChooser.selection[0]][0]
+            # Set the algorithm
+            algorithm = f.cAlgoChooser.chooser.items[f.cAlgoChooser.selection[0]]
+            set_algorithm(algorithm[0], algorithm[1]) # Error messages handled inside of set_algorithm
             f.Free()
             return True
         else:
@@ -487,7 +496,8 @@ class hunt_result_form_t(ida_kernwin.Form):
                 self,
                 "",
                 [
-                    ["Algorithm", 30]
+                    ["Algorithm", 10],
+                    ["Size (Bits)", 5]
                 ],
                 flags=0,
                 embedded=True,
@@ -537,11 +547,7 @@ Matched Algorithms
             f = hunt_result_form_t(algo_list, msg)
         else:
             msg = "The following algorithms contain a matching hash.\nSelect an algorithm to set as the default for HashDB."
-            # Convert algo_list into matrix format for chooser
-            algo_matrix = []
-            for algo in algo_list:
-                algo_matrix.append([algo])
-            f = hunt_result_form_t(algo_matrix, msg)
+            f = hunt_result_form_t(algo_list, msg)
         f, args = f.Compile()
         # Show form
         ok = f.Execute()
@@ -550,7 +556,9 @@ Matched Algorithms
                 # No algorithm selected bail!
                 f.Free()
                 return False
-            HASHDB_ALGORITHM = f.cAlgoChooser.chooser.items[f.cAlgoChooser.selection[0]][0]
+            # Set the algorithm
+            algorithm = f.cAlgoChooser.chooser.items[f.cAlgoChooser.selection[0]]
+            set_algorithm(algorithm[0], algorithm[1]) # Error messages handled inside of set_algorithm
             f.Free()
             return True
         else:
@@ -699,7 +707,7 @@ def global_settings():
     global HASHDB_ALGORITHM
     global ENUM_NAME
     if HASHDB_ALGORITHM != None:
-        algorithms = [HASHDB_ALGORITHM]
+        algorithms = [[HASHDB_ALGORITHM, str(HASHDB_ALGORITHM_SIZE)]]
     else:
         algorithms = []
     settings_results = hashdb_settings_t.show(api_url=HASHDB_API_URL, 
@@ -708,11 +716,57 @@ def global_settings():
                                                   xor_value=HASHDB_XOR_VALUE,
                                                   algorithms=algorithms)
     if settings_results:
-        idaapi.msg("HashDB configured successfully!\nHASHDB_API_URL: %s\nHASHDB_USE_XOR: %s\nHASHDB_XOR_VALUE: %s\nHASHDB_ALGORITHM: %s\n" % 
-                   (HASHDB_API_URL, HASHDB_USE_XOR, hex(HASHDB_XOR_VALUE), HASHDB_ALGORITHM))
+        idaapi.msg("HashDB configured successfully!\nHASHDB_API_URL: %s\nHASHDB_USE_XOR: %s\nHASHDB_XOR_VALUE: %s\nHASHDB_ALGORITHM: %s\nHASHDB_ALGORITHM_SIZE: %s\n" % 
+                   (HASHDB_API_URL, HASHDB_USE_XOR, hex(HASHDB_XOR_VALUE), HASHDB_ALGORITHM, HASHDB_ALGORITHM_SIZE))
     else:
         idaapi.msg("HashDB configuration cancelled!\n")
     return 
+
+
+#--------------------------------------------------------------------------
+# Set the algorithm and its size
+# TODO: we can use Python's type hinting, but I'm unsure if
+#       Sergei/herrcore approves using Py3 features due to
+#       Py2.7 compatibility goals
+#--------------------------------------------------------------------------
+def set_algorithm(algorithm, size):
+    global HASHDB_ALGORITHM
+    global HASHDB_ALGORITHM_SIZE
+
+    # Type checks to prevent accidental errors
+    if not isinstance(algorithm, str):
+        idaapi.msg("HashDB encountered an error while trying to set the algorithm: provided algorithm is a string type: %s\n", algorithm)
+        return False
+    
+    if isinstance(size, str):
+        size = int(size)
+    if not isinstance(size, int):
+        idaapi.msg("HashDB encountered an error while trying to set the algorithm: provided size is not an integer: %s\n" % size)
+        return False
+    
+    # More checks for supported sizes
+    # TODO: should this be moved to the top?
+    supported_algorithm_sizes = [32, 64]
+    if size not in supported_algorithm_sizes or size % 8 != 0:
+        idaapi.msg("HashDB encountered an error while trying to set the algorithm: the size provided was invalid: %s\n" % size)
+        return False
+    
+    # Set the algorithm and size
+    HASHDB_ALGORITHM = algorithm
+    HASHDB_ALGORITHM_SIZE = size
+    return True
+
+
+def determine_algorithm_size(algorithm_type):
+    size = 'Unknown'
+    if algorithm_type is None:
+        return size
+    
+    if algorithm_type == 'unsigned_int':
+        size = '32'
+    elif algorithm_type == 'unsigned_long':
+        size = '64'
+    return size
 
 
 #--------------------------------------------------------------------------
@@ -759,8 +813,8 @@ def hash_lookup():
                                                   xor_value=HASHDB_XOR_VALUE,
                                                   algorithms=[])
         if settings_results:
-            idaapi.msg("HashDB configured successfully!\nHASHDB_API_URL: %s\nHASHDB_USE_XOR: %s\nHASHDB_XOR_VALUE: %s\nHASHDB_ALGORITHM: %s\n" % 
-                       (HASHDB_API_URL, HASHDB_USE_XOR, hex(HASHDB_XOR_VALUE), HASHDB_ALGORITHM))
+            idaapi.msg("HashDB configured successfully!\nHASHDB_API_URL: %s\nHASHDB_USE_XOR: %s\nHASHDB_XOR_VALUE: %s\nHASHDB_ALGORITHM: %s\nHASHDB_ALGORITHM_SIZE: %s\n" % 
+                       (HASHDB_API_URL, HASHDB_USE_XOR, hex(HASHDB_XOR_VALUE), HASHDB_ALGORITHM, HASHDB_ALGORITHM_SIZE))
         else:
             idaapi.msg("HashDB configuration cancelled!\n")
             return 
@@ -801,6 +855,9 @@ def hash_lookup():
     else:
         string_value = hash_string.get('string','')
 
+    # Handle empty string values
+    if not len(string_value):
+        string_value = 'empty_string'
     idaapi.msg("Hash match found: %s\n" % string_value)
     # Add hash to enum
     enum_id = add_enums(ENUM_NAME, [(string_value,hash_value)])
@@ -875,22 +932,24 @@ def hash_scan():
                                                   xor_value=HASHDB_XOR_VALUE,
                                                   algorithms=[])
         if settings_results:
-            idaapi.msg("HashDB configured successfully!\nHASHDB_API_URL: %s\nHASHDB_USE_XOR: %s\nHASHDB_XOR_VALUE: %s\nHASHDB_ALGORITHM: %s\n" % 
-                       (HASHDB_API_URL, HASHDB_USE_XOR, hex(HASHDB_XOR_VALUE), HASHDB_ALGORITHM))
+            idaapi.msg("HashDB configured successfully!\nHASHDB_API_URL: %s\nHASHDB_USE_XOR: %s\nHASHDB_XOR_VALUE: %s\nHASHDB_ALGORITHM: %s\nHASHDB_ALGORITHM_SIZE: %s\n" % 
+                       (HASHDB_API_URL, HASHDB_USE_XOR, hex(HASHDB_XOR_VALUE), HASHDB_ALGORITHM, HASHDB_ALGORITHM_SIZE))
         else:
             idaapi.msg("HashDB configuration cancelled!\n")
             return 
     try:
         # Open waiting window
         ida_kernwin.show_wait_box("HIDECANCEL\nPlease wait...")
-        # Hack to determine if we should use QWORDs or DWORDs
-        is_32bit = True 
-        int_size = 4
-        cpu_info = idaapi.get_inf_structure()
-        if cpu_info.is_64bit():
+        # Determine if we should scan for DWORDs or QWORDs (algorithm size)
+        if HASHDB_ALGORITHM_SIZE == 32:
+            is_32bit = True
+        elif HASHDB_ALGORITHM_SIZE == 64:
             is_32bit = False
-            int_size = 8
-        # Loop through selected range and look up each DWORD
+        else:
+            idaapi.msg("ERROR: Unexpected algorithm size provided.\n")
+            return
+        int_size = HASHDB_ALGORITHM_SIZE / 8 # Assume 8 bits = 1 byte (should be true for all platforms that IDA works on)
+        # Loop through selected range and look up each entry
         ea = start 
         while ea < end:
             if is_32bit:
@@ -936,6 +995,9 @@ def hash_scan():
                 string_value = hash_string.get('api','')
             else:
                 string_value = hash_string.get('string','')
+            # Handle empty string values
+            if not len(string_value):
+                string_value = 'empty_string'
             idaapi.msg("Hash match found: %s\n" % string_value)
             # Add hash to enum
             enum_id = add_enums(ENUM_NAME, [(string_value,hash_value)])
@@ -975,6 +1037,16 @@ def hunt_algorithm():
     try:
         ida_kernwin.show_wait_box("HIDECANCEL\nPlease wait...")
         match_results = hunt_hash(hash_value, api_url=HASHDB_API_URL)
+
+        # TODO: At the moment we have to fetch the algorithms again to determine their sizes
+        #       (the hunt_result_form_t form expects the algorithm name and size)
+        algorithms = get_algorithms()
+        results = []
+        for match in match_results:
+            for algorithm in algorithms:
+                if match == algorithm[0]:
+                    results.append(algorithm)
+                    break
     except Exception as e:
         idaapi.msg("ERROR: HashDB API request failed: %s\n" % e)
         return
@@ -982,7 +1054,7 @@ def hunt_algorithm():
         ida_kernwin.hide_wait_box()
     # Show results chooser
     # Results chooser will set algorithm
-    results = hunt_result_form_t.show(match_results)
+    hunt_result_form_t.show(results)
 
 
 #--------------------------------------------------------------------------
