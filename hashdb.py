@@ -637,7 +637,7 @@ def make_const_enum(enum_id, hash_value):
     ea = idc.here()
     start = idaapi.get_item_head(ea)
     # Determind if this is code or data/undefined
-    if ida_bytes.is_code(ea):
+    if idc.is_code(idc.get_full_flags(ea)):
         # Find the operand position
         if idc.get_operand_value(ea,0) == hash_value:
             ida_bytes.op_enum(start, 0, enum_id, 0)
