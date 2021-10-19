@@ -189,7 +189,6 @@ def get_algorithms(api_url='https://hashdb.openanalysis.net'):
     for algorithm in results.get('algorithms',[]):
         size = determine_algorithm_size(algorithm.get('type', None))
         if size == 'Unknown':
-            # TODO: should we raise an exception here?
             idaapi.msg("ERROR: Unknown algorithm type encountered when fetching algorithms: %s" % size)
         algorithms.append([algorithm.get('algorithm'), size])
     return algorithms
@@ -697,6 +696,63 @@ def parse_highlighted_value(error_message, print = True):
     return hash_value
 
 
+def determine_highlighted_type_size(ea: int) -> int:
+    '''Guess the highlighted type and return the size in bytes.'''
+    type = idaapi.idc_guess_type(ea)
+    if type == '__int64':
+        return 8
+    if type == 'int':
+        return 4
+    if type == '__int16':
+        return 2
+    if type == 'char':
+        return 1
+    # If IDA couldn't guess the type (undefined, etc.) type will be empty
+    return 0
+
+
+def read_integer_from_db(ea: int, default_size: int = 0) -> int:
+    '''
+    Read the highlighted data from the database.
+    Returns: [value, size, was_type_valid]
+    '''
+    type_size = determine_highlighted_type_size(ea)
+    # 64-bit
+    if type_size == 8 or (not type_size and default_size == 8):
+        return [ida_bytes.get_64bit(ea), 8, bool(type_size)]
+    # 32-bit
+    if type_size == 4 or (not type_size and default_size == 4):
+        return [ida_bytes.get_32bit(ea), 4, bool(type_size)]
+    # 16-bit
+    if type_size == 2 or (not type_size and default_size == 2):
+        return [ida_bytes.get_16bit(ea), 2, bool(type_size)]
+    # 8-bit and "undefined" values
+    if type_size == 1 or (not type_size and not default_size) or (not type_size and default_size == 1):
+        return [ida_bytes.get_byte(ea), 1, bool(type_size)]
+
+    # Should never get executed
+    raise HashDBError(f"Failed to read integer from database at location: {hex(ea)} with size {default_size}.")
+
+
+def convert_data_to_integer(ea, size: int = 0) -> int:
+    '''
+    Converts the data into a QWORD, DWORD, WORD, or BYTE based on the size provided
+    '''
+    global HASHDB_ALGORITHM_SIZE
+    if not size:
+        size = int(HASHDB_ALGORITHM_SIZE / 8)
+
+    if size == 8:
+        ida_bytes.create_qword(ea, size, True)
+    elif size == 4:
+        ida_bytes.create_dword(ea, size, True)
+    elif size == 2:
+        ida_bytes.create_word(ea, size, True)
+    elif size == 1:
+        ida_bytes.create_byte(ea, size, True)
+    return size
+
+
 #--------------------------------------------------------------------------
 # Global settings
 #--------------------------------------------------------------------------
@@ -725,11 +781,8 @@ def global_settings():
 
 #--------------------------------------------------------------------------
 # Set the algorithm and its size
-# TODO: we can use Python's type hinting, but I'm unsure if
-#       Sergei/herrcore approves using Py3 features due to
-#       Py2.7 compatibility goals
 #--------------------------------------------------------------------------
-def set_algorithm(algorithm, size):
+def set_algorithm(algorithm: str, size: int) -> bool:
     global HASHDB_ALGORITHM
     global HASHDB_ALGORITHM_SIZE
 
@@ -745,7 +798,6 @@ def set_algorithm(algorithm, size):
         return False
     
     # More checks for supported sizes
-    # TODO: should this be moved to the top?
     supported_algorithm_sizes = [32, 64]
     if size not in supported_algorithm_sizes or size % 8 != 0:
         idaapi.msg("HashDB encountered an error while trying to set the algorithm: the size provided was invalid: %s\n" % size)
@@ -757,7 +809,7 @@ def set_algorithm(algorithm, size):
     return True
 
 
-def determine_algorithm_size(algorithm_type):
+def determine_algorithm_size(algorithm_type: str) -> str:
     size = 'Unknown'
     if algorithm_type is None:
         return size
@@ -902,8 +954,9 @@ def hash_lookup():
 
 #--------------------------------------------------------------------------
 # Dynamic IAT hash scan
+# TODO: convert_values should be fetched from the UI (add a checkbox)
 #--------------------------------------------------------------------------
-def hash_scan():
+def hash_scan(convert_values = True):
     """
     Lookup hash from highlighted text
     """
@@ -940,26 +993,22 @@ def hash_scan():
     try:
         # Open waiting window
         ida_kernwin.show_wait_box("HIDECANCEL\nPlease wait...")
-        # Determine if we should scan for DWORDs or QWORDs (algorithm size)
-        if HASHDB_ALGORITHM_SIZE == 32:
-            is_32bit = True
-        elif HASHDB_ALGORITHM_SIZE == 64:
-            is_32bit = False
-        else:
-            idaapi.msg("ERROR: Unexpected algorithm size provided.\n")
+
+        if not HASHDB_ALGORITHM_SIZE == 32 and not HASHDB_ALGORITHM_SIZE == 64:
+            idaapi.msg(f"ERROR: Unexpected algorithm size provided: {HASHDB_ALGORITHM_SIZE}\n")
             return
-        int_size = int(HASHDB_ALGORITHM_SIZE / 8) # Assume 8 bits = 1 byte (should be true for all platforms that IDA works on)
         # Loop through selected range and look up each entry
         ea = start 
         while ea < end:
-            if is_32bit:
-                # Convert data to DWORD for readability
-                ida_bytes.create_dword(ea, 4, 0)
-                hash_value = ida_bytes.get_dword(ea)
-            else:
-                # Convert data to QWORD for readability
-                ida_bytes.create_qword(ea, 8, 0)
-                hash_value = ida_bytes.get_qword(ea)
+            # Read the hash value and determine the step size:
+            [hash_value, step_size, was_type_valid] = read_integer_from_db(ea)
+
+            # If the type wasn't valid (undefined), convert it in the database
+            #   and modify the hash value and step size accordingly:
+            if convert_values and not was_type_valid:
+                new_step_size = convert_data_to_integer(ea)
+                [hash_value, step_size, was_type_valid] = read_integer_from_db(ea, new_step_size)
+            
             if HASHDB_USE_XOR:
                 hash_results = get_strings_from_hash(HASHDB_ALGORITHM, hash_value, xor_value=HASHDB_XOR_VALUE, api_url=HASHDB_API_URL)
             else:
@@ -969,7 +1018,7 @@ def hash_scan():
             if len(hash_list) == 0:
                 # No hash found 
                 # Increment the counter and continue 
-                ea += int_size
+                ea += step_size
                 continue 
             elif len(hash_list) == 1:
                 hash_string = hash_list[0].get('string',{})
@@ -1010,7 +1059,7 @@ def hash_scan():
             # Add a label to the value
             idc.set_name(ea, "ptr_"+string_value, idc.SN_CHECK)
             # Move pointer to next value
-            ea += int_size
+            ea += step_size
     except Exception as e:
         idaapi.msg("HashDB ERROR: %s\n" % e)
         return
