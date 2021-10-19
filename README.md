@@ -36,7 +36,7 @@ When a new hash is identified by HashDB the hash and its associated string are a
 Once the plugin settings have been configured you can right-click on any constant in the IDA disassembly window and look up the constant as a hash. The right-click also provides a quick way to set the XOR value if needed.
 
 <p align="center">
-    <img width="380" src="/assets/HashDB-Xor_key.png?raw=true">
+    <img width="380" src="/assets/HashDB-Xor_Key.png?raw=true">
 </p>
 
 ### Bulk Import
@@ -66,7 +66,7 @@ Instead of resolving API hashes individually (inline in code) some malware devel
     <img width="800" alt="IAT Scan" src="/assets/HashDB-IAT_Scan.gif?raw=true">
 </p>
 
-Simply select the import hash block, right-click and choose `HashDB Scan IAT`. HashDB will attempt to resolve each individual DWORD in the selected range.
+Simply select the import hash block, right-click and choose `HashDB Scan IAT`. HashDB will attempt to resolve each individual integer type (`DWORD/QWORD`) in the selected range.
 
 ## Installing HashDB 
 Before using the plugin you must install the python **requests** module in your IDA environment. The simplest way to do this is to use pip from a shell outside of IDA.  
