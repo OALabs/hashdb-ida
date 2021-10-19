@@ -948,7 +948,7 @@ def hash_scan():
         else:
             idaapi.msg("ERROR: Unexpected algorithm size provided.\n")
             return
-        int_size = HASHDB_ALGORITHM_SIZE / 8 # Assume 8 bits = 1 byte (should be true for all platforms that IDA works on)
+        int_size = int(HASHDB_ALGORITHM_SIZE / 8) # Assume 8 bits = 1 byte (should be true for all platforms that IDA works on)
         # Loop through selected range and look up each entry
         ea = start 
         while ea < end:
