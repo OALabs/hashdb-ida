@@ -207,6 +207,7 @@ class Worker(Thread):
     """
     # Private variables:
     __timeout: int | float = None
+    __done_callback: Callable | Awaitable = None
     __error_callback: Callable | Awaitable = None
     __target: Callable = None
     __loop: AbstractEventLoop = None
@@ -217,24 +218,38 @@ class Worker(Thread):
         The `__wrapper` method serves as an exception handling wrapper for functions.
          When a `Worker` is sent a `Signal` it handles it.
 
+        If a done callback is provided it will be invoked when the target routine is finished.
+
         If an unexpected exception is thrown from the target/callback, it's raised.
         """
         # Run
         try:
-            self.__target(*args, **kwargs)
+            result = self.__target(*args, **kwargs)
+            # If we have a done callback, invoke it
+            if self.__done_callback is not None:
+                self.__done_callback(result)
         except SystemExit as exception:
             logging.debug(f"Caught an expected exception: [{exception=}]")
+            # Execute the error callback
+            if self.__error_callback is not None:
+                self.__error_callback(exception)
         except Exception as exception:
             logging.critical(f"Caught an unexpected exception: [{exception=}]")
             raise exception
         finally:
             # Decrement the reference count, no longer required
+            if self.__done_callback is not None:
+                del self.__done_callback
+            if self.__error_callback is not None:
+                del self.__error_callback
             del self.__target
 
     def __async_wrapper(self, *args, **kwargs):
         """
         The `__async_wrapper` method serves as an exception handling wrapper for coroutines.
          When a `Worker` is sent a `Signal` it handles it.
+
+        If a done callback is provided it will be invoked when the target routine is finished.
 
         If an unexpected exception is thrown from the target/callback, it's raised.
         """
@@ -245,12 +260,22 @@ class Worker(Thread):
 
         # Wait until the callback is finished
         try:
+            coroutine = None
             # Do we have a defined timeout?
             if self.__timeout:
-                future = asyncio.wait_for(self.__coroutine_target(*args, **kwargs), self.__timeout)
-                loop.run_until_complete(future)
+                coroutine = asyncio.wait_for(self.__coroutine_target(*args, **kwargs), self.__timeout)
             else:
-                loop.run_until_complete(self.__coroutine_target(*args, **kwargs))
+                coroutine = self.__coroutine_target(*args, **kwargs)
+
+            # Wait for the coroutine to finish
+            result = loop.run_until_complete(coroutine)
+
+            # If we have a done callback, invoke it
+            if self.__done_callback is not None:
+                if asyncio.iscoroutinefunction(self.__done_callback):
+                    loop.run_until_complete(self.__done_callback(result))
+                else:
+                    self.__done_callback(result)
         except (CancelledError, TimeoutError, RuntimeError) as exception:
             logging.debug(f"Caught an expected exception: [{exception=}]")
 
@@ -268,23 +293,47 @@ class Worker(Thread):
             # Decrement the reference count, no longer required
             if self.__timeout is not None:
                 del self.__timeout
+            if self.__done_callback is not None:
+                del self.__done_callback
             if self.__error_callback is not None:
                 del self.__error_callback
             del self.__coroutine_target, self.__loop
 
-    def start(self, timeout: int | float = 0,  error_callback: Callable | Awaitable = None):
+    def start(self, timeout: int | float = 0,
+              done_callback: Callable | Awaitable = None,
+              error_callback: Callable | Awaitable = None):
         """
         The `start` method is invoked when we attempt to start a new thread.
         
+        If a done callback is provided, it's invoked after the target is gracefully finished.
+
+        If an error callback is provided, it's invoked if the target throws an expected exception.
+
         If a timeout is provided, and the taget/callback is a coroutine,
          the internal timeout variable is set.
         """
         # Set the timeout (only supported for coroutines)
-        is_coroutine_function = asyncio.iscoroutinefunction(self._target)
-        if is_coroutine_function and timeout:
+        is_target_coroutine = asyncio.iscoroutinefunction(self._target)
+        if is_target_coroutine and timeout:
             self.__timeout = timeout
-        if is_coroutine_function and error_callback is not None:
-            self.__error_callback = error_callback
+
+        # Set the done callback
+        if done_callback is not None:
+            is_callback_coroutine = asyncio.iscoroutinefunction(done_callback)
+            # If the target function is not a coroutine function the callback must not be a coroutine
+            if is_target_coroutine or not is_target_coroutine and not is_callback_coroutine:
+                self.__done_callback = done_callback
+            else:
+                raise TypeError("Type mismatch between the target and done callbacks.")
+
+        # Set the error callback
+        if error_callback is not None:
+            is_callback_coroutine = asyncio.iscoroutinefunction(error_callback)
+            # If the target function is not a coroutine function the callback must not be a coroutine
+            if is_target_coroutine or not is_target_coroutine and not is_callback_coroutine:
+                self.__error_callback = error_callback
+            else:
+                raise TypeError("Type mismatch between the target and error callbacks.")
 
         # Call Thread.start()
         super().start()
@@ -337,7 +386,7 @@ class Worker(Thread):
 
             # Throw an exception in the thread's context
             exception = SystemExit
-            thread_states_modified = ctypes.pythonapi.PyThreadState_SetAsyncExc(threadId, ctypes.py_object(exception))
+            thread_states_modified = ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(threadId), ctypes.py_object(exception))
             if not thread_states_modified:
                 return  # invalid thread id
             if thread_states_modified != 1:
@@ -345,7 +394,7 @@ class Worker(Thread):
 
                 # Clear any pending exception (cleanup)
                 nullptr = 0
-                ctypes.pythonapi.PyThreadState_SetAsyncExc(threadId, nullptr)
+                ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(threadId), nullptr)
             else:
                 logging.debug("Exception set successfully, joining thread.")
                 self.join()
