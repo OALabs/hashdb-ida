@@ -207,6 +207,7 @@ class Worker(Thread):
     """
     # Private variables:
     __timeout: int | float = None
+    __error_callback: Callable | Awaitable = None
     __target: Callable = None
     __loop: AbstractEventLoop = None
     __coroutine_target: Awaitable = None
@@ -252,6 +253,13 @@ class Worker(Thread):
                 loop.run_until_complete(self.__coroutine_target(*args, **kwargs))
         except (CancelledError, TimeoutError, RuntimeError) as exception:
             logging.debug(f"Caught an expected exception: [{exception=}]")
+
+            # Was an error callback set?
+            if self.__error_callback is not None:
+                if asyncio.iscoroutinefunction(self.__error_callback):
+                    loop.run_until_complete(self.__error_callback(exception))
+                else:
+                    self.__error_callback(exception)
         except Exception as exception:
             logging.critical(f"Caught an unexpected exception: [{exception=}]")
             raise exception
@@ -260,9 +268,11 @@ class Worker(Thread):
             # Decrement the reference count, no longer required
             if self.__timeout is not None:
                 del self.__timeout
+            if self.__error_callback is not None:
+                del self.__error_callback
             del self.__coroutine_target, self.__loop
 
-    def start(self, timeout: int | float = 0):
+    def start(self, timeout: int | float = 0,  error_callback: Callable | Awaitable = None):
         """
         The `start` method is invoked when we attempt to start a new thread.
         
@@ -270,8 +280,11 @@ class Worker(Thread):
          the internal timeout variable is set.
         """
         # Set the timeout (only supported for coroutines)
-        if asyncio.iscoroutinefunction(self._target) and timeout:
+        is_coroutine_function = asyncio.iscoroutinefunction(self._target)
+        if is_coroutine_function and timeout:
             self.__timeout = timeout
+        if is_coroutine_function and error_callback is not None:
+            self.__error_callback = error_callback
 
         # Call Thread.start()
         super().start()
