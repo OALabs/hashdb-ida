@@ -46,6 +46,17 @@ import ida_netnode
 import requests
 import json
 
+# These imports are specific to the Worker implementation
+import ctypes
+import logging
+import asyncio
+import threading
+from enum import Enum
+from threading import Thread
+from typing import Awaitable, Callable
+from asyncio.events import AbstractEventLoop
+from asyncio.exceptions import CancelledError, TimeoutError
+
 
 __AUTHOR__ = '@herrcore'
 
@@ -173,6 +184,183 @@ SCAN_ICON = ida_kernwin.load_custom_icon(data=SCAN_ICON_DATA, format="png")
 #--------------------------------------------------------------------------
 class HashDBError(Exception):
     pass
+
+
+#--------------------------------------------------------------------------
+# Worker implementation
+#--------------------------------------------------------------------------
+class Signal(Enum):
+    """
+    The `Signal` class is an `Enum`,
+    which contains all the possible constants
+    used when communicating between threads.
+    """
+    NONE = 0
+    STOP = 1
+
+
+class Worker(Thread):
+    """
+    The `Worker` class represents a custom `Thread` object.
+
+    A `Worker` can have a timeout, where the execution will end abruptly, if its exceeded.
+    """
+    # Private variables:
+    __timeout: int | float = None
+    __target: Callable = None
+    __loop: AbstractEventLoop = None
+    __coroutine_target: Awaitable = None
+
+    def __wrapper(self, *args, **kwargs):
+        """
+        The `__wrapper` method serves as an exception handling wrapper for functions.
+         When a `Worker` is sent a `Signal` it handles it.
+
+        If an unexpected exception is thrown from the target/callback, it's raised.
+        """
+        # Run
+        try:
+            self.__target(*args, **kwargs)
+        except SystemExit as exception:
+            logging.debug(f"Caught an expected exception: [{exception=}]")
+        except Exception as exception:
+            logging.critical(f"Caught an unexpected exception: [{exception=}]")
+            raise exception
+        finally:
+            # Decrement the reference count, no longer required
+            del self.__target
+
+    def __async_wrapper(self, *args, **kwargs):
+        """
+        The `__async_wrapper` method serves as an exception handling wrapper for coroutines.
+         When a `Worker` is sent a `Signal` it handles it.
+
+        If an unexpected exception is thrown from the target/callback, it's raised.
+        """
+        # Setup the loop
+        loop = asyncio.new_event_loop()
+        self.__loop = loop
+        asyncio.set_event_loop(loop)
+
+        # Wait until the callback is finished
+        try:
+            # Do we have a defined timeout?
+            if self.__timeout:
+                future = asyncio.wait_for(self.__coroutine_target(*args, **kwargs), self.__timeout)
+                loop.run_until_complete(future)
+            else:
+                loop.run_until_complete(self.__coroutine_target(*args, **kwargs))
+        except (CancelledError, TimeoutError, RuntimeError) as exception:
+            logging.debug(f"Caught an expected exception: [{exception=}]")
+        except Exception as exception:
+            logging.critical(f"Caught an unexpected exception: [{exception=}]")
+            raise exception
+        finally:
+            loop.close()
+            # Decrement the reference count, no longer required
+            if self.__timeout is not None:
+                del self.__timeout
+            del self.__coroutine_target, self.__loop
+
+    def start(self, timeout: int | float = 0):
+        """
+        The `start` method is invoked when we attempt to start a new thread.
+        
+        If a timeout is provided, and the taget/callback is a coroutine,
+         the internal timeout variable is set.
+        """
+        # Set the timeout (only supported for coroutines)
+        if asyncio.iscoroutinefunction(self._target) and timeout:
+            self.__timeout = timeout
+
+        # Call Thread.start()
+        super().start()
+
+    def run(self):
+        """
+        The `run` method is invoked after the thread is started.
+
+        This is where we setup the wrappers, and call the `Thread.run`.
+        """
+        # Is the target a coroutine?
+        if asyncio.iscoroutinefunction(self._target):
+            # Wrap the target to assure an event loop is created in its context
+            self.__coroutine_target = self._target
+            self._target = self.__async_wrapper
+        else:
+            # Wrap the target to enable catching exceptions for signals
+            self.__target = self._target
+            self._target = self.__wrapper
+        # Call Thread.run()
+        super().run()
+
+    async def signal(self, signal: Signal) -> None:
+        """
+        The `signal` method is used for inter thread communication.
+
+        The thread is sent a signal constant in the form of an exception,
+         which is then handled by its wrapper.
+        """
+        # Is the thread still running?
+        if not self.is_alive():
+            return
+
+        # Are we running a coroutine?
+        if self.__loop is not None and self.__coroutine_target is not None:
+            return await self.__signal_to_coroutine(signal)
+
+        # Is it a valid signal?
+        if signal is Signal.NONE:
+            return
+
+        # Throw an unhandled exception inside of the thread
+        threadId = self.ident
+        if threading._HAVE_THREAD_NATIVE_ID:
+            threadId = self.native_id
+
+        # Handle the signal
+        if signal == Signal.STOP:
+            logging.debug("STOP signal received, stopping the thread and waiting until it's finished.")
+
+            # Throw an exception in the thread's context
+            exception = SystemExit
+            thread_states_modified = ctypes.pythonapi.PyThreadState_SetAsyncExc(threadId, ctypes.py_object(exception))
+            if not thread_states_modified:
+                return  # invalid thread id
+            if thread_states_modified != 1:
+                logging.warn("Exception could not be set successfully, clearing any exception states.")
+
+                # Clear any pending exception (cleanup)
+                nullptr = 0
+                ctypes.pythonapi.PyThreadState_SetAsyncExc(threadId, nullptr)
+            else:
+                logging.debug("Exception set successfully, joining thread.")
+                self.join()
+
+    async def __signal_to_coroutine(self, signal: Signal):
+        """
+        The `signal` method is used for inter thread communication when the
+         target/callback is a coroutine.
+
+        Based on the signal constant, a specific function or method is queued
+         on the thread's event loop.
+        """
+        # Fetch the loop and execute a function
+        loop = self.__loop
+        # Is the loop still running?
+        if not loop.is_running():
+            return
+
+        # Handle the signal
+        if signal is Signal.NONE:
+            return
+        elif signal is Signal.STOP:
+            logging.debug("STOP signal received, stopping the thread and waiting until it's finished.")
+            # Stop the loop and wait for the thread to exit
+            loop.call_soon_threadsafe(loop.stop)
+            self.join()
+            return
+
 
 #--------------------------------------------------------------------------
 # HashDB API 
