@@ -62,7 +62,7 @@ __AUTHOR__ = '@herrcore'
 
 PLUGIN_NAME = "HashDB"
 PLUGIN_HOTKEY = 'Alt+`'
-VERSION = '1.4.0'
+VERSION = '1.5.0'
 
 #--------------------------------------------------------------------------
 # IDA Python version madness
@@ -451,7 +451,14 @@ def get_strings_from_hash(algorithm, hash_value, xor_value=0, api_url='https://h
     if not r.ok:
         raise HashDBError("Get hash API request failed, status %s" % r.status_code)
     results = r.json()
-    return results
+    # Remove null bytes from non-api strings
+    hashes = results.get('hashes',[])
+    out_hashes = []
+    for hash_info in hashes:
+        if not hash_info.get('string',{}).get('is_api',True):
+            hash_info['string']['string'] = hash_info['string']['string'].replace('\x00','')
+        out_hashes.append(hash_info)
+    return {'hashes':out_hashes}
 
 
 def get_module_hashes(module_name, algorithm, permutation, api_url='https://hashdb.openanalysis.net'):
