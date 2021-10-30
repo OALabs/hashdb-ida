@@ -86,6 +86,7 @@ ENUM_NAME = "hashdb_strings"
 NETNODE_NAME = "$hashdb"
 
 # Variables for async operations
+HASHDB_RESPONSE_TIMEOUT = 15 # Limit to 15 seconds
 HASHDB_RESPONSE_LOCK = threading.Lock()
 HASHDB_RESPONSE_CONTAINER = None
 
