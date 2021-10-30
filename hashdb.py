@@ -86,8 +86,8 @@ ENUM_NAME = "hashdb_strings"
 NETNODE_NAME = "$hashdb"
 
 # Variables for async operations
-HASHDB_RESPONSE_TIMEOUT = 15 # Limit to 15 seconds
-HASHDB_RESPONSE_LOCK = threading.Lock()
+HASHDB_REQUEST_TIMEOUT: int | float = 15 # Limit to 15 seconds
+HASHDB_REQUEST_LOCK = threading.Lock()
 HASHDB_RESPONSE_CONTAINER = None
 
 #--------------------------------------------------------------------------
@@ -1333,39 +1333,112 @@ def hash_scan(convert_values = True):
 #--------------------------------------------------------------------------
 # Algorithm search function
 #--------------------------------------------------------------------------
-def hunt_algorithm():
-    global HASHDB_API_URL
-    global HASHDB_USE_XOR
-    global HASHDB_XOR_VALUE
-    # Get selected hash
-    hash_value = parse_highlighted_value("ERROR: Not a valid hash selection\n", False)
-    if hash_value is None:
-        return
-    # If xor is set then xor hash first
-    if HASHDB_USE_XOR:
-        hash_value ^=HASHDB_XOR_VALUE
-    # Hunt for an algorithm
-    try:
-        ida_kernwin.show_wait_box("HIDECANCEL\nPlease wait...")
-        match_results = hunt_hash(hash_value, api_url=HASHDB_API_URL)
+def hunt_algorithm_done(response: None | dict):
+    global HASHDB_RESPONSE_CONTAINER, HASHDB_REQUEST_LOCK
+    logging.debug(f"hunt_algorithm_done callback invoked, result: {'none' if response is None else f'{response}'}")
 
-        # TODO: At the moment we have to fetch the algorithms again to determine their sizes
-        #       (the hunt_result_form_t form expects the algorithm name and size)
-        algorithms = get_algorithms()
-        results = []
-        for match in match_results:
-            for algorithm in algorithms:
-                if match == algorithm[0]:
-                    results.append(algorithm)
-                    break
-    except Exception as e:
-        idaapi.msg("ERROR: HashDB API request failed: %s\n" % e)
+    # Execute the UI code on the main thread
+    if response is not None:
+        HASHDB_RESPONSE_CONTAINER = response
+        ida_kernwin.execute_sync(hunt_algorithm_show_form, ida_kernwin.MFF_FAST)
+    else:
+        # Errored, release the lock
+        HASHDB_REQUEST_LOCK.release()
+
+
+def hunt_algorithm_error(exception: Exception):
+    logging.critical(f"hunt_algorithm_request {'timed out' if type(exception) == TimeoutError else f'errored: {exception=}'}")
+    idaapi.msg(f"ERROR: HashDB hunt algorithm failed: {exception=}\n")
+    HASHDB_REQUEST_LOCK.release()
+
+
+async def hunt_algorithm_request(hash_value: int) -> None | dict:
+    """
+    Perform the actual request, and provide the results to the
+     `hunt_algorithm_done` callback.
+    
+    This function is required to be a coroutine for seamless timeout handling.
+    """
+    global HASHDB_REQUEST_LOCK, HASHDB_API_URL
+
+    # Attempt to find matches
+    match_results = None
+    try:
+        # Send the hunt request
+        match_results = hunt_hash(hash_value, api_url=HASHDB_API_URL)
+    except Exception as exception:
+        idaapi.msg(f"ERROR: HashDB API request failed: {exception=}\n")
+        logging.warn(f"API request to {HASHDB_API_URL} failed: {exception=}")
+        return None
+    
+    # Fix the results (algorithm sizes)
+    # TODO: At the moment we have to fetch the algorithms again to determine their sizes
+    #       (the hunt_result_form_t form expects the algorithm name and size)
+    algorithms = get_algorithms()
+    results = []
+    for match in match_results:
+        for algorithm in algorithms:
+            if match == algorithm[0]:
+                results.append(algorithm)
+                break
+    
+    # Return the results
+    return results
+
+
+def hunt_algorithm_run(timeout: int | float = 0):
+    global HASHDB_REQUEST_LOCK, HASHDB_USE_XOR, HASHDB_XOR_VALUE
+    
+    # Get the selected hash value
+    hash_value = parse_highlighted_value(error_message="ERROR: Not a valid hash selection\n", print=False)
+    if hash_value is None:
+        logging.warn("Failed to parse a hash value from the highligted text.")
+        # Release the lock
+        HASHDB_REQUEST_LOCK.release()
         return
-    finally:
-        ida_kernwin.hide_wait_box()
-    # Show results chooser
-    # Results chooser will set algorithm
-    hunt_result_form_t.show(results)
+    
+    # Xor option
+    if HASHDB_USE_XOR:
+        hash_value ^= HASHDB_XOR_VALUE
+
+    # Hunt the algorithm and show the hunt result form
+    worker = Worker(target=hunt_algorithm_request, args=(hash_value,))
+    worker.start(timeout=timeout, done_callback=hunt_algorithm_done, error_callback=hunt_algorithm_error)
+
+
+def hunt_algorithm_show_form():
+    global HASHDB_RESPONSE_CONTAINER, HASHDB_REQUEST_LOCK
+
+    # Display the result
+    logging.debug("Displaying hash_result_form_t.")
+    hunt_result_form_t.show(HASHDB_RESPONSE_CONTAINER)
+    
+    HASHDB_RESPONSE_CONTAINER = None
+
+    # Release the lock
+    HASHDB_REQUEST_LOCK.release()
+
+
+def hunt_algorithm():
+    """
+    Search for an algorithm using a hash value.
+
+    The function will spawn a new thread with a timeout (`HASHDB_REQUEST_TIMEOUT`).
+     While executing, the request lock is acquired.
+    """
+    # Check if we're already running a request
+    global HASHDB_REQUEST_LOCK, HASHDB_REQUEST_TIMEOUT
+    timeout_string = f"{HASHDB_REQUEST_TIMEOUT} second{'s' if HASHDB_REQUEST_TIMEOUT > 1 else ''}"
+    if HASHDB_REQUEST_LOCK.locked():
+        logging.debug("An async operation was requested, but the response lock was locked. Aborting.")
+        ida_kernwin.info("Please wait until the previous request is finished.\n"
+                        f"Requests timeout after {timeout_string}.")
+        return
+
+    # Acquire the lock and execute the request
+    HASHDB_REQUEST_LOCK.acquire()
+    idaapi.msg(f"HashDB: Hunting for a hash algorithm, please wait! Timeout: {timeout_string}.")
+    hunt_algorithm_run(timeout=HASHDB_REQUEST_TIMEOUT)
 
 
 #--------------------------------------------------------------------------
