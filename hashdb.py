@@ -433,9 +433,14 @@ class Worker(Thread):
 # HashDB API 
 #--------------------------------------------------------------------------
 
-def get_algorithms(api_url='https://hashdb.openanalysis.net'):
+def get_algorithms(api_url='https://hashdb.openanalysis.net', timeout=None):
+    # Handle an empty timeout
+    global HASHDB_REQUEST_TIMEOUT
+    if timeout is None:
+        timeout = HASHDB_REQUEST_TIMEOUT
+
     algorithms_url = api_url + '/hash'
-    r = requests.get(algorithms_url)
+    r = requests.get(algorithms_url, timeout=timeout)
     if not r.ok:
         raise HashDBError("Get algorithms API request failed, status %s" % r.status_code)
     results = r.json()
@@ -449,10 +454,15 @@ def get_algorithms(api_url='https://hashdb.openanalysis.net'):
     return algorithms
 
 
-def get_strings_from_hash(algorithm, hash_value, xor_value=0, api_url='https://hashdb.openanalysis.net'):
+def get_strings_from_hash(algorithm, hash_value, xor_value=0, api_url='https://hashdb.openanalysis.net', timeout=None):
+    # Handle an empty timeout
+    global HASHDB_REQUEST_TIMEOUT
+    if timeout is None:
+        timeout = HASHDB_REQUEST_TIMEOUT
+
     hash_value ^= xor_value
     hash_url = api_url + '/hash/%s/%d' % (algorithm, hash_value)
-    r = requests.get(hash_url)
+    r = requests.get(hash_url, timeout=timeout)
     if not r.ok:
         raise HashDBError("Get hash API request failed, status %s" % r.status_code)
     results = r.json()
@@ -466,20 +476,30 @@ def get_strings_from_hash(algorithm, hash_value, xor_value=0, api_url='https://h
     return {'hashes':out_hashes}
 
 
-def get_module_hashes(module_name, algorithm, permutation, api_url='https://hashdb.openanalysis.net'):
+def get_module_hashes(module_name, algorithm, permutation, api_url='https://hashdb.openanalysis.net', timeout=None):
+    # Handle an empty timeout
+    global HASHDB_REQUEST_TIMEOUT
+    if timeout is None:
+        timeout = HASHDB_REQUEST_TIMEOUT
+    
     module_url = api_url + '/module/%s/%s/%s' % (module_name, algorithm, permutation)
-    r = requests.get(module_url)
+    r = requests.get(module_url, timeout=timeout)
     if not r.ok:
         raise HashDBError("Get hash API request failed, status %s" % r.status_code)
     results = r.json()
     return results
 
 
-def hunt_hash(hash_value, api_url='https://hashdb.openanalysis.net'):
+def hunt_hash(hash_value, api_url='https://hashdb.openanalysis.net', timeout = None):
+    # Handle an empty timeout
+    global HASHDB_REQUEST_TIMEOUT
+    if timeout is None:
+        timeout = HASHDB_REQUEST_TIMEOUT
+    
     matches = []
     hash_list = [hash_value]
     module_url = api_url + '/hunt'
-    r = requests.post(module_url, json={"hashes": hash_list})
+    r = requests.post(module_url, json={"hashes": hash_list}, timeout=timeout)
     if not r.ok:
         print(module_url)
         print(hash_list)
@@ -1351,7 +1371,7 @@ def hunt_algorithm_error(exception: Exception):
     HASHDB_REQUEST_LOCK.release()
 
 
-async def hunt_algorithm_request(hash_value: int) -> None | dict:
+async def hunt_algorithm_request(hash_value: int, timeout=None) -> None | dict:
     """
     Perform the actual request, and provide the results to the
      `hunt_algorithm_done` callback.
@@ -1364,16 +1384,23 @@ async def hunt_algorithm_request(hash_value: int) -> None | dict:
     match_results = None
     try:
         # Send the hunt request
-        match_results = hunt_hash(hash_value, api_url=HASHDB_API_URL)
-    except Exception as exception:
-        idaapi.msg(f"ERROR: HashDB API request failed: {exception=}\n")
-        logging.warn(f"API request to {HASHDB_API_URL} failed: {exception=}")
+        match_results = hunt_hash(hash_value, api_url=HASHDB_API_URL, timeout=timeout)
+    except requests.exceptions.Timeout as exception:
+        idaapi.msg(f"ERROR: HashDB API hunt hash request timed out.\n")
+        logging.warn(f"API request to {HASHDB_API_URL} timed out: {exception=}")
         return None
     
     # Fix the results (algorithm sizes)
     # TODO: At the moment we have to fetch the algorithms again to determine their sizes
     #       (the hunt_result_form_t form expects the algorithm name and size)
-    algorithms = get_algorithms()
+    algorithms = None
+    try:
+        # Send the hunt request
+        algorithms = get_algorithms(timeout=timeout)
+    except requests.exceptions.Timeout as exception:
+        idaapi.msg(f"ERROR: HashDB API algorithms request timed out.\n")
+        logging.warn(f"API request to {HASHDB_API_URL} timed out: {exception=}")
+        return None
     results = []
     for match in match_results:
         for algorithm in algorithms:
@@ -1401,7 +1428,7 @@ def hunt_algorithm_run(timeout: int | float = 0):
         hash_value ^= HASHDB_XOR_VALUE
 
     # Hunt the algorithm and show the hunt result form
-    worker = Worker(target=hunt_algorithm_request, args=(hash_value,))
+    worker = Worker(target=hunt_algorithm_request, args=(hash_value, timeout))
     worker.start(timeout=timeout, done_callback=hunt_algorithm_done, error_callback=hunt_algorithm_error)
 
 
