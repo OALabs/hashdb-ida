@@ -45,6 +45,7 @@ import ida_bytes
 import ida_netnode
 import requests
 import json
+import functools
 
 # These imports are specific to the Worker implementation
 import ctypes
@@ -88,7 +89,6 @@ NETNODE_NAME = "$hashdb"
 # Variables for async operations
 HASHDB_REQUEST_TIMEOUT: int | float = 15 # Limit to 15 seconds
 HASHDB_REQUEST_LOCK = threading.Lock()
-HASHDB_RESPONSE_CONTAINER = None
 
 #--------------------------------------------------------------------------
 # Setup Icon
@@ -1334,13 +1334,12 @@ def hash_scan(convert_values = True):
 # Algorithm search function
 #--------------------------------------------------------------------------
 def hunt_algorithm_done(response: None | dict):
-    global HASHDB_RESPONSE_CONTAINER, HASHDB_REQUEST_LOCK
+    global HASHDB_REQUEST_LOCK
     logging.debug(f"hunt_algorithm_done callback invoked, result: {'none' if response is None else f'{response}'}")
 
     # Execute the UI code on the main thread
     if response is not None:
-        HASHDB_RESPONSE_CONTAINER = response
-        ida_kernwin.execute_sync(hunt_algorithm_show_form, ida_kernwin.MFF_FAST)
+        ida_kernwin.execute_sync(functools.partial(hunt_algorithm_show_form, response), ida_kernwin.MFF_FAST)
     else:
         # Errored, release the lock
         HASHDB_REQUEST_LOCK.release()
@@ -1406,14 +1405,12 @@ def hunt_algorithm_run(timeout: int | float = 0):
     worker.start(timeout=timeout, done_callback=hunt_algorithm_done, error_callback=hunt_algorithm_error)
 
 
-def hunt_algorithm_show_form():
-    global HASHDB_RESPONSE_CONTAINER, HASHDB_REQUEST_LOCK
+def hunt_algorithm_show_form(data: dict):
+    global HASHDB_REQUEST_LOCK
 
     # Display the result
     logging.debug("Displaying hash_result_form_t.")
-    hunt_result_form_t.show(HASHDB_RESPONSE_CONTAINER)
-    
-    HASHDB_RESPONSE_CONTAINER = None
+    hunt_result_form_t.show(data)
 
     # Release the lock
     HASHDB_REQUEST_LOCK.release()
@@ -1428,7 +1425,7 @@ def hunt_algorithm():
     """
     # Check if we're already running a request
     global HASHDB_REQUEST_LOCK, HASHDB_REQUEST_TIMEOUT
-    timeout_string = f"{HASHDB_REQUEST_TIMEOUT} second{'s' if HASHDB_REQUEST_TIMEOUT > 1 else ''}"
+    timeout_string = f"{HASHDB_REQUEST_TIMEOUT} second{'s' if HASHDB_REQUEST_TIMEOUT != 1 else ''}"
     if HASHDB_REQUEST_LOCK.locked():
         logging.debug("An async operation was requested, but the response lock was locked. Aborting.")
         ida_kernwin.info("Please wait until the previous request is finished.\n"
