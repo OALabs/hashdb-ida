@@ -1133,11 +1133,10 @@ def set_xor_key():
 #--------------------------------------------------------------------------
 def hash_lookup_done_handler(hash_list: None | dict[str, list], hash_value: int = None):
     global ENUM_NAME
-    def add_enums_wrapper(enum_id, enum_name, hash_list):
-        result = add_enums(enum_name, hash_list)
-        if result is not None:
-            enum_id.append(result)
-        return 0
+    def add_enums_wrapper(enum_name, hash_list):
+        add_enums_wrapper.result = add_enums(enum_name, hash_list)
+        return 0 # execute_sync dictates an int return value
+    add_enums_wrapper.result = None
     
     if hash_list is None or hash_value is None:
         return
@@ -1158,18 +1157,17 @@ def hash_lookup_done_handler(hash_list: None | dict[str, list], hash_value: int 
                 collisions[string_value.get("string", "")] = string_value
         
         # Execute the match_select_t form on the main thread
-        selected_string = []
-        def match_select_show(selected_string, collision_strings):
-            result = match_select_t.show(collision_strings)
-            if result is not None:
-                selected_string.append(result)
+        def match_select_show(collision_strings):
+            match_select_show.result = match_select_t.show(collision_strings)
             return 0 # execute_sync dictates an int return value
-        match_select_callable = functools.partial(match_select_show, selected_string, [*collisions.keys()])
+        match_select_show.result = None
+
+        match_select_callable = functools.partial(match_select_show, [*collisions.keys()])
         ida_kernwin.execute_sync(match_select_callable, ida_kernwin.MFF_FAST)
-        if not len(selected_string):
+        selected_string = match_select_show.result
+        if selected_string is None:
             return
-        else:
-            selected_string = selected_string[0]
+        
         hash_string = collisions[selected_string]
     
     # Parse the string from the hash_string match
@@ -1187,14 +1185,12 @@ def hash_lookup_done_handler(hash_list: None | dict[str, list], hash_value: int 
     idaapi.msg(f"HashDB: Hash match found: {string_value}\n")
 
     # Add the hash to the global enum, and exit if we can't create it
-    enum_id = []
-    add_enums_callable = functools.partial(add_enums_wrapper, enum_id, ENUM_NAME, [(string_value, hash_value)])
+    add_enums_callable = functools.partial(add_enums_wrapper, ENUM_NAME, [(string_value, hash_value)])
     ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
-    if not len(enum_id):
+    enum_id = add_enums_wrapper.result
+    if enum_id is None:
         idaapi.msg(f"ERROR: Unable to create or find enum: {ENUM_NAME}\n")
         return
-    else:
-        enum_id = enum_id[0]
     
     # If the hash was pulled from the disassembly window
     # make the constant an enum 
@@ -1211,19 +1207,16 @@ def hash_lookup_done_handler(hash_list: None | dict[str, list], hash_value: int 
         return
 
     # Execute the api_import_select_t form on the main thread
-    module_name = []
-    def api_import_select_show(module_name, string_value, module_list) -> int:
-        result = api_import_select_t.show(string_value, module_list)
-        if result is not None:
-            module_name.append(result)
+    def api_import_select_show(string_value, module_list) -> int:
+        api_import_select_show.result = api_import_select_t.show(string_value, module_list)
         return 0 # execute_sync dictates an int return value
-    api_import_select_callable = functools.partial(api_import_select_show, module_name, string_value, hash_string.get("modules", []))
+    api_import_select_show.result = None
+
+    api_import_select_callable = functools.partial(api_import_select_show, string_value, hash_string.get("modules", []))
     ida_kernwin.execute_sync(api_import_select_callable, ida_kernwin.MFF_FAST)
-    # To get the return value we have to use a bind a list to the arguments, so we can modify it within the callback
-    if not len(module_name):
+    module_name = api_import_select_show.result
+    if module_name is None:
         return
-    else:
-        module_name = module_name[0]
 
     # Import all of the hashes from the module and permutation
     module_hash_list = None
@@ -1244,10 +1237,10 @@ def hash_lookup_done_handler(hash_list: None | dict[str, list], hash_value: int 
                           hash ^ HASHDB_XOR_VALUE if HASHDB_USE_XOR else hash))
     
     # Add hashes to enum
-    enum_id = []
-    add_enums_callable = functools.partial(add_enums_wrapper, enum_id, ENUM_NAME, enum_list)
+    add_enums_callable = functools.partial(add_enums_wrapper, ENUM_NAME, enum_list)
     ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
-    if not len(enum_id):
+    enum_id = add_enums_wrapper.result
+    if enum_id is None:
         idaapi.msg(f"ERROR: Unable to create or find enum: {ENUM_NAME}\n")
     else:
         idaapi.msg(f"Added {len(enum_list)} hashes for module {module_name}\n")
