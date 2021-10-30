@@ -1131,114 +1131,218 @@ def set_xor_key():
 #--------------------------------------------------------------------------
 # Hash lookup
 #--------------------------------------------------------------------------
-def hash_lookup():
-    """
-    Lookup hash from highlighted text
-    """
-    global HASHDB_API_URL
-    global HASHDB_USE_XOR
-    global HASHDB_XOR_VALUE
-    global HASHDB_ALGORITHM
+def hash_lookup_done_handler(hash_list: None | dict[str, list], hash_value: int = None):
     global ENUM_NAME
-    # If algorithm not selected pop up box to select
-    # Lookup hash with algorithm 
-    hash_value = parse_highlighted_value("ERROR: Not a valid hash selection\n")
-    if hash_value is None:
+    def add_enums_wrapper(enum_id, enum_name, hash_list):
+        result = add_enums(enum_name, hash_list)
+        if result is not None:
+            enum_id.append(result)
+        return 0
+    
+    if hash_list is None or hash_value is None:
         return
-    # If there is no algorithm selected pop settings window
-    if HASHDB_ALGORITHM == None:
-        warn_result = idaapi.warning("Please select a hash algorithm before using HashDB.")
-        settings_results = hashdb_settings_t.show(api_url=HASHDB_API_URL, 
-                                                  enum_name=ENUM_NAME,
-                                                  use_xor=HASHDB_USE_XOR,
-                                                  xor_value=HASHDB_XOR_VALUE,
-                                                  algorithms=[])
-        if settings_results:
-            idaapi.msg("HashDB configured successfully!\nHASHDB_API_URL: %s\nHASHDB_USE_XOR: %s\nHASHDB_XOR_VALUE: %s\nHASHDB_ALGORITHM: %s\nHASHDB_ALGORITHM_SIZE: %s\n" % 
-                       (HASHDB_API_URL, HASHDB_USE_XOR, hex(HASHDB_XOR_VALUE), HASHDB_ALGORITHM, HASHDB_ALGORITHM_SIZE))
-        else:
-            idaapi.msg("HashDB configuration cancelled!\n")
-            return 
-    # Lookup hash
-    try:
-        ida_kernwin.show_wait_box("HIDECANCEL\nPlease wait...")
-        if HASHDB_USE_XOR:
-            hash_results = get_strings_from_hash(HASHDB_ALGORITHM, hash_value, xor_value=HASHDB_XOR_VALUE, api_url=HASHDB_API_URL)
-        else:
-            hash_results = get_strings_from_hash(HASHDB_ALGORITHM, hash_value, api_url=HASHDB_API_URL)
-    except Exception as e:
-        idaapi.msg("ERROR: HashDB API request failed: %s\n" % e)
-        return
-    finally:
-        ida_kernwin.hide_wait_box()
-    hash_list = hash_results.get('hashes',[])
-    if len(hash_list) == 0:
-        idaapi.msg("No Hash found for %s\n" % hex(hash_value))
-        return
-    elif len(hash_list) == 1:
-        hash_string = hash_list[0].get('string',{})
+
+    # Parse the hash list
+    hash_string = None
+    if len(hash_list) == 1:
+        hash_string = hash_list[0].get("string", {})
     else:
-        # Multiple hashes found
-        # Allow the user to select the best match
+        # Multiple hashes found, allow the user to
+        #  select the best match
         collisions = {}
         for string_match in hash_list:
-            string_value = string_match.get('string','')
-            if string_value.get('is_api',False):
-                collisions[string_value.get('api','')] = string_value
+            string_value = string_match.get("string", "")
+            if string_value.get('is_api', False):
+                collisions[string_value.get("api", "")] = string_value
             else:
-                collisions[string_value.get('string','')] = string_value
-        selected_string = match_select_t.show(list(collisions.keys()))
+                collisions[string_value.get("string", "")] = string_value
+        
+        # Execute the match_select_t form on the main thread
+        selected_string = []
+        def match_select_show(selected_string, collision_strings):
+            result = match_select_t.show(collision_strings)
+            if result is not None:
+                selected_string.append(result)
+            return 0 # execute_sync dictates an int return value
+        match_select_callable = functools.partial(match_select_show, selected_string, [*collisions.keys()])
+        ida_kernwin.execute_sync(match_select_callable, ida_kernwin.MFF_FAST)
+        if not len(selected_string):
+            return
+        else:
+            selected_string = selected_string[0]
         hash_string = collisions[selected_string]
-
-    # Parse string from hash_string match
-    if hash_string.get('is_api',False):
-        string_value = hash_string.get('api','')
+    
+    # Parse the string from the hash_string match
+    string_value = ""
+    if hash_string.get("is_api", False):
+        string_value = hash_string.get("api", "")
     else:
-        string_value = hash_string.get('string','')
+        string_value = hash_string.get("string", "")
 
     # Handle empty string values
     if not len(string_value):
-        string_value = 'empty_string'
-    idaapi.msg("Hash match found: %s\n" % string_value)
-    # Add hash to enum
-    enum_id = add_enums(ENUM_NAME, [(string_value,hash_value)])
-    # Exit if we can't create the enum
-    if enum_id == None:
-        idaapi.msg("ERROR: Unable to create or find enum: %s\n" % ENUM_NAME)
+        string_value = "empty_string"
+
+    # Hash found!
+    idaapi.msg(f"HashDB: Hash match found: {string_value}\n")
+
+    # Add the hash to the global enum, and exit if we can't create it
+    enum_id = []
+    add_enums_callable = functools.partial(add_enums_wrapper, enum_id, ENUM_NAME, [(string_value, hash_value)])
+    ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
+    if not len(enum_id):
+        idaapi.msg(f"ERROR: Unable to create or find enum: {ENUM_NAME}\n")
         return
+    else:
+        enum_id = enum_id[0]
+    
     # If the hash was pulled from the disassembly window
     # make the constant an enum 
     # TODO: I don't know how to do this in the decompiler window
-    if ida_kernwin.get_viewer_place_type(ida_kernwin.get_current_viewer()) == ida_kernwin.TCCPT_IDAPLACE:
-        make_const_enum(enum_id, hash_value)
-    if hash_string.get('is_api',False):
-        # If the hash is an API ask if the user wants to 
-        # import all of the hashes from the module and permutation
-        module_name = api_import_select_t.show(string_value, hash_string.get('modules',[]))
-        if module_name != None:
-            try:
-                ida_kernwin.show_wait_box("HIDECANCEL\nPlease wait...")
-                module_hash_list = get_module_hashes(module_name, HASHDB_ALGORITHM, hash_string.get('permutation',''), api_url=HASHDB_API_URL)
-                # Parse hash and string from list into tuple list [(string,hash)]
-                enum_list = []
-                for function_entry in module_hash_list.get('hashes',[]):
-                    # If xor is enabled we must convert the hashes
-                    if HASHDB_USE_XOR:
-                        enum_list.append((function_entry.get('string',{}).get('api',''),HASHDB_XOR_VALUE^function_entry.get('hash',0)))
-                    else:
-                        enum_list.append((function_entry.get('string',{}).get('api',''),function_entry.get('hash',0)))
-                # Add hashes to enum
-                enum_id = add_enums(ENUM_NAME, enum_list)
-                if enum_id == None:
-                    idaapi.msg("ERROR: Unable to create or find enum: %s\n" % ENUM_NAME)
-                else:
-                    idaapi.msg("Added %d hashes for module %s\n" % (len(enum_list),module_name))
-            except Exception as e:
-                idaapi.msg("ERROR: HashDB build load failed: %s\n" % e)
-                return
-            finally:
-                ida_kernwin.hide_wait_box()
-    return 
+    def make_const_enum_wrapper(enum_id, hash_value):
+        if ida_kernwin.get_viewer_place_type(ida_kernwin.get_current_viewer()) == ida_kernwin.TCCPT_IDAPLACE:
+            make_const_enum(enum_id, hash_value)
+        return 0 # execute_sync dictates an int return value
+    make_const_enum_wrapper_callable = functools.partial(make_const_enum_wrapper, enum_id, hash_value)
+    ida_kernwin.execute_sync(make_const_enum_wrapper_callable, ida_kernwin.MFF_FAST)
+
+    # Handle API hashes
+    if not hash_string.get("is_api", False):
+        return
+
+    # Execute the api_import_select_t form on the main thread
+    module_name = []
+    def api_import_select_show(module_name, string_value, module_list) -> int:
+        result = api_import_select_t.show(string_value, module_list)
+        if result is not None:
+            module_name.append(result)
+        return 0 # execute_sync dictates an int return value
+    api_import_select_callable = functools.partial(api_import_select_show, module_name, string_value, hash_string.get("modules", []))
+    ida_kernwin.execute_sync(api_import_select_callable, ida_kernwin.MFF_FAST)
+    # To get the return value we have to use a bind a list to the arguments, so we can modify it within the callback
+    if not len(module_name):
+        return
+    else:
+        module_name = module_name[0]
+
+    # Import all of the hashes from the module and permutation
+    module_hash_list = None
+    try:
+        global HASHDB_ALGORITHM, HASHDB_API_URL, HASHDB_REQUEST_TIMEOUT
+        module_hash_list = get_module_hashes(module_name, HASHDB_ALGORITHM, hash_string.get("permutation", ""), HASHDB_API_URL, timeout=HASHDB_REQUEST_TIMEOUT)
+    except requests.Timeout as exception:
+        idaapi.msg(f"ERROR: HashDB API module hashes request timed out.\n")
+        logging.warn(f"API request to {HASHDB_API_URL} timed out: {exception=}")
+        return
+
+    # Add the hash list to the global enum
+    global HASHDB_USE_XOR, HASHDB_XOR_VALUE
+    enum_list = []
+    for function_entry in module_hash_list.get("hashes", []):
+        hash = function_entry.get("hash", 0)
+        enum_list.append((function_entry.get("string", {}).get("api", ""),
+                          hash ^ HASHDB_XOR_VALUE if HASHDB_USE_XOR else hash))
+    
+    # Add hashes to enum
+    enum_id = []
+    add_enums_callable = functools.partial(add_enums_wrapper, enum_id, ENUM_NAME, enum_list)
+    ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
+    if not len(enum_id):
+        idaapi.msg(f"ERROR: Unable to create or find enum: {ENUM_NAME}\n")
+    else:
+        idaapi.msg(f"Added {len(enum_list)} hashes for module {module_name}\n")
+
+
+def hash_lookup_done(hash_list: None | dict[str, list], hash_value: int = None):
+    hash_lookup_done_handler(hash_list, hash_value)
+
+    # Release the lock
+    HASHDB_REQUEST_LOCK.release()
+
+
+def hash_lookup_error(exception: Exception):
+    logging.critical(f"hash_lookup_request {'timed out' if type(exception) == TimeoutError else f'errored: {exception=}'}")
+    idaapi.msg(f"ERROR: HashDB hash lookup failed: {exception=}\n")
+    HASHDB_REQUEST_LOCK.release()
+    raise exception
+
+
+async def hash_lookup_request(api_url: str, algorithm: str,
+                              hash_value: int, xor_value: None | int,
+                              timeout: int | float):
+    # Perform the request
+    hash_results = None
+    try:
+        hash_results = get_strings_from_hash(algorithm, hash_value, xor_value if xor_value is not None else 0, api_url, timeout)
+    except requests.Timeout as exception:
+        idaapi.msg(f"ERROR: HashDB API lookup hash request timed out.\n")
+        logging.warn(f"API request to {HASHDB_API_URL} timed out: {exception=}")
+        return None
+
+    hash_list = hash_results.get("hashes", [])
+    # Did `hashes` exist, was the array empty?
+    if not hash_list:
+        idaapi.msg(f"HashDB: No hash found for {hex(hash_value)}\n")
+        return None
+    return hash_list, hash_value
+
+
+def hash_lookup_run(timeout: int | float = 0):
+    # Check if an algorithm is selected
+    global HASHDB_REQUEST_LOCK, HASHDB_ALGORITHM, HASHDB_API_URL, ENUM_NAME, \
+           HASHDB_USE_XOR, HASHDB_XOR_VALUE
+    if HASHDB_ALGORITHM is None:
+        idaapi.warning("Please select a hash algorithm before using HashDB.")
+        settings_results = hashdb_settings_t.show(api_url=HASHDB_API_URL, 
+                                                  enum_name=ENUM_NAME,
+                                                  use_xor=HASHDB_USE_XOR,
+                                                  xor_value=HASHDB_XOR_VALUE)
+        if settings_results:
+            idaapi.msg("HashDB configured successfully!\n"
+                      f"HASHDB_API_URL:        {HASHDB_API_URL}\n"
+                      f"HASHDB_USE_XOR:        {HASHDB_USE_XOR}\n"
+                      f"HASHDB_XOR_VALUE:      {hex(HASHDB_XOR_VALUE)}\n"
+                      f"HASHDB_ALGORITHM:      {HASHDB_ALGORITHM}\n"
+                      f"HASHDB_ALGORITHM_SIZE: {HASHDB_ALGORITHM_SIZE}\n")
+        else:
+            idaapi.msg("HashDB configuration cancelled!\n")
+            # Release the lock
+            HASHDB_REQUEST_LOCK.release()
+            return
+    
+    # Get the selected hash value
+    hash_value = parse_highlighted_value("ERROR: Invalid hash selection.\n")
+    if hash_value is None:
+        # Release the lock
+        HASHDB_REQUEST_LOCK.release()
+        return
+    
+    # Lookup the hash and show a match select form
+    worker = Worker(target=hash_lookup_request, args=(
+        HASHDB_API_URL, HASHDB_ALGORITHM, hash_value, HASHDB_XOR_VALUE if HASHDB_USE_XOR else None, timeout))
+    worker.start(timeout=timeout, done_callback=hash_lookup_done, error_callback=hash_lookup_error)
+
+
+def hash_lookup():
+    """
+    Lookup a hash value from the highlighted text.
+
+    The function will spawn a new thread with a timeout (`HASHDB_REQUEST_TIMEOUT`).
+     While executing, the request lock is acquired.
+    """
+    # Check if we're already running a request
+    global HASHDB_REQUEST_LOCK, HASHDB_REQUEST_TIMEOUT
+    timeout_string = f"{HASHDB_REQUEST_TIMEOUT} second{'s' if HASHDB_REQUEST_TIMEOUT != 1 else ''}"
+    if HASHDB_REQUEST_LOCK.locked():
+        logging.debug("An async operation was requested, but the response lock was locked. Aborting.")
+        ida_kernwin.info("Please wait until the previous request is finished.\n"
+                        f"Requests timeout after {timeout_string}.")
+        return
+
+    # Acquire the lock and execute the request
+    HASHDB_REQUEST_LOCK.acquire()
+    idaapi.msg(f"HashDB: Searching for a hash, please wait! Timeout: {timeout_string}.\n")
+    hash_lookup_run(timeout=HASHDB_REQUEST_TIMEOUT)
 
 
 #--------------------------------------------------------------------------
