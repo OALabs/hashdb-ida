@@ -1364,12 +1364,14 @@ def hunt_algorithm_done(response: None | dict):
     global HASHDB_REQUEST_LOCK
     logging.debug(f"hunt_algorithm_done callback invoked, result: {'none' if response is None else f'{response}'}")
 
-    # Execute the UI code on the main thread
+    # Display the result
     if response is not None:
-        ida_kernwin.execute_sync(functools.partial(hunt_algorithm_show_form, response), ida_kernwin.MFF_FAST)
-    else:
-        # Errored, release the lock
-        HASHDB_REQUEST_LOCK.release()
+        logging.debug("Displaying hash_result_form_t.")
+        hunt_result_form_callable = functools.partial(hunt_result_form_t.show, [response])
+        ida_kernwin.execute_sync(hunt_result_form_callable, ida_kernwin.MFF_FAST)
+    
+    # Release the lock
+    HASHDB_REQUEST_LOCK.release()
 
 
 def hunt_algorithm_error(exception: Exception):
@@ -1437,17 +1439,6 @@ def hunt_algorithm_run(timeout: int | float = 0):
     # Hunt the algorithm and show the hunt result form
     worker = Worker(target=hunt_algorithm_request, args=(hash_value, timeout))
     worker.start(timeout=timeout, done_callback=hunt_algorithm_done, error_callback=hunt_algorithm_error)
-
-
-def hunt_algorithm_show_form(data: dict):
-    global HASHDB_REQUEST_LOCK
-
-    # Display the result
-    logging.debug("Displaying hash_result_form_t.")
-    hunt_result_form_t.show(data)
-
-    # Release the lock
-    HASHDB_REQUEST_LOCK.release()
 
 
 def hunt_algorithm():
