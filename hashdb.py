@@ -1437,7 +1437,7 @@ def hunt_algorithm():
 
     # Acquire the lock and execute the request
     HASHDB_REQUEST_LOCK.acquire()
-    idaapi.msg(f"HashDB: Hunting for a hash algorithm, please wait! Timeout: {timeout_string}.")
+    idaapi.msg(f"HashDB: Hunting for a hash algorithm, please wait! Timeout: {timeout_string}.\n")
     hunt_algorithm_run(timeout=HASHDB_REQUEST_TIMEOUT)
 
 
