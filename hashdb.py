@@ -1134,9 +1134,9 @@ def set_xor_key():
 def hash_lookup_done_handler(hash_list: None | dict[str, list], hash_value: int = None):
     global ENUM_NAME
     def add_enums_wrapper(enum_name, hash_list):
-        add_enums_wrapper.result = add_enums(enum_name, hash_list)
+        nonlocal enum_id
+        enum_id = add_enums(enum_name, hash_list)
         return 0 # execute_sync dictates an int return value
-    add_enums_wrapper.result = None
     
     if hash_list is None or hash_value is None:
         return
@@ -1158,13 +1158,13 @@ def hash_lookup_done_handler(hash_list: None | dict[str, list], hash_value: int 
         
         # Execute the match_select_t form on the main thread
         def match_select_show(collision_strings):
-            match_select_show.result = match_select_t.show(collision_strings)
+            nonlocal selected_string
+            selected_string = match_select_t.show(collision_strings)
             return 0 # execute_sync dictates an int return value
-        match_select_show.result = None
 
+        selected_string = None
         match_select_callable = functools.partial(match_select_show, [*collisions.keys()])
         ida_kernwin.execute_sync(match_select_callable, ida_kernwin.MFF_FAST)
-        selected_string = match_select_show.result
         if selected_string is None:
             return
         
@@ -1185,9 +1185,9 @@ def hash_lookup_done_handler(hash_list: None | dict[str, list], hash_value: int 
     idaapi.msg(f"HashDB: Hash match found: {string_value}\n")
 
     # Add the hash to the global enum, and exit if we can't create it
+    enum_id = None
     add_enums_callable = functools.partial(add_enums_wrapper, ENUM_NAME, [(string_value, hash_value)])
     ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
-    enum_id = add_enums_wrapper.result
     if enum_id is None:
         idaapi.msg(f"ERROR: Unable to create or find enum: {ENUM_NAME}\n")
         return
@@ -1199,6 +1199,7 @@ def hash_lookup_done_handler(hash_list: None | dict[str, list], hash_value: int 
         if ida_kernwin.get_viewer_place_type(ida_kernwin.get_current_viewer()) == ida_kernwin.TCCPT_IDAPLACE:
             make_const_enum(enum_id, hash_value)
         return 0 # execute_sync dictates an int return value
+    
     make_const_enum_wrapper_callable = functools.partial(make_const_enum_wrapper, enum_id, hash_value)
     ida_kernwin.execute_sync(make_const_enum_wrapper_callable, ida_kernwin.MFF_FAST)
 
@@ -1208,13 +1209,13 @@ def hash_lookup_done_handler(hash_list: None | dict[str, list], hash_value: int 
 
     # Execute the api_import_select_t form on the main thread
     def api_import_select_show(string_value, module_list) -> int:
-        api_import_select_show.result = api_import_select_t.show(string_value, module_list)
+        nonlocal module_name
+        module_name = api_import_select_t.show(string_value, module_list)
         return 0 # execute_sync dictates an int return value
-    api_import_select_show.result = None
 
+    module_name = None
     api_import_select_callable = functools.partial(api_import_select_show, string_value, hash_string.get("modules", []))
     ida_kernwin.execute_sync(api_import_select_callable, ida_kernwin.MFF_FAST)
-    module_name = api_import_select_show.result
     if module_name is None:
         return
 
@@ -1237,9 +1238,9 @@ def hash_lookup_done_handler(hash_list: None | dict[str, list], hash_value: int 
                           hash ^ HASHDB_XOR_VALUE if HASHDB_USE_XOR else hash))
     
     # Add hashes to enum
+    enum_id = None
     add_enums_callable = functools.partial(add_enums_wrapper, ENUM_NAME, enum_list)
     ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
-    enum_id = add_enums_wrapper.result
     if enum_id is None:
         idaapi.msg(f"ERROR: Unable to create or find enum: {ENUM_NAME}\n")
     else:
