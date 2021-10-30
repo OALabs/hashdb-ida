@@ -54,6 +54,7 @@ import asyncio
 import threading
 from enum import Enum
 from threading import Thread
+from collections.abc import Iterable
 from typing import Awaitable, Callable
 from asyncio.events import AbstractEventLoop
 from asyncio.exceptions import CancelledError, TimeoutError
@@ -230,9 +231,12 @@ class Worker(Thread):
         # Run
         try:
             result = self.__target(*args, **kwargs)
+            # Support for multiple return values
+            if not isinstance(result, Iterable):
+                result = [result]
             # If we have a done callback, invoke it
             if self.__done_callback is not None:
-                self.__done_callback(result)
+                self.__done_callback(*result)
         except SystemExit as exception:
             logging.debug(f"Caught an expected exception: [{exception=}]")
             # Execute the error callback
@@ -274,13 +278,16 @@ class Worker(Thread):
 
             # Wait for the coroutine to finish
             result = loop.run_until_complete(coroutine)
+            # Support for multiple return values
+            if not isinstance(result, Iterable):
+                result = [result]
 
             # If we have a done callback, invoke it
             if self.__done_callback is not None:
                 if asyncio.iscoroutinefunction(self.__done_callback):
-                    loop.run_until_complete(self.__done_callback(result))
+                    loop.run_until_complete(self.__done_callback(*result))
                 else:
-                    self.__done_callback(result)
+                    self.__done_callback(*result)
         except (CancelledError, TimeoutError, RuntimeError) as exception:
             logging.debug(f"Caught an expected exception: [{exception=}]")
 
