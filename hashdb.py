@@ -74,7 +74,7 @@ assert (sys.version_info >= (3, 0)), "ERROR: HashDB plugin requires Python 3"
 
 
 #--------------------------------------------------------------------------
-# Global settings
+# Global settings/variables
 #--------------------------------------------------------------------------
 
 HASHDB_API_URL ="https://hashdb.openanalysis.net"
@@ -84,6 +84,10 @@ HASHDB_ALGORITHM = None
 HASHDB_ALGORITHM_SIZE = 0
 ENUM_NAME = "hashdb_strings"
 NETNODE_NAME = "$hashdb"
+
+# Variables for async operations
+HASHDB_RESPONSE_LOCK = threading.Lock()
+HASHDB_RESPONSE_CONTAINER = None
 
 #--------------------------------------------------------------------------
 # Setup Icon
