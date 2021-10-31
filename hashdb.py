@@ -1467,6 +1467,9 @@ def hunt_algorithm_done(response: None | list = None):
         logging.debug("Displaying hash_result_form_t.")
         hunt_result_form_callable = functools.partial(hunt_result_form_t.show, [response])
         ida_kernwin.execute_sync(hunt_result_form_callable, ida_kernwin.MFF_FAST)
+    else:
+        logging.debug("Couldn't find any algorithms that match the provided hash.")
+        idaapi.msg("HashDB: Couldn't find any algorithms that match the provided hash.")
     
     # Release the lock
     HASHDB_REQUEST_LOCK.release()
