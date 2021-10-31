@@ -1284,8 +1284,8 @@ async def hash_lookup_request(api_url: str, algorithm: str,
 
 def hash_lookup_run(timeout: int | float = 0) -> bool:
     # Check if an algorithm is selected
-    global HASHDB_REQUEST_LOCK, HASHDB_ALGORITHM, HASHDB_API_URL, ENUM_NAME, \
-           HASHDB_USE_XOR, HASHDB_XOR_VALUE
+    global HASHDB_ALGORITHM, HASHDB_ALGORITHM_SIZE, HASHDB_API_URL, \
+           ENUM_NAME, HASHDB_USE_XOR, HASHDB_XOR_VALUE
     if HASHDB_ALGORITHM is None:
         idaapi.warning("Please select a hash algorithm before using HashDB.")
         settings_results = hashdb_settings_t.show(api_url=HASHDB_API_URL, 
