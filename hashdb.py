@@ -1131,7 +1131,7 @@ def set_xor_key():
 #--------------------------------------------------------------------------
 # Hash lookup
 #--------------------------------------------------------------------------
-def hash_lookup_done_handler(hash_list: None | dict[str, list], hash_value: int = None):
+def hash_lookup_done_handler(hash_list: None | list, hash_value: int = None):
     global ENUM_NAME
     def add_enums_wrapper(enum_name, hash_list):
         nonlocal enum_id
@@ -1247,7 +1247,7 @@ def hash_lookup_done_handler(hash_list: None | dict[str, list], hash_value: int 
         idaapi.msg(f"Added {len(enum_list)} hashes for module {module_name}\n")
 
 
-def hash_lookup_done(hash_list: None | dict[str, list], hash_value: int = None):
+def hash_lookup_done(hash_list: None | list = None, hash_value: int = None):
     hash_lookup_done_handler(hash_list, hash_value)
 
     # Release the lock
@@ -1458,7 +1458,7 @@ def hash_scan(convert_values = True):
 #--------------------------------------------------------------------------
 # Algorithm search function
 #--------------------------------------------------------------------------
-def hunt_algorithm_done(response: None | dict):
+def hunt_algorithm_done(response: None | list = None):
     global HASHDB_REQUEST_LOCK
     logging.debug(f"hunt_algorithm_done callback invoked, result: {'none' if response is None else f'{response}'}")
 
