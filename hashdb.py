@@ -1258,7 +1258,6 @@ def hash_lookup_error(exception: Exception):
     logging.critical(f"hash_lookup_request {'timed out' if type(exception) == TimeoutError else f'errored: {exception=}'}")
     idaapi.msg(f"ERROR: HashDB hash lookup failed: {exception=}\n")
     HASHDB_REQUEST_LOCK.release()
-    raise exception
 
 
 async def hash_lookup_request(api_url: str, algorithm: str,
