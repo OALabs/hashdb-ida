@@ -1282,7 +1282,7 @@ async def hash_lookup_request(api_url: str, algorithm: str,
     return hash_list, hash_value
 
 
-def hash_lookup_run(timeout: int | float = 0):
+def hash_lookup_run(timeout: int | float = 0) -> bool:
     # Check if an algorithm is selected
     global HASHDB_REQUEST_LOCK, HASHDB_ALGORITHM, HASHDB_API_URL, ENUM_NAME, \
            HASHDB_USE_XOR, HASHDB_XOR_VALUE
@@ -1301,21 +1301,18 @@ def hash_lookup_run(timeout: int | float = 0):
                       f"HASHDB_ALGORITHM_SIZE: {HASHDB_ALGORITHM_SIZE}\n")
         else:
             idaapi.msg("HashDB configuration cancelled!\n")
-            # Release the lock
-            HASHDB_REQUEST_LOCK.release()
-            return
+            return True # Release the lock
     
     # Get the selected hash value
     hash_value = parse_highlighted_value("ERROR: Invalid hash selection.\n")
     if hash_value is None:
-        # Release the lock
-        HASHDB_REQUEST_LOCK.release()
-        return
+        return True # Release the lock
     
     # Lookup the hash and show a match select form
     worker = Worker(target=hash_lookup_request, args=(
         HASHDB_API_URL, HASHDB_ALGORITHM, hash_value, HASHDB_XOR_VALUE if HASHDB_USE_XOR else None, timeout))
     worker.start(timeout=timeout, done_callback=hash_lookup_done, error_callback=hash_lookup_error)
+    return False # Do not release the lock
 
 
 def hash_lookup():
@@ -1337,7 +1334,9 @@ def hash_lookup():
     # Acquire the lock and execute the request
     HASHDB_REQUEST_LOCK.acquire()
     idaapi.msg(f"HashDB: Searching for a hash, please wait! Timeout: {timeout_string}.\n")
-    hash_lookup_run(timeout=HASHDB_REQUEST_TIMEOUT)
+    release_lock = hash_lookup_run(timeout=HASHDB_REQUEST_TIMEOUT)
+    if release_lock:
+        HASHDB_REQUEST_LOCK.release()
 
 
 #--------------------------------------------------------------------------
@@ -1524,16 +1523,14 @@ async def hunt_algorithm_request(hash_value: int, timeout=None) -> None | list:
     return results
 
 
-def hunt_algorithm_run(timeout: int | float = 0):
+def hunt_algorithm_run(timeout: int | float = 0) -> bool:
     global HASHDB_REQUEST_LOCK, HASHDB_USE_XOR, HASHDB_XOR_VALUE
     
     # Get the selected hash value
     hash_value = parse_highlighted_value(error_message="ERROR: Not a valid hash selection\n", print=False)
     if hash_value is None:
         logging.warn("Failed to parse a hash value from the highligted text.")
-        # Release the lock
-        HASHDB_REQUEST_LOCK.release()
-        return
+        return True # Release the lock
     
     # Xor option
     if HASHDB_USE_XOR:
@@ -1542,6 +1539,7 @@ def hunt_algorithm_run(timeout: int | float = 0):
     # Hunt the algorithm and show the hunt result form
     worker = Worker(target=hunt_algorithm_request, args=(hash_value, timeout))
     worker.start(timeout=timeout, done_callback=hunt_algorithm_done, error_callback=hunt_algorithm_error)
+    return False # Do not release the lock
 
 
 def hunt_algorithm():
@@ -1563,7 +1561,9 @@ def hunt_algorithm():
     # Acquire the lock and execute the request
     HASHDB_REQUEST_LOCK.acquire()
     idaapi.msg(f"HashDB: Hunting for a hash algorithm, please wait! Timeout: {timeout_string}.\n")
-    hunt_algorithm_run(timeout=HASHDB_REQUEST_TIMEOUT)
+    release_lock = hunt_algorithm_run(timeout=HASHDB_REQUEST_TIMEOUT)
+    if release_lock:
+        HASHDB_REQUEST_LOCK.release()
 
 
 #--------------------------------------------------------------------------
