@@ -1248,6 +1248,7 @@ def hash_lookup_done_handler(hash_list: None | list, hash_value: int = None):
 
 
 def hash_lookup_done(hash_list: None | list = None, hash_value: int = None):
+    global HASHDB_REQUEST_LOCK
     hash_lookup_done_handler(hash_list, hash_value)
 
     # Release the lock
@@ -1255,6 +1256,7 @@ def hash_lookup_done(hash_list: None | list = None, hash_value: int = None):
 
 
 def hash_lookup_error(exception: Exception):
+    global HASHDB_REQUEST_LOCK
     logging.critical(f"hash_lookup_request {'timed out' if type(exception) == TimeoutError else f'errored: {exception=}'}")
     idaapi.msg(f"ERROR: HashDB hash lookup failed: {exception=}\n")
     HASHDB_REQUEST_LOCK.release()
@@ -1475,6 +1477,7 @@ def hunt_algorithm_done(response: None | list = None):
 
 
 def hunt_algorithm_error(exception: Exception):
+    global HASHDB_REQUEST_LOCK
     logging.critical(f"hunt_algorithm_request {'timed out' if type(exception) == TimeoutError else f'errored: {exception=}'}")
     idaapi.msg(f"ERROR: HashDB hunt algorithm failed: {exception=}\n")
     HASHDB_REQUEST_LOCK.release()
