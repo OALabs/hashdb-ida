@@ -1481,7 +1481,7 @@ def hunt_algorithm_error(exception: Exception):
     HASHDB_REQUEST_LOCK.release()
 
 
-async def hunt_algorithm_request(hash_value: int, timeout=None) -> None | dict:
+async def hunt_algorithm_request(hash_value: int, timeout=None) -> None | list:
     """
     Perform the actual request, and provide the results to the
      `hunt_algorithm_done` callback.
