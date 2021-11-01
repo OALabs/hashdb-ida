@@ -74,9 +74,6 @@ HASHDB_ALGORITHM_SIZE = 0
 ENUM_PREFIX = "hashdb_strings"
 NETNODE_NAME = "$hashdb"
 
-ENUM_CREATED_SUCCESS = 1
-SUFFIX_UPPER_LIMIT = 100
-
 #--------------------------------------------------------------------------
 # Setup Icon
 #--------------------------------------------------------------------------
@@ -631,15 +628,11 @@ Do you want to import all function hashes from this module?
 #--------------------------------------------------------------------------
 # IDA helper functions
 #--------------------------------------------------------------------------
-def add_enums(enum_name, hash_list, enum_member_suffix = None, enum_size = 0):
+def add_enums(enum_name, hash_list, enum_size = 0):
     '''
     Add a list of string,hash pairs to enum.
     hash_list = [(string1,hash1),(string2,hash2)]
     '''
-    # Resolve the enum member prefix
-    if enum_member_suffix is None:
-        global HASHDB_ALGORITHM
-        enum_member_suffix = HASHDB_ALGORITHM
     # Resolve the enum size
     if not enum_size:
         global HASHDB_ALGORITHM_SIZE
@@ -657,17 +650,27 @@ def add_enums(enum_name, hash_list, enum_member_suffix = None, enum_size = 0):
     if not ida_enum.set_enum_width(enum_id, enum_size):
         return None
     
-    for name, value in hash_list:
-        suffix = 0
-        final_name = name
-        while (ida_enum.add_enum_member(enum_id, name, value) != ENUM_CREATED_SUCCESS):
-            if suffix > SUFFIX_UPPER_LIMIT:
-                raise HashDBError("Exceeded the upper limit for number of suffixes for enum name " + name)
-            else:
-                final_name = name + "_" + str(suffix) #new name becomes: name_0, name_1, name_2 etc...
-                suffix += 1
-    return enum_id
+    # IDA API defines (https://hex-rays.com/products/ida/support/idapython_docs/ida_enum.html)
+    ENUM_MEMBER_ERROR_SUCCESS = 0 # successfully added
+    ENUM_MEMBER_ERROR_NAME    = 1 # a member with this name already exists
 
+    MAXIMUM_ATTEMPTS = 256 # ENUM_MEMBER_ERROR_VALUE -> only allows 256 members with this value
+    for member_name, value in hash_list:
+        # First, we have to check if this name and value already exist in the enum
+        if ida_enum.get_enum_member(enum_id, value, 0, -1) != idaapi.BADNODE:
+            continue # Skip if the value already exists in the enum
+
+        # Attempt to generate a name, and insert the value
+        for index in range(MAXIMUM_ATTEMPTS):
+            result = ida_enum.add_enum_member(enum_id, member_name if not index else member_name + '_' + str(index), value)
+            # Successfully added to the list
+            if result == ENUM_MEMBER_ERROR_SUCCESS:
+                break
+
+            # Unhandled error (TODO: add logging)
+            if result != ENUM_MEMBER_ERROR_NAME:
+                return None
+    return enum_id
 
 
 def generate_enum_name(prefix: str) -> str:
