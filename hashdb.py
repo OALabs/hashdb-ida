@@ -628,15 +628,15 @@ Do you want to import all function hashes from this module?
 #--------------------------------------------------------------------------
 # IDA helper functions
 #--------------------------------------------------------------------------
-def add_enums(enum_name, hash_list, enum_member_prefix = None, enum_size = 0):
+def add_enums(enum_name, hash_list, enum_member_suffix = None, enum_size = 0):
     '''
     Add a list of string,hash pairs to enum.
     hash_list = [(string1,hash1),(string2,hash2)]
     '''
     # Resolve the enum member prefix
-    if enum_member_prefix is None:
+    if enum_member_suffix is None:
         global HASHDB_ALGORITHM
-        enum_member_prefix = HASHDB_ALGORITHM
+        enum_member_suffix = HASHDB_ALGORITHM
     # Resolve the enum size
     if not enum_size:
         global HASHDB_ALGORITHM_SIZE
@@ -655,7 +655,7 @@ def add_enums(enum_name, hash_list, enum_member_prefix = None, enum_size = 0):
         return None
     
     for member_name, value in hash_list:
-        ida_enum.add_enum_member(enum_id, member_name if enum_member_prefix is None else enum_member_prefix + '_' + member_name, value)
+        ida_enum.add_enum_member(enum_id, member_name if enum_member_suffix is None else member_name + '_' + enum_member_suffix, value)
     return enum_id
 
 
