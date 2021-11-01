@@ -655,8 +655,7 @@ def add_enums(enum_name, hash_list, enum_member_prefix = None, enum_size = 0):
         return None
     
     for member_name, value in hash_list:
-        # if not enum_member_prefix was specifically chosen to allow empty prefixes
-        ida_enum.add_enum_member(enum_id, member_name if not enum_member_prefix else enum_member_prefix + '_' + member_name, value)
+        ida_enum.add_enum_member(enum_id, member_name if enum_member_prefix is None else enum_member_prefix + '_' + member_name, value)
     return enum_id
 
 
@@ -1009,7 +1008,7 @@ def hash_scan(convert_values = True):
     if HASHDB_ALGORITHM == None:
         warn_result = idaapi.warning("Please select a hash algorithm before using HashDB.")
         settings_results = hashdb_settings_t.show(api_url=HASHDB_API_URL, 
-                                                  enum_name=generate_enum_name(ENUM_PREFIX),
+                                                  enum_prefix=ENUM_PREFIX,
                                                   use_xor=HASHDB_USE_XOR,
                                                   xor_value=HASHDB_XOR_VALUE,
                                                   algorithms=[])
