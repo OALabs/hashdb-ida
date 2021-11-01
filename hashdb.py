@@ -628,19 +628,28 @@ Do you want to import all function hashes from this module?
 #--------------------------------------------------------------------------
 # IDA helper functions
 #--------------------------------------------------------------------------
-def add_enums(enum_name, hash_list):
+def add_enums(enum_name, hash_list, enum_size = 0):
     '''
     Add a list of string,hash pairs to enum.
     hash_list = [(string1,hash1),(string2,hash2)]
     '''
+    # Resolve the enum size
+    if not enum_size:
+        global HASHDB_ALGORITHM_SIZE
+        enum_size = int(HASHDB_ALGORITHM_SIZE / 8)
+
     # Create enum
-    enum_id = idc.add_enum(-1, enum_name, ida_bytes.dec_flag())
+    enum_id = idc.add_enum(-1, enum_name, ida_bytes.hex_flag())
     if enum_id == idaapi.BADNODE:
         # Enum already exists attempt to find it
         enum_id = ida_enum.get_enum(enum_name)
     if enum_id == idaapi.BADNODE:
         # Can't create or find enum
         return None
+    # Set the enum size/width (expected to return True for valid sizes)
+    if not ida_enum.set_enum_width(enum_id, enum_size):
+        return None
+    
     for element in hash_list:
         ida_enum.add_enum_member(enum_id, element[0], element[1])
     return enum_id
