@@ -1,7 +1,7 @@
 
 ########################################################################################
 ##
-## This plugin is the client for the HashDB lookup service operated buy OALABS:
+## This plugin is the client for the HashDB lookup service operated by OALABS:
 ##
 ## https://hashdb.openanalysis.net/
 ##
@@ -73,6 +73,9 @@ HASHDB_ALGORITHM = None
 HASHDB_ALGORITHM_SIZE = 0
 ENUM_PREFIX = "hashdb_strings"
 NETNODE_NAME = "$hashdb"
+
+ENUM_CREATED_SUCCESS = 1
+SUFFIX_UPPER_LIMIT = 100
 
 #--------------------------------------------------------------------------
 # Setup Icon
@@ -654,9 +657,17 @@ def add_enums(enum_name, hash_list, enum_member_suffix = None, enum_size = 0):
     if not ida_enum.set_enum_width(enum_id, enum_size):
         return None
     
-    for member_name, value in hash_list:
-        ida_enum.add_enum_member(enum_id, member_name if enum_member_suffix is None else member_name + '_' + enum_member_suffix, value)
+    for name, value in hash_list:
+        suffix = 0
+        final_name = name
+        while (ida_enum.add_enum_member(enum_id, name, value) != ENUM_CREATED_SUCCESS):
+            if suffix > SUFFIX_UPPER_LIMIT:
+                raise HashDBError("Exceeded the upper limit for number of suffixes for enum name " + name)
+            else:
+                final_name = name + "_" + str(suffix) #new name becomes: name_0, name_1, name_2 etc...
+                suffix += 1
     return enum_id
+
 
 
 def generate_enum_name(prefix: str) -> str:
