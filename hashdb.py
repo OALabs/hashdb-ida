@@ -657,7 +657,7 @@ def add_enums(enum_name, hash_list, enum_size = 0):
     MAXIMUM_ATTEMPTS = 256 # ENUM_MEMBER_ERROR_VALUE -> only allows 256 members with this value
     for member_name, value in hash_list:
         # First, we have to check if this name and value already exist in the enum
-        if ida_enum.get_enum_member(enum_id, value, 0, -1) != idaapi.BADNODE:
+        if ida_enum.get_enum_member(enum_id, value, 0, 0) != idaapi.BADNODE:
             continue # Skip if the value already exists in the enum
 
         # Attempt to generate a name, and insert the value
