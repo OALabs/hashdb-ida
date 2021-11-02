@@ -51,7 +51,7 @@ __AUTHOR__ = '@herrcore'
 
 PLUGIN_NAME = "HashDB"
 PLUGIN_HOTKEY = 'Alt+`'
-VERSION = '1.5.0'
+VERSION = '1.6.0'
 
 #--------------------------------------------------------------------------
 # IDA Python version madness
