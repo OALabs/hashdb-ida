@@ -34,6 +34,7 @@
 ##
 ########################################################################################
 
+import collections
 import sys
 import idaapi
 import idautils
@@ -1150,7 +1151,7 @@ def hash_lookup_done_handler(hash_list: None | list, hash_value: int = None):
         #  select the best match
         collisions = {}
         for string_match in hash_list:
-            string_value = string_match.get("string", "")
+            string_value = string_match.get("string", {})
             if string_value.get('is_api', False):
                 collisions[string_value.get("api", "")] = string_value
             else:
@@ -1343,116 +1344,223 @@ def hash_lookup():
 # Dynamic IAT hash scan
 # TODO: convert_values should be fetched from the UI (add a checkbox)
 #--------------------------------------------------------------------------
-def hash_scan(convert_values = True):
-    """
-    Lookup hash from highlighted text
-    """
-    global HASHDB_API_URL
-    global HASHDB_USE_XOR
-    global HASHDB_XOR_VALUE
-    global HASHDB_ALGORITHM
+def hash_scan_done(convert_values: bool = False, hash_list: None | list[dict] = None):
+    global HASHDB_REQUEST_LOCK
+    logging.debug(f"hash_scan_done callback invoked, result: {'none' if hash_list is None else f'{hash_list}'}")
+
     global ENUM_NAME
+    def add_enums_wrapper(enum_name: str, hash_list):
+        nonlocal enum_id
+        enum_id = add_enums(enum_name, hash_list)
+        return 0 # execute_sync dictates an int return value
+    
+    # Check if the `hash_scan_request` function failed (a caught exception should return `None`)
+    if hash_list is not None:
+        for hash_entry in hash_list:
+            hashes = hash_entry["hashes"]
+            hash_string_object = {}
+
+            entries_count = len(hashes)
+            if not entries_count:
+                idaapi.msg(f"HashDB: Couldn't find any matches for hash value {hex(hash_entry['hash_value'])} ({hash_entry['size']} bytes) at {hex(hash_entry['ea'])}\n")
+                continue
+
+            # Resolve the hash string object from the response
+            if entries_count == 1:
+                hash_string_object = hashes[0].get("string", {})
+            else:
+                # Check for collisions
+                collisions = {}
+                for entry in hashes:
+                    string_object = entry.get("string", {})
+                    if string_object.get("is_api", False):
+                        collisions[string_object.get("api", "")] = string_object
+                    else:
+                        collisions[string_object.get("string", "")] = string_object
+                
+                # Execute the match_select_t form on the main thread
+                def match_select_show(collision_strings):
+                    nonlocal selected_string
+                    selected_string = match_select_t.show(collision_strings)
+                    return 0 # execute_sync dictates an int return value
+
+                selected_string = None
+                match_select_callable = functools.partial(match_select_show, [*collisions.keys()])
+                ida_kernwin.execute_sync(match_select_callable, ida_kernwin.MFF_FAST)
+                if selected_string is None:
+                    HASHDB_REQUEST_LOCK.release() # Release the lock
+                    return
+                
+                hash_string_object = collisions[selected_string]
+            
+            # Parse the string from hash_string_object
+            hash_string_value = ""
+            if hash_string_object.get("is_api", False):
+                hash_string_value = hash_string_object.get("api", "")
+            else:
+                hash_string_value = hash_string_object.get("string", "")
+            
+            # Handle empty string values
+            if not len(hash_string_value):
+                hash_string_value = "empty_string"
+            
+            # Add hash to enum
+            enum_id = None
+            add_enums_callable = functools.partial(add_enums_wrapper, ENUM_NAME, [(hash_string_value, hash_entry["hash_value"])])
+            ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
+            if enum_id is None:
+                idaapi.msg(f"ERROR: Unable to create or find enum: {ENUM_NAME}\n")
+                HASHDB_REQUEST_LOCK.release() # Release the lock
+                return
+            
+            # Should we convert the values in the database?
+            if convert_values:
+                # Convert to enum
+                def convert_to_enum(ea: int, enum_id: int):
+                    NUMBER_OF_OPERANDS = 0
+                    SERIAL = 0
+                    ida_bytes.op_enum(ea, NUMBER_OF_OPERANDS, enum_id, SERIAL)
+                    return 0 # execute_sync dictates an int return value
+                
+                convert_to_enum_callable = functools.partial(convert_to_enum, hash_entry["ea"], enum_id)
+                ida_kernwin.execute_sync(convert_to_enum_callable, ida_kernwin.MFF_FAST)
+
+                # Add a label
+                def set_name(ea: int, name: str):
+                    # TODO: check if a name already exists, append an indexed suffix if it does
+                    idc.set_name(ea, name, idc.SN_CHECK)
+                    return 0 # execute_sync dictates an int return value
+                
+                set_name_callable = functools.partial(set_name, hash_entry["ea"], "ptr_" + hash_string_value)
+                ida_kernwin.execute_sync(set_name_callable, ida_kernwin.MFF_FAST)
+    
+    # Release the lock
+    HASHDB_REQUEST_LOCK.release()
+
+
+def hash_scan_error(exception: Exception):
+    global HASHDB_REQUEST_LOCK
+    logging.critical(f"hash_scan_request {'timed out' if type(exception) == TimeoutError else f'errored: {exception=}'}")
+    idaapi.msg(f"ERROR: HashDB hash scan failed: {exception=}\n")
+    HASHDB_REQUEST_LOCK.release()
+
+
+async def hash_scan_request(convert_values: bool, hash_list: list[dict],
+                            api_url: str, algorithm: str, xor_value: int,
+                            timeout: int | float) -> None | list:
+    for hash_entry in hash_list:
+        try:
+            hash_results = get_strings_from_hash(algorithm, hash_entry["hash_value"], xor_value if xor_value is not None else 0, api_url, timeout)
+        except requests.Timeout as exception:
+            idaapi.msg(f"ERROR: HashDB API lookup scan request timed out.\n")
+            logging.warn(f"API request to {HASHDB_API_URL} timed out: {exception=}")
+            return None
+        
+        hash_entry["hashes"] = hash_results.get("hashes", [])
+    return convert_values, hash_list
+
+
+def hash_scan_run(convert_values: bool, timeout: int | float = 0) -> bool:
     # Only scan for data in the dissassembler
     if ida_kernwin.get_viewer_place_type(ida_kernwin.get_current_viewer()) != ida_kernwin.TCCPT_IDAPLACE:
-        idaapi.msg("ERROR: Scan only available in dissassembler. \n")
-        return
-    # Get highlighted range
+        idaapi.msg("ERROR: Scan only available in dissassembler.\n")
+        return True # Release the lock
+    
+    # Get the highlighted range
     start = idc.read_selection_start()
     end = idc.read_selection_end()
     if idaapi.BADADDR in (start, end):
         ea = idc.here()
         start = idaapi.get_item_head(ea)
         end = idaapi.get_item_end(ea)
-    # If there is no algorithm give the user a chance to choose one
-    if HASHDB_ALGORITHM == None:
-        warn_result = idaapi.warning("Please select a hash algorithm before using HashDB.")
+    
+    # If an algorithm isn't selected, give the user a chance to choose one
+    global HASHDB_ALGORITHM, HASHDB_ALGORITHM_SIZE, HASHDB_API_URL, \
+           ENUM_NAME, HASHDB_USE_XOR, HASHDB_XOR_VALUE
+    if HASHDB_ALGORITHM is None:
+        idaapi.warning("Please select a hash algorithm before using HashDB.")
         settings_results = hashdb_settings_t.show(api_url=HASHDB_API_URL, 
                                                   enum_name=ENUM_NAME,
                                                   use_xor=HASHDB_USE_XOR,
-                                                  xor_value=HASHDB_XOR_VALUE,
-                                                  algorithms=[])
+                                                  xor_value=HASHDB_XOR_VALUE)
         if settings_results:
-            idaapi.msg("HashDB configured successfully!\nHASHDB_API_URL: %s\nHASHDB_USE_XOR: %s\nHASHDB_XOR_VALUE: %s\nHASHDB_ALGORITHM: %s\nHASHDB_ALGORITHM_SIZE: %s\n" % 
-                       (HASHDB_API_URL, HASHDB_USE_XOR, hex(HASHDB_XOR_VALUE), HASHDB_ALGORITHM, HASHDB_ALGORITHM_SIZE))
+            idaapi.msg("HashDB configured successfully!\n"
+                      f"HASHDB_API_URL:        {HASHDB_API_URL}\n"
+                      f"HASHDB_USE_XOR:        {HASHDB_USE_XOR}\n"
+                      f"HASHDB_XOR_VALUE:      {hex(HASHDB_XOR_VALUE)}\n"
+                      f"HASHDB_ALGORITHM:      {HASHDB_ALGORITHM}\n"
+                      f"HASHDB_ALGORITHM_SIZE: {HASHDB_ALGORITHM_SIZE}\n")
         else:
             idaapi.msg("HashDB configuration cancelled!\n")
-            return 
-    try:
-        # Open waiting window
-        ida_kernwin.show_wait_box("HIDECANCEL\nPlease wait...")
-
-        if not HASHDB_ALGORITHM_SIZE == 32 and not HASHDB_ALGORITHM_SIZE == 64:
-            idaapi.msg(f"ERROR: Unexpected algorithm size provided: {HASHDB_ALGORITHM_SIZE}\n")
-            return
-        # Loop through selected range and look up each entry
-        ea = start 
+            return True # Release the lock
+    
+    # Check for a valid algorithm size
+    if not HASHDB_ALGORITHM_SIZE == 32 and not HASHDB_ALGORITHM_SIZE == 64:
+        idaapi.msg(f"ERROR: Unexpected algorithm size provided: {HASHDB_ALGORITHM_SIZE}\n")
+        return True # Release the lock
+    
+    # Look through the selected range and lookup each (valid) entry
+    def scan_range(start: int, end: int) -> list[dict]:
+        """
+        Find hash values in a given (highlighted) range.
+         This function won't modify any data types in the database.
+        
+        Undefined types will be interpreted appropriately.
+         As a result, the user is required to define the types if they
+         expect valid results.
+        """
+        hash_values = []
+        ea = start
         while ea < end:
             # Read the hash value and determine the step size:
             [hash_value, step_size, was_type_valid] = read_integer_from_db(ea)
-
             # If the type wasn't valid (undefined), convert it in the database
             #   and modify the hash value and step size accordingly:
             if convert_values and not was_type_valid:
-                new_step_size = convert_data_to_integer(ea)
-                [hash_value, step_size, was_type_valid] = read_integer_from_db(ea, new_step_size)
-            
-            if HASHDB_USE_XOR:
-                hash_results = get_strings_from_hash(HASHDB_ALGORITHM, hash_value, xor_value=HASHDB_XOR_VALUE, api_url=HASHDB_API_URL)
-            else:
-                hash_results = get_strings_from_hash(HASHDB_ALGORITHM, hash_value, api_url=HASHDB_API_URL)
-            # Extract hash info from results
-            hash_list = hash_results.get('hashes',[])
-            if len(hash_list) == 0:
-                # No hash found 
-                # Increment the counter and continue 
-                ea += step_size
-                continue 
-            elif len(hash_list) == 1:
-                hash_string = hash_list[0].get('string',{})
-            else:
-                # Multiple hashes found
-                # Allow the user to select the best match
-                # Hide wait box 
-                ida_kernwin.hide_wait_box()
-                # Open chooser for user to select best match
-                collisions = {}
-                for string_match in hash_list:
-                    string_value = string_match.get('string','')
-                    if string_value.get('is_api',False):
-                        collisions[string_value.get('api','')] = string_value
-                    else:
-                        collisions[string_value.get('string','')] = string_value
-                selected_string = match_select_t.show(list(collisions.keys()))
-                hash_string = collisions[selected_string]
-                # Re-Open waiting window
-                ida_kernwin.show_wait_box("HIDECANCEL\nPlease wait...")
-            # Parse string from hash_string match
-            if hash_string.get('is_api',False):
-                string_value = hash_string.get('api','')
-            else:
-                string_value = hash_string.get('string','')
-            # Handle empty string values
-            if not len(string_value):
-                string_value = 'empty_string'
-            idaapi.msg("Hash match found: %s\n" % string_value)
-            # Add hash to enum
-            enum_id = add_enums(ENUM_NAME, [(string_value,hash_value)])
-            # Exit if we can't create the enum
-            if enum_id == None:
-                idaapi.msg("ERROR: Unable to create or find enum: %s\n" % ENUM_NAME)
-                return
-            # Make value an enum
-            ida_bytes.op_enum(ea, 0, enum_id, 0)
-            # Add a label to the value
-            idc.set_name(ea, "ptr_"+string_value, idc.SN_CHECK)
-            # Move pointer to next value
+                [hash_value, step_size, was_type_valid] = read_integer_from_db(ea, int(HASHDB_ALGORITHM_SIZE / 8))
+
+            # Insert the hash value into the list
+            hash_values.append({"ea": ea, "hash_value": hash_value, "size": step_size})
+
+            # Next hash
             ea += step_size
-    except Exception as e:
-        idaapi.msg("HashDB ERROR: %s\n" % e)
+        return hash_values
+    
+    hash_list = scan_range(start, end)
+    for index, hash_entry in enumerate(hash_list, start=1):
+        idaapi.msg(f"HashDB: [{index}] Found hash value {hex(hash_entry['hash_value'])} ({hash_entry['size']} bytes) at {hex(hash_entry['ea'])}\n")
+    
+    # Hunt all hashes, and provide the `hash_scan_done` callback with the results
+    worker = Worker(target=hash_scan_request, args=(convert_values, hash_list,
+                                                    HASHDB_API_URL, HASHDB_ALGORITHM,
+                                                    HASHDB_XOR_VALUE if HASHDB_USE_XOR else None,
+                                                    timeout))
+    worker.start(timeout=timeout, done_callback=hash_scan_done, error_callback=hash_scan_error)
+    return False # Do not release the lock
+
+
+def hash_scan(convert_values = True):
+    """
+    Scan for a dynamic hash table.
+
+    The function will spawn a new thread with a timeout (`HASHDB_REQUEST_TIMEOUT`).
+     While executing, the request lock is acquired.
+    """
+    # Check if we're already running a request
+    global HASHDB_REQUEST_LOCK, HASHDB_REQUEST_TIMEOUT
+    timeout_string = f"{HASHDB_REQUEST_TIMEOUT} second{'s' if HASHDB_REQUEST_TIMEOUT != 1 else ''}"
+    if HASHDB_REQUEST_LOCK.locked():
+        logging.debug("An async operation was requested, but the response lock was locked. Aborting.")
+        ida_kernwin.info("Please wait until the previous request is finished.\n"
+                        f"Requests timeout after {timeout_string}.")
         return
-    finally:
-        ida_kernwin.hide_wait_box()
-    return
+
+    # Acquire the lock and execute the request
+    HASHDB_REQUEST_LOCK.acquire()
+    idaapi.msg(f"HashDB: Scanning for hashes, please wait! Timeout: {timeout_string}.\n")
+    release_lock = hash_scan_run(convert_values=convert_values, timeout=HASHDB_REQUEST_TIMEOUT)
+    if release_lock:
+        HASHDB_REQUEST_LOCK.release()
 
 
 #--------------------------------------------------------------------------
