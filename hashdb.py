@@ -38,7 +38,6 @@ import sys
 import idaapi
 import idc
 import ida_kernwin
-from ida_kernwin import Choose
 import ida_enum
 import ida_bytes
 import ida_netnode
