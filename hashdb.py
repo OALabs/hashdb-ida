@@ -1,7 +1,7 @@
 
 ########################################################################################
 ##
-## This plugin is the client for the HashDB lookup service operated buy OALABS:
+## This plugin is the client for the HashDB lookup service operated by OALABS:
 ##
 ## https://hashdb.openanalysis.net/
 ##
@@ -65,7 +65,7 @@ __AUTHOR__ = '@herrcore'
 
 PLUGIN_NAME = "HashDB"
 PLUGIN_HOTKEY = 'Alt+`'
-VERSION = '1.5.0'
+VERSION = '1.6.0'
 
 #--------------------------------------------------------------------------
 # IDA Python version madness
@@ -85,7 +85,7 @@ HASHDB_USE_XOR = False
 HASHDB_XOR_VALUE = 0
 HASHDB_ALGORITHM = None
 HASHDB_ALGORITHM_SIZE = 0
-ENUM_NAME = "hashdb_strings"
+ENUM_PREFIX = "hashdb_strings"
 NETNODE_NAME = "$hashdb"
 
 # Variables for async operations
@@ -528,7 +528,7 @@ def load_settings():
     global HASHDB_USE_XOR
     global HASHDB_XOR_VALUE 
     global HASHDB_ALGORITHM
-    global ENUM_NAME
+    global ENUM_PREFIX
     global NETNODE_NAME
     node = ida_netnode.netnode(NETNODE_NAME)
     if ida_netnode.exist(node):
@@ -545,8 +545,8 @@ def load_settings():
             successful = set_algorithm(node.hashstr("HASHDB_ALGORITHM"), node.hashstr("HASHDB_ALGORITHM_SIZE"))
             if not successful:
                 idaapi.msg("HashDB failed to set the algorithm when parsing the saved config!\n")
-        if bool(node.hashstr("ENUM_NAME")):
-            ENUM_NAME = node.hashstr("ENUM_NAME")
+        if bool(node.hashstr("ENUM_PREFIX")):
+            ENUM_PREFIX = node.hashstr("ENUM_PREFIX")
         idaapi.msg("HashDB configuration loaded!\n")
     else:
         idaapi.msg("No saved HashDB configuration\n")
@@ -558,7 +558,7 @@ def save_settings():
     global HASHDB_USE_XOR
     global HASHDB_XOR_VALUE 
     global HASHDB_ALGORITHM
-    global ENUM_NAME
+    global ENUM_PREFIX
     global NETNODE_NAME
     node = ida_netnode.netnode()
     if node.create(NETNODE_NAME):
@@ -572,8 +572,8 @@ def save_settings():
             node.hashset_buf("HASHDB_ALGORITHM", str(HASHDB_ALGORITHM))
         if HASHDB_ALGORITHM != None:
             node.hashset_buf("HASHDB_ALGORITHM_SIZE", str(HASHDB_ALGORITHM_SIZE))
-        if ENUM_NAME != None:
-            node.hashset_buf("ENUM_NAME", str(ENUM_NAME))
+        if ENUM_PREFIX != None:
+            node.hashset_buf("ENUM_PREFIX", str(ENUM_PREFIX))
         idaapi.msg("HashDB settings saved\n")
     else:
         idaapi.msg("ERROR: Unable to save HashDB settings\n")
@@ -622,7 +622,7 @@ HashDB Settings
 
 {FormChangeCb}
 <##API URL          :{iServer}>
-<##Enum Name        :{iEnum}>
+<##Enum Prefix      :{iEnum}>
 <Enable XOR:{rXor}>{cXorGroup}>  |  <##:{iXor}>(hex)
 <Select algorithm :{cAlgoChooser}><Refresh Algorithms:{iBtnRefresh}>
 
@@ -671,7 +671,7 @@ HashDB Settings
 
     @staticmethod
     def show(api_url="https://hashdb.openanalysis.net",
-             enum_name="hashdb_strings",
+             enum_prefix="hashdb_strings",
              use_xor=False,
              xor_value=0,
              algorithms=[]):
@@ -679,14 +679,14 @@ HashDB Settings
         global HASHDB_USE_XOR
         global HASHDB_XOR_VALUE
         global HASHDB_ALGORITHM
-        global ENUM_NAME
+        global ENUM_PREFIX
         # Sort the algorithms
         sorted_algorithms = sorted(algorithms, key = lambda algorithm: algorithm[0].lower())
         f = hashdb_settings_t(sorted_algorithms)
         f, args = f.Compile()
         # Set default values
         f.iServer.value = api_url
-        f.iEnum.value = enum_name
+        f.iEnum.value = enum_prefix
         if use_xor:
             f.rXor.checked = True
         else:
@@ -699,7 +699,7 @@ HashDB Settings
             HASHDB_USE_XOR = f.rXor.checked
             HASHDB_XOR_VALUE = f.iXor.value
             HASHDB_API_URL = f.iServer.value
-            ENUM_NAME = f.iEnum.value
+            ENUM_PREFIX = f.iEnum.value
             # Check if algorithm is selected
             if f.cAlgoChooser.selection == None:
                 # No algorithm selected bail!
@@ -911,22 +911,57 @@ Do you want to import all function hashes from this module?
 #--------------------------------------------------------------------------
 # IDA helper functions
 #--------------------------------------------------------------------------
-def add_enums(enum_name, hash_list):
+def add_enums(enum_name, hash_list, enum_size = 0):
     '''
     Add a list of string,hash pairs to enum.
     hash_list = [(string1,hash1),(string2,hash2)]
     '''
+    # Resolve the enum size
+    if not enum_size:
+        global HASHDB_ALGORITHM_SIZE
+        enum_size = int(HASHDB_ALGORITHM_SIZE / 8)
+
     # Create enum
-    enum_id = idc.add_enum(-1, enum_name, ida_bytes.dec_flag())
+    enum_id = idc.add_enum(-1, enum_name, ida_bytes.hex_flag())
     if enum_id == idaapi.BADNODE:
         # Enum already exists attempt to find it
         enum_id = ida_enum.get_enum(enum_name)
     if enum_id == idaapi.BADNODE:
         # Can't create or find enum
         return None
-    for element in hash_list:
-        ida_enum.add_enum_member(enum_id, element[0], element[1])
+    # Set the enum size/width (expected to return True for valid sizes)
+    if not ida_enum.set_enum_width(enum_id, enum_size):
+        return None
+    
+    # IDA API defines (https://hex-rays.com/products/ida/support/idapython_docs/ida_enum.html)
+    ENUM_MEMBER_ERROR_SUCCESS = 0 # successfully added
+    ENUM_MEMBER_ERROR_NAME    = 1 # a member with this name already exists
+
+    MAXIMUM_ATTEMPTS = 256 # ENUM_MEMBER_ERROR_VALUE -> only allows 256 members with this value
+    for member_name, value in hash_list:
+        # First, we have to check if this name and value already exist in the enum
+        if ida_enum.get_enum_member(enum_id, value, 0, 0) != idaapi.BADNODE:
+            continue # Skip if the value already exists in the enum
+
+        # Attempt to generate a name, and insert the value
+        for index in range(MAXIMUM_ATTEMPTS):
+            result = ida_enum.add_enum_member(enum_id, member_name if not index else member_name + '_' + str(index), value)
+            # Successfully added to the list
+            if result == ENUM_MEMBER_ERROR_SUCCESS:
+                break
+
+            # Unhandled error (TODO: add logging)
+            if result != ENUM_MEMBER_ERROR_NAME:
+                return None
     return enum_id
+
+
+def generate_enum_name(prefix: str) -> str:
+    """
+    Generates an enum name from a prefix
+    """
+    global HASHDB_ALGORITHM
+    return prefix + '_' + HASHDB_ALGORITHM
 
 
 def make_const_enum(enum_id, hash_value):
@@ -1051,16 +1086,16 @@ def global_settings():
     global HASHDB_USE_XOR
     global HASHDB_XOR_VALUE
     global HASHDB_ALGORITHM
-    global ENUM_NAME
+    global ENUM_PREFIX
     if HASHDB_ALGORITHM != None:
         algorithms = [[HASHDB_ALGORITHM, str(HASHDB_ALGORITHM_SIZE)]]
     else:
         algorithms = []
     settings_results = hashdb_settings_t.show(api_url=HASHDB_API_URL, 
-                                                  enum_name=ENUM_NAME,
-                                                  use_xor=HASHDB_USE_XOR,
-                                                  xor_value=HASHDB_XOR_VALUE,
-                                                  algorithms=algorithms)
+                                              enum_prefix=ENUM_PREFIX,
+                                              use_xor=HASHDB_USE_XOR,
+                                              xor_value=HASHDB_XOR_VALUE,
+                                              algorithms=algorithms)
     if settings_results:
         idaapi.msg("HashDB configured successfully!\nHASHDB_API_URL: %s\nHASHDB_USE_XOR: %s\nHASHDB_XOR_VALUE: %s\nHASHDB_ALGORITHM: %s\nHASHDB_ALGORITHM_SIZE: %s\n" % 
                    (HASHDB_API_URL, HASHDB_USE_XOR, hex(HASHDB_XOR_VALUE), HASHDB_ALGORITHM, HASHDB_ALGORITHM_SIZE))
@@ -1133,7 +1168,7 @@ def set_xor_key():
 # Hash lookup
 #--------------------------------------------------------------------------
 def hash_lookup_done_handler(hash_list: None | list, hash_value: int = None):
-    global ENUM_NAME
+    global ENUM_PREFIX
     def add_enums_wrapper(enum_name, hash_list):
         nonlocal enum_id
         enum_id = add_enums(enum_name, hash_list)
@@ -1187,10 +1222,10 @@ def hash_lookup_done_handler(hash_list: None | list, hash_value: int = None):
 
     # Add the hash to the global enum, and exit if we can't create it
     enum_id = None
-    add_enums_callable = functools.partial(add_enums_wrapper, ENUM_NAME, [(string_value, hash_value)])
+    add_enums_callable = functools.partial(add_enums_wrapper, generate_enum_name(ENUM_PREFIX), [(string_value, hash_value)])
     ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
     if enum_id is None:
-        idaapi.msg(f"ERROR: Unable to create or find enum: {ENUM_NAME}\n")
+        idaapi.msg(f"ERROR: Unable to create or find enum: {generate_enum_name(ENUM_PREFIX)}\n")
         return
     
     # If the hash was pulled from the disassembly window
@@ -1240,10 +1275,10 @@ def hash_lookup_done_handler(hash_list: None | list, hash_value: int = None):
     
     # Add hashes to enum
     enum_id = None
-    add_enums_callable = functools.partial(add_enums_wrapper, ENUM_NAME, enum_list)
+    add_enums_callable = functools.partial(add_enums_wrapper, generate_enum_name(ENUM_PREFIX), enum_list)
     ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
     if enum_id is None:
-        idaapi.msg(f"ERROR: Unable to create or find enum: {ENUM_NAME}\n")
+        idaapi.msg(f"ERROR: Unable to create or find enum: {generate_enum_name(ENUM_PREFIX)}\n")
     else:
         idaapi.msg(f"Added {len(enum_list)} hashes for module {module_name}\n")
 
@@ -1286,11 +1321,11 @@ async def hash_lookup_request(api_url: str, algorithm: str,
 def hash_lookup_run(timeout: int | float = 0) -> bool:
     # Check if an algorithm is selected
     global HASHDB_ALGORITHM, HASHDB_ALGORITHM_SIZE, HASHDB_API_URL, \
-           ENUM_NAME, HASHDB_USE_XOR, HASHDB_XOR_VALUE
+           ENUM_PREFIX, HASHDB_USE_XOR, HASHDB_XOR_VALUE
     if HASHDB_ALGORITHM is None:
         idaapi.warning("Please select a hash algorithm before using HashDB.")
         settings_results = hashdb_settings_t.show(api_url=HASHDB_API_URL, 
-                                                  enum_name=ENUM_NAME,
+                                                  enum_prefix=ENUM_PREFIX,
                                                   use_xor=HASHDB_USE_XOR,
                                                   xor_value=HASHDB_XOR_VALUE)
         if settings_results:
@@ -1348,7 +1383,7 @@ def hash_scan_done(convert_values: bool = False, hash_list: None | list[dict] = 
     global HASHDB_REQUEST_LOCK
     logging.debug(f"hash_scan_done callback invoked, result: {'none' if hash_list is None else f'{hash_list}'}")
 
-    global ENUM_NAME
+    global ENUM_PREFIX
     def add_enums_wrapper(enum_name: str, hash_list):
         nonlocal enum_id
         enum_id = add_enums(enum_name, hash_list)
@@ -1406,10 +1441,10 @@ def hash_scan_done(convert_values: bool = False, hash_list: None | list[dict] = 
             
             # Add hash to enum
             enum_id = None
-            add_enums_callable = functools.partial(add_enums_wrapper, ENUM_NAME, [(hash_string_value, hash_entry["hash_value"])])
+            add_enums_callable = functools.partial(add_enums_wrapper, generate_enum_name(ENUM_PREFIX), [(hash_string_value, hash_entry["hash_value"])])
             ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
             if enum_id is None:
-                idaapi.msg(f"ERROR: Unable to create or find enum: {ENUM_NAME}\n")
+                idaapi.msg(f"ERROR: Unable to create or find enum: {generate_enum_name(ENUM_PREFIX)}\n")
                 HASHDB_REQUEST_LOCK.release() # Release the lock
                 return
             
@@ -1476,11 +1511,11 @@ def hash_scan_run(convert_values: bool, timeout: int | float = 0) -> bool:
     
     # If an algorithm isn't selected, give the user a chance to choose one
     global HASHDB_ALGORITHM, HASHDB_ALGORITHM_SIZE, HASHDB_API_URL, \
-           ENUM_NAME, HASHDB_USE_XOR, HASHDB_XOR_VALUE
+           ENUM_PREFIX, HASHDB_USE_XOR, HASHDB_XOR_VALUE
     if HASHDB_ALGORITHM is None:
         idaapi.warning("Please select a hash algorithm before using HashDB.")
         settings_results = hashdb_settings_t.show(api_url=HASHDB_API_URL, 
-                                                  enum_name=ENUM_NAME,
+                                                  enum_prefix=ENUM_PREFIX,
                                                   use_xor=HASHDB_USE_XOR,
                                                   xor_value=HASHDB_XOR_VALUE)
         if settings_results:
