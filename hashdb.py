@@ -34,10 +34,8 @@
 ##
 ########################################################################################
 
-import collections
 import sys
 import idaapi
-import idautils
 import idc
 import ida_kernwin
 from ida_kernwin import Choose
@@ -45,7 +43,6 @@ import ida_enum
 import ida_bytes
 import ida_netnode
 import requests
-import json
 import functools
 
 # These imports are specific to the Worker implementation
