@@ -1450,6 +1450,13 @@ def hash_scan_done(convert_values: bool = False, hash_list: None | list[dict] = 
             
             # Should we convert the values in the database?
             if convert_values:
+                # Convert to integer (this step is required due to an IDA api bug - `ida_bytes.op_enum` will set the wrong size)
+                def convert_to_integer(ea: int, size: int):
+                    convert_data_to_integer(ea, size)
+
+                convert_to_integer_callable = functools.partial(convert_to_integer, hash_entry["ea"], hash_entry["size"])
+                ida_kernwin.execute_sync(convert_to_integer_callable, ida_kernwin.MFF_FAST)
+
                 # Convert to enum
                 def convert_to_enum(ea: int, enum_id: int):
                     NUMBER_OF_OPERANDS = 0
