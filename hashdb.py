@@ -1465,8 +1465,17 @@ def hash_scan_done(convert_values: bool = False, hash_list: None | list[dict] = 
 
                 # Add a label
                 def set_name(ea: int, name: str):
-                    # TODO: check if a name already exists, append an indexed suffix if it does
-                    idc.set_name(ea, name, idc.SN_CHECK)
+                    if not name: # is the name empty?
+                        return 0 # execute_sync dictates an int return value
+                    
+                    # Does the name already exist? If so, modify it!
+                    index = 1
+                    suffix = ""
+                    while idc.get_name_ea_simple(name + suffix) != idaapi.BADADDR:
+                        suffix = f"_{index}"
+                        index += 1
+
+                    idc.set_name(ea, name + suffix, idc.SN_CHECK)
                     return 0 # execute_sync dictates an int return value
                 
                 set_name_callable = functools.partial(set_name, hash_entry["ea"], "ptr_" + hash_string_value)
