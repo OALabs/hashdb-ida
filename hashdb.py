@@ -43,6 +43,7 @@ import ida_bytes
 import ida_netnode
 import requests
 import functools
+from typing import Union
 
 # These imports are specific to the Worker implementation
 import ctypes
@@ -61,7 +62,7 @@ __AUTHOR__ = '@herrcore'
 
 PLUGIN_NAME = "HashDB"
 PLUGIN_HOTKEY = 'Alt+`'
-VERSION = '1.7.0'
+VERSION = '1.7.1'
 
 #--------------------------------------------------------------------------
 # IDA Python version madness
@@ -69,7 +70,7 @@ VERSION = '1.7.0'
 
 major, minor = map(int, idaapi.get_kernel_version().split("."))
 assert (major > 6),"ERROR: HashDB plugin requires IDA v7+"
-assert (sys.version_info >= (3, 0)), "ERROR: HashDB plugin requires Python 3"
+assert (sys.version_info >= (3, 6)), "ERROR: HashDB plugin requires Python 3.6"
 
 
 #--------------------------------------------------------------------------
@@ -85,7 +86,7 @@ ENUM_PREFIX = "hashdb_strings"
 NETNODE_NAME = "$hashdb"
 
 # Variables for async operations
-HASHDB_REQUEST_TIMEOUT: int | float = 15 # Limit to 15 seconds
+HASHDB_REQUEST_TIMEOUT: Union[int, float] = 15 # Limit to 15 seconds
 HASHDB_REQUEST_LOCK = threading.Lock()
 
 #--------------------------------------------------------------------------
@@ -209,9 +210,9 @@ class Worker(Thread):
     A `Worker` can have a timeout, where the execution will end abruptly, if its exceeded.
     """
     # Private variables:
-    __timeout: int | float = None
-    __done_callback: Callable | Awaitable = None
-    __error_callback: Callable | Awaitable = None
+    __timeout: Union[int, float] = None
+    __done_callback: Union[Callable, Awaitable] = None
+    __error_callback: Union[Callable, Awaitable] = None
     __target: Callable = None
     __loop: AbstractEventLoop = None
     __coroutine_target: Awaitable = None
@@ -308,9 +309,9 @@ class Worker(Thread):
                 del self.__error_callback
             del self.__coroutine_target, self.__loop
 
-    def start(self, timeout: int | float = 0,
-              done_callback: Callable | Awaitable = None,
-              error_callback: Callable | Awaitable = None):
+    def start(self, timeout: Union[int, float] = 0,
+              done_callback: Union[Callable, Awaitable] = None,
+              error_callback: Union[Callable, Awaitable] = None):
         """
         The `start` method is invoked when we attempt to start a new thread.
         
@@ -1163,7 +1164,7 @@ def set_xor_key():
 #--------------------------------------------------------------------------
 # Hash lookup
 #--------------------------------------------------------------------------
-def hash_lookup_done_handler(hash_list: None | list, hash_value: int = None):
+def hash_lookup_done_handler(hash_list: Union[None, list], hash_value: int = None):
     global ENUM_PREFIX
     def add_enums_wrapper(enum_name, hash_list):
         nonlocal enum_id
@@ -1279,7 +1280,7 @@ def hash_lookup_done_handler(hash_list: None | list, hash_value: int = None):
         idaapi.msg(f"Added {len(enum_list)} hashes for module {module_name}\n")
 
 
-def hash_lookup_done(hash_list: None | list = None, hash_value: int = None):
+def hash_lookup_done(hash_list: Union[None, list] = None, hash_value: int = None):
     global HASHDB_REQUEST_LOCK
     hash_lookup_done_handler(hash_list, hash_value)
 
@@ -1295,8 +1296,8 @@ def hash_lookup_error(exception: Exception):
 
 
 async def hash_lookup_request(api_url: str, algorithm: str,
-                              hash_value: int, xor_value: None | int,
-                              timeout: int | float):
+                              hash_value: int, xor_value: Union[None, int],
+                              timeout: Union[int, float]):
     # Perform the request
     hash_results = None
     try:
@@ -1314,7 +1315,7 @@ async def hash_lookup_request(api_url: str, algorithm: str,
     return hash_list, hash_value
 
 
-def hash_lookup_run(timeout: int | float = 0) -> bool:
+def hash_lookup_run(timeout: Union[int, float] = 0) -> bool:
     # Check if an algorithm is selected
     global HASHDB_ALGORITHM, HASHDB_ALGORITHM_SIZE, HASHDB_API_URL, \
            ENUM_PREFIX, HASHDB_USE_XOR, HASHDB_XOR_VALUE
@@ -1375,7 +1376,7 @@ def hash_lookup():
 # Dynamic IAT hash scan
 # TODO: convert_values should be fetched from the UI (add a checkbox)
 #--------------------------------------------------------------------------
-def hash_scan_done(convert_values: bool = False, hash_list: None | list[dict] = None):
+def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list[dict]] = None):
     global HASHDB_REQUEST_LOCK
     logging.debug(f"hash_scan_done callback invoked, result: {'none' if hash_list is None else f'{hash_list}'}")
 
@@ -1494,7 +1495,7 @@ def hash_scan_error(exception: Exception):
 
 async def hash_scan_request(convert_values: bool, hash_list: list[dict],
                             api_url: str, algorithm: str, xor_value: int,
-                            timeout: int | float) -> None | list:
+                            timeout: Union[int, float]) -> Union[None, list]:
     for hash_entry in hash_list:
         try:
             hash_results = get_strings_from_hash(algorithm, hash_entry["hash_value"], xor_value if xor_value is not None else 0, api_url, timeout)
@@ -1507,7 +1508,7 @@ async def hash_scan_request(convert_values: bool, hash_list: list[dict],
     return convert_values, hash_list
 
 
-def hash_scan_run(convert_values: bool, timeout: int | float = 0) -> bool:
+def hash_scan_run(convert_values: bool, timeout: Union[int, float] = 0) -> bool:
     # Only scan for data in the dissassembler
     if ida_kernwin.get_viewer_place_type(ida_kernwin.get_current_viewer()) != ida_kernwin.TCCPT_IDAPLACE:
         idaapi.msg("ERROR: Scan only available in dissassembler.\n")
@@ -1613,7 +1614,7 @@ def hash_scan(convert_values = True):
 #--------------------------------------------------------------------------
 # Algorithm search function
 #--------------------------------------------------------------------------
-def hunt_algorithm_done(response: None | list = None):
+def hunt_algorithm_done(response: Union[None, list] = None):
     global HASHDB_REQUEST_LOCK
     logging.debug(f"hunt_algorithm_done callback invoked, result: {'none' if response is None else f'{response}'}")
 
@@ -1637,7 +1638,7 @@ def hunt_algorithm_error(exception: Exception):
     HASHDB_REQUEST_LOCK.release()
 
 
-async def hunt_algorithm_request(hash_value: int, timeout=None) -> None | list:
+async def hunt_algorithm_request(hash_value: int, timeout=None) -> Union[None, list]:
     """
     Perform the actual request, and provide the results to the
      `hunt_algorithm_done` callback.
@@ -1678,7 +1679,7 @@ async def hunt_algorithm_request(hash_value: int, timeout=None) -> None | list:
     return results
 
 
-def hunt_algorithm_run(timeout: int | float = 0) -> bool:
+def hunt_algorithm_run(timeout: Union[int, float] = 0) -> bool:
     global HASHDB_REQUEST_LOCK, HASHDB_USE_XOR, HASHDB_XOR_VALUE
     
     # Get the selected hash value
