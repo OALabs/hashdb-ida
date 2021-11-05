@@ -907,8 +907,9 @@ Do you want to import all function hashes from this module?
 
 #--------------------------------------------------------------------------
 # IDA helper functions
+# Suffix "hdb" -> "hashdb"
 #--------------------------------------------------------------------------
-def add_enums(enum_name, hash_list, enum_size = 0):
+def add_enums(enum_name, hash_list, enum_size = 0, suffix = "hdb"):
     '''
     Add a list of string,hash pairs to enum.
     hash_list = [(string1,hash1),(string2,hash2)]
@@ -939,6 +940,9 @@ def add_enums(enum_name, hash_list, enum_size = 0):
         # First, we have to check if this name and value already exist in the enum
         if ida_enum.get_enum_member(enum_id, value, 0, 0) != idaapi.BADNODE:
             continue # Skip if the value already exists in the enum
+
+        # Append the suffix, if it isn't empty
+        member_name = member_name + '_' + suffix if suffix else member_name
 
         # Attempt to generate a name, and insert the value
         for index in range(MAXIMUM_ATTEMPTS):
