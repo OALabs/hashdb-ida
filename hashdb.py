@@ -35,6 +35,7 @@
 ########################################################################################
 
 import sys
+
 import idaapi
 import idc
 import ida_kernwin
@@ -44,6 +45,7 @@ import ida_netnode
 import requests
 import functools
 import string
+import traceback
 from typing import Union
 
 # These imports are specific to the Worker implementation
@@ -87,7 +89,7 @@ ENUM_PREFIX = "hashdb_strings"
 NETNODE_NAME = "$hashdb"
 
 # Variables for async operations
-HASHDB_REQUEST_TIMEOUT: Union[int, float] = 15 # Limit to 15 seconds
+HASHDB_REQUEST_TIMEOUT = 15 # Limit to 15 seconds
 HASHDB_REQUEST_LOCK = threading.Lock()
 
 #--------------------------------------------------------------------------
@@ -211,12 +213,12 @@ class Worker(Thread):
     A `Worker` can have a timeout, where the execution will end abruptly, if its exceeded.
     """
     # Private variables:
-    __timeout: Union[int, float] = None
-    __done_callback: Union[Callable, Awaitable] = None
-    __error_callback: Union[Callable, Awaitable] = None
-    __target: Callable = None
-    __loop: AbstractEventLoop = None
-    __coroutine_target: Awaitable = None
+    __timeout = None
+    __done_callback = None
+    __error_callback = None
+    __target = None
+    __loop = None
+    __coroutine_target = None
 
     def __wrapper(self, *args, **kwargs):
         """
@@ -237,12 +239,12 @@ class Worker(Thread):
             if self.__done_callback is not None:
                 self.__done_callback(*result)
         except SystemExit as exception:
-            logging.debug(f"Caught an expected exception: [{exception=}]")
+            logging.debug("Caught an expected exception: {}".format(type(exception).__name__))
             # Execute the error callback
             if self.__error_callback is not None:
                 self.__error_callback(exception)
         except Exception as exception:
-            logging.critical(f"Caught an unexpected exception: [{exception=}]")
+            logging.exception("Caught an unexpected exception: {}, raising.".format(type(exception).__name__))
             raise exception
         finally:
             # Decrement the reference count, no longer required
@@ -288,7 +290,7 @@ class Worker(Thread):
                 else:
                     self.__done_callback(*result)
         except (CancelledError, TimeoutError, RuntimeError) as exception:
-            logging.debug(f"Caught an expected exception: [{exception=}]")
+            logging.debug("Caught an expected exception: {}".format(type(exception).__name__))
 
             # Was an error callback set?
             if self.__error_callback is not None:
@@ -297,7 +299,7 @@ class Worker(Thread):
                 else:
                     self.__error_callback(exception)
         except Exception as exception:
-            logging.critical(f"Caught an unexpected exception: [{exception=}]")
+            logging.exception("Caught an unexpected exception: {}, raising.".format(type(exception).__name__))
             raise exception
         finally:
             loop.close()
@@ -1066,7 +1068,7 @@ def read_integer_from_db(ea: int, default_size: int = 0) -> int:
         return [ida_bytes.get_byte(ea), 1, bool(type_size)]
 
     # Should never get executed
-    raise HashDBError(f"Failed to read integer from database at location: {hex(ea)} with size {default_size}.")
+    raise HashDBError("Failed to read integer from database at location: {} with size {}.".format(hex(ea), default_size))
 
 
 def convert_data_to_integer(ea, size: int = 0) -> int:
@@ -1231,14 +1233,14 @@ def hash_lookup_done_handler(hash_list: Union[None, list], hash_value: int = Non
         string_value = "empty_string"
 
     # Hash found!
-    idaapi.msg(f"HashDB: Hash match found: {string_value}\n")
+    idaapi.msg("HashDB: Hash match found: {}\n".format(string_value))
 
     # Add the hash to the global enum, and exit if we can't create it
     enum_id = None
     add_enums_callable = functools.partial(add_enums_wrapper, generate_enum_name(ENUM_PREFIX), [(string_value, hash_value)])
     ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
     if enum_id is None:
-        idaapi.msg(f"ERROR: Unable to create or find enum: {generate_enum_name(ENUM_PREFIX)}\n")
+        idaapi.msg("ERROR: Unable to create or find enum: {}\n".format(generate_enum_name(ENUM_PREFIX)))
         return
     
     # If the hash was pulled from the disassembly window
@@ -1273,9 +1275,9 @@ def hash_lookup_done_handler(hash_list: Union[None, list], hash_value: int = Non
     try:
         global HASHDB_ALGORITHM, HASHDB_API_URL, HASHDB_REQUEST_TIMEOUT
         module_hash_list = get_module_hashes(module_name, HASHDB_ALGORITHM, hash_string.get("permutation", ""), HASHDB_API_URL, timeout=HASHDB_REQUEST_TIMEOUT)
-    except requests.Timeout as exception:
-        idaapi.msg(f"ERROR: HashDB API module hashes request timed out.\n")
-        logging.warn(f"API request to {HASHDB_API_URL} timed out: {exception=}")
+    except requests.Timeout:
+        idaapi.msg("ERROR: HashDB API module hashes request timed out.\n")
+        logging.exception("API request to {} timed out.".format(HASHDB_API_URL))
         return
 
     # Add the hash list to the global enum
@@ -1291,9 +1293,9 @@ def hash_lookup_done_handler(hash_list: Union[None, list], hash_value: int = Non
     add_enums_callable = functools.partial(add_enums_wrapper, generate_enum_name(ENUM_PREFIX), enum_list)
     ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
     if enum_id is None:
-        idaapi.msg(f"ERROR: Unable to create or find enum: {generate_enum_name(ENUM_PREFIX)}\n")
+        idaapi.msg("ERROR: Unable to create or find enum: {}\n".format(generate_enum_name(ENUM_PREFIX)))
     else:
-        idaapi.msg(f"Added {len(enum_list)} hashes for module {module_name}\n")
+        idaapi.msg("Added {} hashes for module {}\n".format(len(enum_list), module_name))
 
 
 def hash_lookup_done(hash_list: Union[None, list] = None, hash_value: int = None):
@@ -1306,8 +1308,9 @@ def hash_lookup_done(hash_list: Union[None, list] = None, hash_value: int = None
 
 def hash_lookup_error(exception: Exception):
     global HASHDB_REQUEST_LOCK
-    logging.critical(f"hash_lookup_request {'timed out' if type(exception) == TimeoutError else f'errored: {exception=}'}")
-    idaapi.msg(f"ERROR: HashDB hash lookup failed: {exception=}\n")
+    exception_string = traceback.format_exc()
+    logging.critical("hash_lookup_request {}".format("timed out." if type(exception) == TimeoutError else "errored: {}".format(exception_string)))
+    idaapi.msg("ERROR: HashDB hash scan failed: {}\n".format(exception_string))
     HASHDB_REQUEST_LOCK.release()
 
 
@@ -1318,15 +1321,15 @@ async def hash_lookup_request(api_url: str, algorithm: str,
     hash_results = None
     try:
         hash_results = get_strings_from_hash(algorithm, hash_value, xor_value if xor_value is not None else 0, api_url, timeout)
-    except requests.Timeout as exception:
-        idaapi.msg(f"ERROR: HashDB API lookup hash request timed out.\n")
-        logging.warn(f"API request to {HASHDB_API_URL} timed out: {exception=}")
+    except requests.Timeout:
+        idaapi.msg("ERROR: HashDB API lookup hash request timed out.\n")
+        logging.exception("API request to {} timed out:".format(HASHDB_API_URL))
         return None
 
     hash_list = hash_results.get("hashes", [])
     # Did `hashes` exist, was the array empty?
     if not hash_list:
-        idaapi.msg(f"HashDB: No hash found for {hex(hash_value)}\n")
+        idaapi.msg("HashDB: No hash found for {}\n".format(hex(hash_value)))
         return None
     return hash_list, hash_value
 
@@ -1342,12 +1345,12 @@ def hash_lookup_run(timeout: Union[int, float] = 0) -> bool:
                                                   use_xor=HASHDB_USE_XOR,
                                                   xor_value=HASHDB_XOR_VALUE)
         if settings_results:
-            idaapi.msg("HashDB configured successfully!\n"
-                      f"HASHDB_API_URL:        {HASHDB_API_URL}\n"
-                      f"HASHDB_USE_XOR:        {HASHDB_USE_XOR}\n"
-                      f"HASHDB_XOR_VALUE:      {hex(HASHDB_XOR_VALUE)}\n"
-                      f"HASHDB_ALGORITHM:      {HASHDB_ALGORITHM}\n"
-                      f"HASHDB_ALGORITHM_SIZE: {HASHDB_ALGORITHM_SIZE}\n")
+            idaapi.msg("HashDB configured successfully!\n" +
+                       "HASHDB_API_URL:        {}\n".format(HASHDB_API_URL) +
+                       "HASHDB_USE_XOR:        {}\n".format(HASHDB_USE_XOR) +
+                       "HASHDB_XOR_VALUE:      {}\n".format(hex(HASHDB_XOR_VALUE)) +
+                       "HASHDB_ALGORITHM:      {}\n".format(HASHDB_ALGORITHM) +
+                       "HASHDB_ALGORITHM_SIZE: {}\n".format(HASHDB_ALGORITHM_SIZE))
         else:
             idaapi.msg("HashDB configuration cancelled!\n")
             return True # Release the lock
@@ -1376,16 +1379,16 @@ def hash_lookup():
     """
     # Check if we're already running a request
     global HASHDB_REQUEST_LOCK, HASHDB_REQUEST_TIMEOUT
-    timeout_string = f"{HASHDB_REQUEST_TIMEOUT} second{'s' if HASHDB_REQUEST_TIMEOUT != 1 else ''}"
+    timeout_string = "{}".format(HASHDB_REQUEST_TIMEOUT) + "second{}".format('s' if HASHDB_REQUEST_TIMEOUT != 1 else "")
     if HASHDB_REQUEST_LOCK.locked():
         logging.debug("An async operation was requested, but the response lock was locked. Aborting.")
-        ida_kernwin.info("Please wait until the previous request is finished.\n"
-                        f"Requests timeout after {timeout_string}.")
+        ida_kernwin.info("Please wait until the previous request is finished.\n" +
+                         "Requests timeout after {}.".format(timeout_string))
         return
 
     # Acquire the lock and execute the request
     HASHDB_REQUEST_LOCK.acquire()
-    idaapi.msg(f"HashDB: Searching for a hash, please wait! Timeout: {timeout_string}.\n")
+    idaapi.msg("HashDB: Searching for a hash, please wait! Timeout: {}.\n".format(timeout_string))
     release_lock = hash_lookup_run(timeout=HASHDB_REQUEST_TIMEOUT)
     if release_lock:
         HASHDB_REQUEST_LOCK.release()
@@ -1397,7 +1400,7 @@ def hash_lookup():
 #--------------------------------------------------------------------------
 def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list[dict]] = None):
     global HASHDB_REQUEST_LOCK
-    logging.debug(f"hash_scan_done callback invoked, result: {'none' if hash_list is None else f'{hash_list}'}")
+    logging.debug("hash_scan_done callback invoked, result: {}".format("none" if hash_list is None else "{}".format(hash_list)))
 
     global ENUM_PREFIX
     def add_enums_wrapper(enum_name: str, hash_list):
@@ -1413,7 +1416,7 @@ def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list[dic
 
             entries_count = len(hashes)
             if not entries_count:
-                idaapi.msg(f"HashDB: Couldn't find any matches for hash value {hex(hash_entry['hash_value'])} ({hash_entry['size']} bytes) at {hex(hash_entry['ea'])}\n")
+                idaapi.msg("HashDB: Couldn't find any matches for hash value {} ({} bytes) at {}\n".format(hex(hash_entry["hash_value"]), hash_entry["size"], hex(hash_entry["ea"])))
                 continue
 
             # Resolve the hash string object from the response
@@ -1460,7 +1463,7 @@ def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list[dic
             add_enums_callable = functools.partial(add_enums_wrapper, generate_enum_name(ENUM_PREFIX), [(hash_string_value, hash_entry["hash_value"])])
             ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
             if enum_id is None:
-                idaapi.msg(f"ERROR: Unable to create or find enum: {generate_enum_name(ENUM_PREFIX)}\n")
+                idaapi.msg("ERROR: Unable to create or find enum: {}\n".format(generate_enum_name(ENUM_PREFIX)))
                 HASHDB_REQUEST_LOCK.release() # Release the lock
                 return
             
@@ -1492,7 +1495,7 @@ def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list[dic
                     index = 1
                     suffix = ""
                     while idc.get_name_ea_simple(name + suffix) != idaapi.BADADDR:
-                        suffix = f"_{index}"
+                        suffix = "_{}".format(index)
                         index += 1
 
                     idc.set_name(ea, name + suffix, idc.SN_CHECK)
@@ -1507,8 +1510,9 @@ def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list[dic
 
 def hash_scan_error(exception: Exception):
     global HASHDB_REQUEST_LOCK
-    logging.critical(f"hash_scan_request {'timed out' if type(exception) == TimeoutError else f'errored: {exception=}'}")
-    idaapi.msg(f"ERROR: HashDB hash scan failed: {exception=}\n")
+    exception_string = traceback.format_exc()
+    logging.critical("hash_scan_request {}".format("timed out." if type(exception) == TimeoutError else "errored: {}".format(exception_string)))
+    idaapi.msg("ERROR: HashDB hash scan failed: {}\n".format(exception_string))
     HASHDB_REQUEST_LOCK.release()
 
 
@@ -1518,9 +1522,9 @@ async def hash_scan_request(convert_values: bool, hash_list: list[dict],
     for hash_entry in hash_list:
         try:
             hash_results = get_strings_from_hash(algorithm, hash_entry["hash_value"], xor_value if xor_value is not None else 0, api_url, timeout)
-        except requests.Timeout as exception:
-            idaapi.msg(f"ERROR: HashDB API lookup scan request timed out.\n")
-            logging.warn(f"API request to {HASHDB_API_URL} timed out: {exception=}")
+        except requests.Timeout:
+            idaapi.msg("ERROR: HashDB API lookup scan request timed out.\n")
+            logging.exception("API request to {} timed out:".format(HASHDB_API_URL))
             return None
         
         hash_entry["hashes"] = hash_results.get("hashes", [])
@@ -1551,19 +1555,19 @@ def hash_scan_run(convert_values: bool, timeout: Union[int, float] = 0) -> bool:
                                                   use_xor=HASHDB_USE_XOR,
                                                   xor_value=HASHDB_XOR_VALUE)
         if settings_results:
-            idaapi.msg("HashDB configured successfully!\n"
-                      f"HASHDB_API_URL:        {HASHDB_API_URL}\n"
-                      f"HASHDB_USE_XOR:        {HASHDB_USE_XOR}\n"
-                      f"HASHDB_XOR_VALUE:      {hex(HASHDB_XOR_VALUE)}\n"
-                      f"HASHDB_ALGORITHM:      {HASHDB_ALGORITHM}\n"
-                      f"HASHDB_ALGORITHM_SIZE: {HASHDB_ALGORITHM_SIZE}\n")
+            idaapi.msg("HashDB configured successfully!\n" +
+                       "HASHDB_API_URL:        {}\n".format(HASHDB_API_URL) +
+                       "HASHDB_USE_XOR:        {}\n".format(HASHDB_USE_XOR) +
+                       "HASHDB_XOR_VALUE:      {}\n".format(hex(HASHDB_XOR_VALUE)) +
+                       "HASHDB_ALGORITHM:      {}\n".format(HASHDB_ALGORITHM) +
+                       "HASHDB_ALGORITHM_SIZE: {}\n".format(HASHDB_ALGORITHM_SIZE))
         else:
             idaapi.msg("HashDB configuration cancelled!\n")
             return True # Release the lock
     
     # Check for a valid algorithm size
     if not HASHDB_ALGORITHM_SIZE == 32 and not HASHDB_ALGORITHM_SIZE == 64:
-        idaapi.msg(f"ERROR: Unexpected algorithm size provided: {HASHDB_ALGORITHM_SIZE}\n")
+        idaapi.msg("ERROR: Unexpected algorithm size provided: {}\n".format(HASHDB_ALGORITHM_SIZE))
         return True # Release the lock
     
     # Look through the selected range and lookup each (valid) entry
@@ -1595,7 +1599,7 @@ def hash_scan_run(convert_values: bool, timeout: Union[int, float] = 0) -> bool:
     
     hash_list = scan_range(start, end)
     for index, hash_entry in enumerate(hash_list, start=1):
-        idaapi.msg(f"HashDB: [{index}] Found hash value {hex(hash_entry['hash_value'])} ({hash_entry['size']} bytes) at {hex(hash_entry['ea'])}\n")
+        idaapi.msg("HashDB: [{}] Found hash value {} ({} bytes) at {}\n".format(index, hex(hash_entry["hash_value"]), hash_entry["size"], hex(hash_entry["ea"])))
     
     # Hunt all hashes, and provide the `hash_scan_done` callback with the results
     worker = Worker(target=hash_scan_request, args=(convert_values, hash_list,
@@ -1615,16 +1619,16 @@ def hash_scan(convert_values = True):
     """
     # Check if we're already running a request
     global HASHDB_REQUEST_LOCK, HASHDB_REQUEST_TIMEOUT
-    timeout_string = f"{HASHDB_REQUEST_TIMEOUT} second{'s' if HASHDB_REQUEST_TIMEOUT != 1 else ''}"
+    timeout_string = "{}".format(HASHDB_REQUEST_TIMEOUT) + "second{}".format('s' if HASHDB_REQUEST_TIMEOUT != 1 else "")
     if HASHDB_REQUEST_LOCK.locked():
         logging.debug("An async operation was requested, but the response lock was locked. Aborting.")
-        ida_kernwin.info("Please wait until the previous request is finished.\n"
-                        f"Requests timeout after {timeout_string}.")
+        ida_kernwin.info("Please wait until the previous request is finished.\n" +
+                         "Requests timeout after {}.".format(timeout_string))
         return
 
     # Acquire the lock and execute the request
     HASHDB_REQUEST_LOCK.acquire()
-    idaapi.msg(f"HashDB: Scanning for hashes, please wait! Timeout: {timeout_string}.\n")
+    idaapi.msg("HashDB: Scanning for hashes, please wait! Timeout: {}.\n".format(timeout_string))
     release_lock = hash_scan_run(convert_values=convert_values, timeout=HASHDB_REQUEST_TIMEOUT)
     if release_lock:
         HASHDB_REQUEST_LOCK.release()
@@ -1635,7 +1639,7 @@ def hash_scan(convert_values = True):
 #--------------------------------------------------------------------------
 def hunt_algorithm_done(response: Union[None, list] = None):
     global HASHDB_REQUEST_LOCK
-    logging.debug(f"hunt_algorithm_done callback invoked, result: {'none' if response is None else f'{response}'}")
+    logging.debug("hunt_algorithm_done callback invoked, result: {}".format("none" if response is None else "{}".format(response)))
 
     # Display the result
     if response is not None:
@@ -1652,8 +1656,9 @@ def hunt_algorithm_done(response: Union[None, list] = None):
 
 def hunt_algorithm_error(exception: Exception):
     global HASHDB_REQUEST_LOCK
-    logging.critical(f"hunt_algorithm_request {'timed out' if type(exception) == TimeoutError else f'errored: {exception=}'}")
-    idaapi.msg(f"ERROR: HashDB hunt algorithm failed: {exception=}\n")
+    exception_string = traceback.format_exc()
+    logging.critical("hunt_algorithm_request {}".format("timed out." if type(exception) == TimeoutError else "errored: {}".format(exception_string)))
+    idaapi.msg("ERROR: HashDB hash scan failed: {}\n".format(exception_string))
     HASHDB_REQUEST_LOCK.release()
 
 
@@ -1671,9 +1676,9 @@ async def hunt_algorithm_request(hash_value: int, timeout=None) -> Union[None, l
     try:
         # Send the hunt request
         match_results = hunt_hash(hash_value, api_url=HASHDB_API_URL, timeout=timeout)
-    except requests.exceptions.Timeout as exception:
-        idaapi.msg(f"ERROR: HashDB API hunt hash request timed out.\n")
-        logging.warn(f"API request to {HASHDB_API_URL} timed out: {exception=}")
+    except requests.exceptions.Timeout:
+        idaapi.msg("ERROR: HashDB API hunt hash request timed out.\n")
+        logging.exception("API request to {} timed out.".format(HASHDB_API_URL))
         return None
     
     # Fix the results (algorithm sizes)
@@ -1683,9 +1688,9 @@ async def hunt_algorithm_request(hash_value: int, timeout=None) -> Union[None, l
     try:
         # Send the hunt request
         algorithms = get_algorithms(timeout=timeout)
-    except requests.exceptions.Timeout as exception:
-        idaapi.msg(f"ERROR: HashDB API algorithms request timed out.\n")
-        logging.warn(f"API request to {HASHDB_API_URL} timed out: {exception=}")
+    except requests.exceptions.Timeout:
+        idaapi.msg("ERROR: HashDB API algorithms request timed out.\n")
+        logging.exception("API request to {} timed out.".format(HASHDB_API_URL))
         return None
     results = []
     for match in match_results:
@@ -1727,16 +1732,16 @@ def hunt_algorithm():
     """
     # Check if we're already running a request
     global HASHDB_REQUEST_LOCK, HASHDB_REQUEST_TIMEOUT
-    timeout_string = f"{HASHDB_REQUEST_TIMEOUT} second{'s' if HASHDB_REQUEST_TIMEOUT != 1 else ''}"
+    timeout_string = "{}".format(HASHDB_REQUEST_TIMEOUT) + "second{}".format('s' if HASHDB_REQUEST_TIMEOUT != 1 else "")
     if HASHDB_REQUEST_LOCK.locked():
         logging.debug("An async operation was requested, but the response lock was locked. Aborting.")
-        ida_kernwin.info("Please wait until the previous request is finished.\n"
-                        f"Requests timeout after {timeout_string}.")
+        ida_kernwin.info("Please wait until the previous request is finished.\n" +
+                         "Requests timeout after {}.".format(timeout_string))
         return
 
     # Acquire the lock and execute the request
     HASHDB_REQUEST_LOCK.acquire()
-    idaapi.msg(f"HashDB: Hunting for a hash algorithm, please wait! Timeout: {timeout_string}.\n")
+    idaapi.msg("HashDB: Hunting for a hash algorithm, please wait! Timeout: {}.\n".format(timeout_string))
     release_lock = hunt_algorithm_run(timeout=HASHDB_REQUEST_TIMEOUT)
     if release_lock:
         HASHDB_REQUEST_LOCK.release()
