@@ -88,7 +88,7 @@ ENUM_PREFIX = "hashdb_strings"
 NETNODE_NAME = "$hashdb"
 
 # Variables for async operations
-HASHDB_REQUEST_TIMEOUT: Union[int, float] = 15 # Limit to 15 seconds
+HASHDB_REQUEST_TIMEOUT = 15 # Limit to 15 seconds
 HASHDB_REQUEST_LOCK = threading.Lock()
 
 #--------------------------------------------------------------------------
@@ -212,12 +212,12 @@ class Worker(Thread):
     A `Worker` can have a timeout, where the execution will end abruptly, if its exceeded.
     """
     # Private variables:
-    __timeout: Union[int, float] = None
-    __done_callback: Union[Callable, Awaitable] = None
-    __error_callback: Union[Callable, Awaitable] = None
-    __target: Callable = None
-    __loop: AbstractEventLoop = None
-    __coroutine_target: Awaitable = None
+    __timeout = None
+    __done_callback = None
+    __error_callback = None
+    __target = None
+    __loop = None
+    __coroutine_target = None
 
     def __wrapper(self, *args, **kwargs):
         """
