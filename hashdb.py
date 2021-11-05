@@ -109,7 +109,7 @@ def hashdb_exception_hook(exception_type, value, traceback_object):
                         <p style="margin: 0; font-size: 12px">Would you like to submit a stack trace to the developers?</p>
                         <br>
                         <p style="margin: 0; font-size: 10px"><i><b>Selecting "Yes" will submit a request to our servers.</b></i></p>
-                        <p style="margin: 0; font-size: 10px"><i><b>All personally identifiable information will not be removed.</b></i></p>
+                        <p style="margin: 0; font-size: 10px"><i><b>All personally identifiable information will be removed.</b></i></p>
                     </center>""", super().FT_HTML_LABEL)
                 }
                 super().__init__(form, controls)
