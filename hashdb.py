@@ -35,6 +35,7 @@
 ########################################################################################
 
 import sys
+
 import idaapi
 import idc
 import ida_kernwin
@@ -236,12 +237,12 @@ class Worker(Thread):
             if self.__done_callback is not None:
                 self.__done_callback(*result)
         except SystemExit as exception:
-            logging.debug(f"Caught an expected exception: [{exception=}]")
+            logging.debug("Caught an expected exception: {}".format(type(exception).__name__))
             # Execute the error callback
             if self.__error_callback is not None:
                 self.__error_callback(exception)
         except Exception as exception:
-            logging.critical(f"Caught an unexpected exception: [{exception=}]")
+            logging.exception("Caught an unexpected exception: {}, raising.".format(type(exception).__name__))
             raise exception
         finally:
             # Decrement the reference count, no longer required
@@ -287,7 +288,7 @@ class Worker(Thread):
                 else:
                     self.__done_callback(*result)
         except (CancelledError, TimeoutError, RuntimeError) as exception:
-            logging.debug(f"Caught an expected exception: [{exception=}]")
+            logging.debug("Caught an expected exception: {}".format(type(exception).__name__))
 
             # Was an error callback set?
             if self.__error_callback is not None:
@@ -296,7 +297,7 @@ class Worker(Thread):
                 else:
                     self.__error_callback(exception)
         except Exception as exception:
-            logging.critical(f"Caught an unexpected exception: [{exception=}]")
+            logging.exception("Caught an unexpected exception: {}, raising.".format(type(exception).__name__))
             raise exception
         finally:
             loop.close()
