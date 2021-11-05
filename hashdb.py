@@ -34,6 +34,12 @@
 ##
 ########################################################################################
 
+__AUTHOR__ = '@herrcore'
+
+PLUGIN_NAME = "HashDB"
+PLUGIN_HOTKEY = 'Alt+`'
+VERSION = '1.7.1'
+
 import sys
 import idaapi
 import idc
@@ -41,7 +47,95 @@ import ida_kernwin
 import ida_enum
 import ida_bytes
 import ida_netnode
+import traceback
 import requests
+import json
+
+#--------------------------------------------------------------------------
+# IDA Python version madness
+#--------------------------------------------------------------------------
+
+major, minor = map(int, idaapi.get_kernel_version().split("."))
+assert (major > 6),"ERROR: HashDB plugin requires IDA v7+"
+assert (sys.version_info >= (3, 6)), "ERROR: HashDB plugin requires Python 3.6"
+
+#--------------------------------------------------------------------------
+# Global exception hook to detect plugin exceptions until
+#  we implement a proper test-driven development setup
+#--------------------------------------------------------------------------
+def hashdb_exception_hook(exception_type, value, traceback_object):
+    is_hashdb_exception = False
+
+    frame_data = {
+        "user_data": {
+            "platform": sys.platform,
+            "python_version": '.'.join([str(sys.version_info.major), str(sys.version_info.minor), str(sys.version_info.micro)]),
+            "ida": {
+                "kernel_version": ida_kernwin.get_kernel_version(),
+                "bits": 32 if not idaapi.get_inf_structure().is_64bit() else 64
+            }
+        },
+        "exception_data": {
+            "exception_type": exception_type.__name__,
+            "exception_value": str(value)
+        },
+        "frames": []}
+    frame_summaries = traceback.extract_tb(traceback_object)
+    for frame_index, frame_summary in enumerate(frame_summaries):
+        file_name = frame_summary.filename
+        if "__file__" in globals():
+            if not file_name == __file__:
+                continue
+        is_hashdb_exception = True
+
+        # Save frame data
+        frame_data["frames"].append({
+            "frame_index": frame_index,
+            "plugin_version": VERSION,
+            "line_number": frame_summary.lineno,
+            "function_name": frame_summary.name,
+            "line": frame_summary.line,
+            "locals": frame_summary.locals
+        })
+
+    if is_hashdb_exception:
+        class crash_detection_form(ida_kernwin.Form):
+            def __init__(self):
+                form = "BUTTON YES* Yes\nBUTTON CANCEL No\nHashDB Error!\n\n{notice_string}"
+                controls = {
+                    "notice_string": super().StringLabel(
+                    """<center>
+                        <p style="font-size: 20px; color: #F44336"><b>HashDB has detected an internal error.</b><p>
+                        <p style="margin: 0; font-size: 12px">Would you like to submit a stack trace to the developers?</p>
+                        <br>
+                        <p style="margin: 0; font-size: 10px"><i><b>Selecting "Yes" will submit a request to our servers.</b></i></p>
+                        <p style="margin: 0; font-size: 10px"><i><b>All personally identifiable information will not be removed.</b></i></p>
+                    </center>""", super().FT_HTML_LABEL)
+                }
+                super().__init__(form, controls)
+                
+                # Compile
+                self.Compile()
+
+        # Execute the crash detection form on the main thread
+        form = crash_detection_form()
+        button_selected = ida_kernwin.execute_sync(form.Execute, ida_kernwin.MFF_FAST)
+        form.Free()
+
+        # Did the user allow us to submit a request?
+        if button_selected == 1: # Yes button
+            API_URL = ""
+            requests.post(API_URL, {
+                "username": "HashDB-IDA Error",
+                "content": "```json\n{}```".format(json.dumps(frame_data, indent=4))
+            })
+    
+    # TODO: maybe we should remove all the HashDB hooks to avoid further errors?
+
+    sys.__excepthook__(exception_type, value, traceback_object)
+sys.excepthook = hashdb_exception_hook
+
+# Rest of the imports
 import functools
 from typing import Union
 
@@ -56,22 +150,6 @@ from collections.abc import Iterable
 from typing import Awaitable, Callable
 from asyncio.events import AbstractEventLoop
 from asyncio.exceptions import CancelledError, TimeoutError
-
-
-__AUTHOR__ = '@herrcore'
-
-PLUGIN_NAME = "HashDB"
-PLUGIN_HOTKEY = 'Alt+`'
-VERSION = '1.7.1'
-
-#--------------------------------------------------------------------------
-# IDA Python version madness
-#--------------------------------------------------------------------------
-
-major, minor = map(int, idaapi.get_kernel_version().split("."))
-assert (major > 6),"ERROR: HashDB plugin requires IDA v7+"
-assert (sys.version_info >= (3, 6)), "ERROR: HashDB plugin requires Python 3.6"
-
 
 #--------------------------------------------------------------------------
 # Global settings/variables
@@ -180,8 +258,6 @@ SCAN_ICON_DATA = b"".join([b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10
                           b'\x13#\x13K\x93\x14\x03\x13 D\x804\xc3d\x03#\xb3T \xcb\xd8\xd4\xc8\xc4\xcc\xc4\x1c\xc4\x07',
                           b'\xcb\x80H\xa0J.\x00\xea\x17\x11t\xf2B5\x95\x00\x00\x00\x00IEND\xaeB`\x82'])
 SCAN_ICON = ida_kernwin.load_custom_icon(data=SCAN_ICON_DATA, format="png")
-
-
 
 #--------------------------------------------------------------------------
 # Error class
