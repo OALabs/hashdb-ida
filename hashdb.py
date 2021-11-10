@@ -64,6 +64,7 @@ assert (sys.version_info >= (3, 6)), "ERROR: HashDB plugin requires Python 3.6"
 # Global exception hook to detect plugin exceptions until
 #  we implement a proper test-driven development setup
 #--------------------------------------------------------------------------
+HASHDB_REPORT_BUG_URL = ""
 def hashdb_exception_hook(exception_type, value, traceback_object):
     is_hashdb_exception = False
 
@@ -125,8 +126,8 @@ def hashdb_exception_hook(exception_type, value, traceback_object):
 
         # Did the user allow us to submit a request?
         if button_selected == 1: # Yes button
-            API_URL = ""
-            requests.post(API_URL, {
+            global HASHDB_REPORT_BUG_URL
+            requests.post(HASHDB_REPORT_BUG_URL, {
                 "username": "HashDB-IDA Error",
                 "content": "```json\n{}```".format(json.dumps(frame_data, indent=4))
             })
