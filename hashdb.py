@@ -66,6 +66,7 @@ assert (sys.version_info >= (3, 6)), "ERROR: HashDB plugin requires Python 3.6"
 #--------------------------------------------------------------------------
 # Global exception hook to detect plugin exceptions until
 #  we implement a proper test-driven development setup
+# Note: minimum Python version support is 3.5 
 #--------------------------------------------------------------------------
 HASHDB_REPORT_BUG_URL = "https://github.com/OALabs/hashdb-ida/issues/new"
 def hashdb_exception_hook(exception_type, value, traceback_object):
@@ -86,7 +87,7 @@ def hashdb_exception_hook(exception_type, value, traceback_object):
             "exception_value": str(value)
         },
         "frames": []}
-    frame_summaries = traceback.extract_tb(traceback_object)
+    frame_summaries = traceback.StackSummary.extract(traceback.walk_tb(traceback_object), capture_locals=True)
     for frame_index, frame_summary in enumerate(frame_summaries):
         file_name = frame_summary.filename
         if "__file__" in globals():
