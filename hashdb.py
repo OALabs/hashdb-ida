@@ -139,7 +139,6 @@ sys.excepthook = hashdb_exception_hook
 # Rest of the imports
 import functools
 import string
-import traceback
 from typing import Union
 
 # These imports are specific to the Worker implementation
@@ -151,7 +150,6 @@ from enum import Enum
 from threading import Thread
 from collections.abc import Iterable
 from typing import Awaitable, Callable
-from asyncio.events import AbstractEventLoop
 from asyncio.exceptions import CancelledError, TimeoutError
 
 #--------------------------------------------------------------------------
