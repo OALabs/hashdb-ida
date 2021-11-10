@@ -48,9 +48,12 @@ import ida_kernwin
 import ida_enum
 import ida_bytes
 import ida_netnode
+
+# Imports for the exception handler
 import traceback
-import requests
 import json
+import webbrowser
+import urllib.parse
 
 #--------------------------------------------------------------------------
 # IDA Python version madness
@@ -64,7 +67,7 @@ assert (sys.version_info >= (3, 6)), "ERROR: HashDB plugin requires Python 3.6"
 # Global exception hook to detect plugin exceptions until
 #  we implement a proper test-driven development setup
 #--------------------------------------------------------------------------
-HASHDB_REPORT_BUG_URL = ""
+HASHDB_REPORT_BUG_URL = "https://github.com/OALabs/hashdb-ida/issues/new"
 def hashdb_exception_hook(exception_type, value, traceback_object):
     is_hashdb_exception = False
 
@@ -103,15 +106,19 @@ def hashdb_exception_hook(exception_type, value, traceback_object):
     if is_hashdb_exception:
         class crash_detection_form(ida_kernwin.Form):
             def __init__(self):
-                form = "BUTTON YES* Yes\nBUTTON CANCEL No\nHashDB Error!\n\n{notice_string}"
+                form = "BUTTON YES* Yes\nBUTTON CANCEL No\nHashDB Error!\n\n{format}"
                 controls = {
-                    "notice_string": super().StringLabel(
+                    "format": super().StringLabel(
                     """<center>
-                        <p style="font-size: 20px; color: #F44336"><b>HashDB has detected an internal error.</b><p>
+                        <p style="margin: 0; font-size: 20px; color: #F44336"><b>HashDB has detected an internal error.</b><p>
                         <p style="margin: 0; font-size: 12px">Would you like to submit a stack trace to the developers?</p>
-                        <br>
-                        <p style="margin: 0; font-size: 10px"><i><b>Selecting "Yes" will submit a request to our servers.</b></i></p>
-                        <p style="margin: 0; font-size: 10px"><i><b>All personally identifiable information will be removed.</b></i></p>
+                        <ol style="font-size: 11px; text-align: left">
+                            <li>Selecting "Yes" will open a feedback dialogue and redirect you to:
+                                <p style="margin: 0 4px 0 0;"><b><i>github.com/OALabs/hashdb-ida</i></b></p>
+                            </li>
+                            <li>All personally identifiable information will be removed.</li>
+                            <li>Afterwards, you will be asked if you want to unload the plugin.</li>
+                        </ol>
                     </center>""", super().FT_HTML_LABEL)
                 }
                 super().__init__(form, controls)
@@ -120,25 +127,51 @@ def hashdb_exception_hook(exception_type, value, traceback_object):
                 self.Compile()
 
         # Execute the crash detection form on the main thread
-        form = crash_detection_form()
-        button_selected = ida_kernwin.execute_sync(form.Execute, ida_kernwin.MFF_FAST)
-        form.Free()
+        crash_form = crash_detection_form()
+        crash_button_selected = ida_kernwin.execute_sync(crash_form.Execute, ida_kernwin.MFF_FAST)
+        crash_form.Free()
 
         # Did the user allow us to submit a request?
-        if button_selected == 1: # Yes button
+        if crash_button_selected == 1: # Yes button
+            # Setup the body
+            body = "## Steps to reproduce:\n1. \n\n## Stack trace:\n```\n{}\n```".format(json.dumps(frame_data))
+            
+            # Open the tab
             global HASHDB_REPORT_BUG_URL
-            requests.post(HASHDB_REPORT_BUG_URL, {
-                "username": "HashDB-IDA Error",
-                "content": "```json\n{}```".format(json.dumps(frame_data, indent=4))
-            })
+            webbrowser.open_new_tab(HASHDB_REPORT_BUG_URL + "?" + urllib.parse.urlencode({
+                "title": "[BUG]: ",
+                "body": body
+            }))
     
-    # TODO: maybe we should remove all the HashDB hooks to avoid further errors?
+        # Ask the user if they want to terminate the plugin
+        class unload_plugin_form(ida_kernwin.Form):
+            def __init__(self):
+                form = "BUTTON YES* Yes\nBUTTON CANCEL No\nHashDB\n\n{format}"
+                controls = {
+                    "format": super().StringLabel(
+                    """<center>
+                        <p style="margin: 0; font-size: 20px; color: #F44336"><b>Would you like to unload the plugin?</b><p>
+                        <p>This action will make the plugin unusable until IDA is restarted.</p>
+                    </center>""", super().FT_HTML_LABEL)
+                }
+                super().__init__(form, controls)
+                
+                # Compile
+                self.Compile()
+        unload_form = unload_plugin_form()
+        unload_button_selected = ida_kernwin.execute_sync(unload_form.Execute, ida_kernwin.MFF_FAST)
+        unload_form.Free()
+        
+        if unload_button_selected == 1: # Yes button
+            # TODO: unhook
+            pass
 
     sys.__excepthook__(exception_type, value, traceback_object)
 sys.excepthook = hashdb_exception_hook
 
 # Rest of the imports
 import functools
+import requests
 import string
 from typing import Union
 
@@ -1242,6 +1275,7 @@ def determine_algorithm_size(algorithm_type: str) -> str:
 # Set xor key
 #--------------------------------------------------------------------------
 def set_xor_key():
+    raise HashDBError("error")
     """
     Set xor key from selection
     """
