@@ -72,6 +72,7 @@ def hashdb_exception_hook(exception_type, value, traceback_object):
         "user_data": {
             "platform": sys.platform,
             "python_version": '.'.join([str(sys.version_info.major), str(sys.version_info.minor), str(sys.version_info.micro)]),
+            "plugin_version": VERSION,
             "ida": {
                 "kernel_version": ida_kernwin.get_kernel_version(),
                 "bits": 32 if not idaapi.get_inf_structure().is_64bit() else 64
@@ -93,7 +94,6 @@ def hashdb_exception_hook(exception_type, value, traceback_object):
         # Save frame data
         frame_data["frames"].append({
             "frame_index": frame_index,
-            "plugin_version": VERSION,
             "line_number": frame_summary.lineno,
             "function_name": frame_summary.name,
             "line": frame_summary.line,
