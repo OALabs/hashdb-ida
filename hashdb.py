@@ -163,8 +163,8 @@ def hashdb_exception_hook(exception_type, value, traceback_object):
         unload_form.Free()
         
         if unload_button_selected == 1: # Yes button
-            # TODO: unhook
-            pass
+            global HASHDB_PLUGIN_OBJECT
+            ida_kernwin.execute_sync(HASHDB_PLUGIN_OBJECT.term, ida_kernwin.MFF_FAST)
 
     sys.__excepthook__(exception_type, value, traceback_object)
 sys.excepthook = hashdb_exception_hook
@@ -633,10 +633,8 @@ def hunt_hash(hash_value, api_url='https://hashdb.openanalysis.net', timeout = N
 #--------------------------------------------------------------------------
 def load_settings():
     global HASHDB_API_URL 
-    global HASHDB_USE_XOR
-    global HASHDB_XOR_VALUE 
-    global HASHDB_ALGORITHM
-    global ENUM_PREFIX
+    global HASHDB_USE_XOR, HASHDB_XOR_VALUE 
+    global HASHDB_ALGORITHM, ENUM_PREFIX
     global NETNODE_NAME
     node = ida_netnode.netnode(NETNODE_NAME)
     if ida_netnode.exist(node):
@@ -663,10 +661,8 @@ def load_settings():
 
 def save_settings():
     global HASHDB_API_URL 
-    global HASHDB_USE_XOR
-    global HASHDB_XOR_VALUE 
-    global HASHDB_ALGORITHM
-    global ENUM_PREFIX
+    global HASHDB_USE_XOR, HASHDB_XOR_VALUE 
+    global HASHDB_ALGORITHM, ENUM_PREFIX
     global NETNODE_NAME
     node = ida_netnode.netnode()
     if node.create(NETNODE_NAME):
@@ -678,7 +674,7 @@ def save_settings():
             node.hashset_buf("HASHDB_XOR_VALUE", str(HASHDB_XOR_VALUE))
         if HASHDB_ALGORITHM != None:
             node.hashset_buf("HASHDB_ALGORITHM", str(HASHDB_ALGORITHM))
-        if HASHDB_ALGORITHM != None:
+        if HASHDB_ALGORITHM_SIZE != None:
             node.hashset_buf("HASHDB_ALGORITHM_SIZE", str(HASHDB_ALGORITHM_SIZE))
         if ENUM_PREFIX != None:
             node.hashset_buf("ENUM_PREFIX", str(ENUM_PREFIX))
@@ -1876,6 +1872,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
     # We only want a hotkey for the actual hash lookup
     wanted_hotkey = ''
     flags = idaapi.PLUGIN_KEEP
+    terminated = False
 
     #--------------------------------------------------------------------------
     # Plugin Overloads
@@ -1884,7 +1881,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         """
         This is called by IDA when it is loading the plugin.
         """
-        global p_initialized
+        global p_initialized, HASHDB_PLUGIN_OBJECT
 
         # Check if already initialized 
         if p_initialized is False:
@@ -1910,6 +1907,8 @@ class HashDB_Plugin_t(idaapi.plugin_t):
             self._init_action_iat_scan()
             # initialize plugin hooks
             self._init_hooks()
+
+            HASHDB_PLUGIN_OBJECT = self
             return idaapi.PLUGIN_KEEP
 
 
@@ -1918,24 +1917,31 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         This is called by IDA when the plugin is run from the plugins menu
         """
         global_settings()
-        
-
+    
 
     def term(self):
         """
         This is called by IDA when it is unloading the plugin.
         """
+        # Already terminated?
+        if self.terminated:
+            return
+        
         # Save settings
         save_settings()
-        # unhook our plugin hooks
+
+        # Unhook our plugin hooks
         self._hooks.unhook()
-        # unregister our actions & free their resources
+
+        # Unregister our actions & free their resources
         self._del_action_hash_lookup()
         self._del_action_set_xor()
         self._del_action_hunt()
         self._del_action_iat_scan()
-        # done
-        idaapi.msg("%s terminated...\n" % self.wanted_name)
+
+        # Done
+        self.terminated = True
+        idaapi.msg("HashDB: {} terminated...\n".format(self.wanted_name))
 
 
     #--------------------------------------------------------------------------
@@ -2189,6 +2195,9 @@ class IDACtxEntry(idaapi.action_handler_t):
 
 # Global flag to ensure plugin is only initialized once
 p_initialized = False
+
+# Global plugin object
+HASHDB_PLUGIN_OBJECT = None
 
 # Register IDA plugin
 def PLUGIN_ENTRY():
