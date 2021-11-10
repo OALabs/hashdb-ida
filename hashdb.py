@@ -1014,14 +1014,19 @@ def add_enums(enum_name, hash_list, enum_size = 0):
     ENUM_MEMBER_ERROR_NAME    = 1 # a member with this name already exists
 
     MAXIMUM_ATTEMPTS = 256 # ENUM_MEMBER_ERROR_VALUE -> only allows 256 members with this value
-    for member_name, value in hash_list:
+    for member_name, value, is_api in hash_list:
         # First, we have to check if this name and value already exist in the enum
         if ida_enum.get_enum_member(enum_id, value, 0, 0) != idaapi.BADNODE:
             continue # Skip if the value already exists in the enum
 
         # Attempt to generate a name, and insert the value
         for index in range(MAXIMUM_ATTEMPTS):
-            result = ida_enum.add_enum_member(enum_id, member_name if not index else member_name + '_' + str(index), value)
+            if is_api:
+                enum_name = member_name + '_' + str(index)
+            else:
+                enum_name = member_name if not index else member_name + '_' + str(index - 1) # -1 to begin at 0 as opposed to `string_1`
+
+            result = ida_enum.add_enum_member(enum_id, enum_name, value)
             # Successfully added to the list
             if result == ENUM_MEMBER_ERROR_SUCCESS:
                 break
@@ -1313,7 +1318,7 @@ def hash_lookup_done_handler(hash_list: Union[None, list], hash_value: int = Non
 
     # Add the hash to the global enum, and exit if we can't create it
     enum_id = None
-    add_enums_callable = functools.partial(add_enums_wrapper, generate_enum_name(ENUM_PREFIX), [(string_value, hash_value)])
+    add_enums_callable = functools.partial(add_enums_wrapper, generate_enum_name(ENUM_PREFIX), [(string_value, hash_value, hash_string.get("is_api", False))])
     ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
     if enum_id is None:
         idaapi.msg("ERROR: Unable to create or find enum: {}\n".format(generate_enum_name(ENUM_PREFIX)))
@@ -1359,10 +1364,12 @@ def hash_lookup_done_handler(hash_list: Union[None, list], hash_value: int = Non
     # Add the hash list to the global enum
     global HASHDB_USE_XOR, HASHDB_XOR_VALUE
     enum_list = []
-    for function_entry in module_hash_list.get("hashes", []):
-        hash = function_entry.get("hash", 0)
-        enum_list.append((function_entry.get("string", {}).get("api", ""),
-                          hash ^ HASHDB_XOR_VALUE if HASHDB_USE_XOR else hash))
+    for hash_entry in module_hash_list.get("hashes", []):
+        hash = hash_entry.get("hash", 0)
+        string_object = hash_entry.get("string", {})
+        enum_list.append((string_object.get("api", string_object.get("string", "")), # name
+                         hash ^ HASHDB_XOR_VALUE if HASHDB_USE_XOR else hash, # hash_value
+                         True)) # is_api
     
     # Add hashes to enum
     enum_id = None
@@ -1474,7 +1481,7 @@ def hash_lookup():
 # Dynamic IAT hash scan
 # TODO: convert_values should be fetched from the UI (add a checkbox)
 #--------------------------------------------------------------------------
-def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list[dict]] = None):
+def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list] = None):
     global HASHDB_REQUEST_LOCK
     logging.debug("hash_scan_done callback invoked, result: {}".format("none" if hash_list is None else "{}".format(hash_list)))
 
@@ -1536,7 +1543,7 @@ def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list[dic
             
             # Add hash to enum
             enum_id = None
-            add_enums_callable = functools.partial(add_enums_wrapper, generate_enum_name(ENUM_PREFIX), [(hash_string_value, hash_entry["hash_value"])])
+            add_enums_callable = functools.partial(add_enums_wrapper, generate_enum_name(ENUM_PREFIX), [(hash_string_value, hash_entry["hash_value"], hash_string_object.get("is_api", False))])
             ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
             if enum_id is None:
                 idaapi.msg("ERROR: Unable to create or find enum: {}\n".format(generate_enum_name(ENUM_PREFIX)))
@@ -1592,7 +1599,7 @@ def hash_scan_error(exception: Exception):
     HASHDB_REQUEST_LOCK.release()
 
 
-async def hash_scan_request(convert_values: bool, hash_list: list[dict],
+async def hash_scan_request(convert_values: bool, hash_list: list,
                             api_url: str, algorithm: str, xor_value: int,
                             timeout: Union[int, float]) -> Union[None, list]:
     for hash_entry in hash_list:
@@ -1647,7 +1654,7 @@ def hash_scan_run(convert_values: bool, timeout: Union[int, float] = 0) -> bool:
         return True # Release the lock
     
     # Look through the selected range and lookup each (valid) entry
-    def scan_range(start: int, end: int) -> list[dict]:
+    def scan_range(start: int, end: int) -> list:
         """
         Find hash values in a given (highlighted) range.
          This function won't modify any data types in the database.
