@@ -1405,7 +1405,7 @@ def hash_lookup():
 # Dynamic IAT hash scan
 # TODO: convert_values should be fetched from the UI (add a checkbox)
 #--------------------------------------------------------------------------
-def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list[dict]] = None):
+def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list] = None):
     global HASHDB_REQUEST_LOCK
     logging.debug("hash_scan_done callback invoked, result: {}".format("none" if hash_list is None else "{}".format(hash_list)))
 
@@ -1523,7 +1523,7 @@ def hash_scan_error(exception: Exception):
     HASHDB_REQUEST_LOCK.release()
 
 
-async def hash_scan_request(convert_values: bool, hash_list: list[dict],
+async def hash_scan_request(convert_values: bool, hash_list: list,
                             api_url: str, algorithm: str, xor_value: int,
                             timeout: Union[int, float]) -> Union[None, list]:
     for hash_entry in hash_list:
@@ -1578,7 +1578,7 @@ def hash_scan_run(convert_values: bool, timeout: Union[int, float] = 0) -> bool:
         return True # Release the lock
     
     # Look through the selected range and lookup each (valid) entry
-    def scan_range(start: int, end: int) -> list[dict]:
+    def scan_range(start: int, end: int) -> list:
         """
         Find hash values in a given (highlighted) range.
          This function won't modify any data types in the database.
