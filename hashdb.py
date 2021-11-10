@@ -1271,7 +1271,6 @@ def determine_algorithm_size(algorithm_type: str) -> str:
 # Set xor key
 #--------------------------------------------------------------------------
 def set_xor_key():
-    raise HashDBError("error")
     """
     Set xor key from selection
     """
