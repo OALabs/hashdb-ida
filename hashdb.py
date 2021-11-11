@@ -1015,6 +1015,66 @@ Do you want to import all function hashes from this module?
 
 
 #--------------------------------------------------------------------------
+# Unqualified name replacement form
+# Logic: When an unqualified name is encountered, the user is asked to
+#         provide a replacement.
+# Example: "-path" is an unqualified name, the user should replace it with
+#           a qualified name such as "_path" 
+#--------------------------------------------------------------------------   
+class unqualified_name_replace_t(ida_kernwin.Form):
+    def __init__(self, unqualified_name: str, invalid_characters: list) -> None:
+        form = "BUTTON YES* Replace\n" \
+               "BUTTON CANCEL Skip\n" \
+               "HashDB: Please replace the invalid characters\n\n" \
+               "{form_change_callback}\n" \
+               "Some of the characters in the hashed string are invalid (highlighted red):\n" \
+               "{unqualified_name}\n" \
+               "<##New name\: :{new_name}>"
+        
+        invalid_characters_html = "<span style=\"font-size: 16px\">{}</span>"
+        controls = {
+            "form_change_callback": super().FormChangeCb(self.form_changed),
+            "unqualified_name": super().StringLabel(
+                invalid_characters_html.format(html_format_invalid_characters(
+                    unqualified_name, invalid_characters)),
+                super().FT_HTML_LABEL),
+            # value -> initial value
+            "new_name": super().StringInput(value=unqualified_name)
+        }
+        super().__init__(form, controls)
+
+        # Compile
+        self.Compile()
+    
+    def form_changed(self, field_id: int) -> int:
+        # Form initialized, focus to the new name text field
+        if field_id == -1:
+            self.SetFocusedField(self.new_name)
+        return 1
+
+    @staticmethod
+    def show(unqualified_name: str, invalid_characters: list) -> str:
+        """
+        Show the unqualified name replace form and return
+         the new user-defined name, or None if
+         the user decides to skip.
+        """
+
+        # Construct and compile the form
+        unqualified_name_form = unqualified_name_replace_t(unqualified_name, invalid_characters)
+        # Execute/show the form
+        selected_button = unqualified_name_form.Execute()
+        new_name = unqualified_name_form.new_name.value
+
+        # Free the form
+        unqualified_name_form.Free()
+
+        if selected_button == 1: # Replace button
+            return new_name
+        return None
+
+
+#--------------------------------------------------------------------------
 # IDA helper functions
 #--------------------------------------------------------------------------
 def get_invalid_characters(string: str) -> list:
