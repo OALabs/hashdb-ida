@@ -1038,19 +1038,16 @@ def get_invalid_characters(string: str) -> list:
     return invalid_characters
 
 
-def html_format_invalid_characters(string: str, color: str = "#F44336") -> str:
-    invalid_characters = get_invalid_characters(string)
-    
+def html_format_invalid_characters(string: str, invalid_characters: list, color: str = "#F44336") -> str:
     # Are there any invalid characters in the string?
     if not invalid_characters:
         return string
-    
     
     # Format the invalid characters
     formatted_string = ""
     for index, character in enumerate(string):
         if index in invalid_characters and color:
-            formatted_string += "<span style=\"color: {}\">{}<span>".format(color, character)
+            formatted_string += "<span style=\"color: {}\">{}</span>".format(color, character)
         else:
             formatted_string += character
 
