@@ -1025,20 +1025,14 @@ def get_invalid_characters(string: str) -> list:
 
     # Is the first character a digit?
     if string[0].isdigit():
-        invalid_characters.append({
-            "index": 0,
-            "char": string[0]
-        })
+        invalid_characters.append(0)
 
     # Iterate through the characters in the string,
     #  and check if they are valid using
     #  ida_name.is_ident_cp
     for index, character in enumerate(string):
         if not ida_name.is_ident_cp(ord(character)):
-            invalid_characters.append({
-                "index": index,
-                "char": character
-            })
+            invalid_characters.append(index)
 
     # Return the invalid characters
     return invalid_characters
