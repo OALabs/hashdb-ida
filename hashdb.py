@@ -1038,6 +1038,26 @@ def get_invalid_characters(string: str) -> list:
     return invalid_characters
 
 
+def html_format_invalid_characters(string: str, color: str = "#F44336") -> str:
+    invalid_characters = get_invalid_characters(string)
+    
+    # Are there any invalid characters in the string?
+    if not invalid_characters:
+        return string
+    
+    
+    # Format the invalid characters
+    formatted_string = ""
+    for index, character in enumerate(string):
+        if index in invalid_characters and color:
+            formatted_string += "<span style=\"color: {}\">{}<span>".format(color, character)
+        else:
+            formatted_string += character
+
+    # Return the formatted string
+    return formatted_string
+
+
 def add_enums(enum_name, hash_list, enum_size = 0):
     '''
     Add a list of string,hash pairs to enum.
