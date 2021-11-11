@@ -1170,7 +1170,7 @@ def add_enums(enum_name, hash_list, enum_size = 0):
             # Check if the user provided an invalid name
             invalid_characters = get_invalid_characters(member_name)
         if skip:
-            idaapi.msg("HashDB: Skipping hash result \"{}\" with value: {}".format(member_name, hex(value)))
+            idaapi.msg("HashDB: Skipping hash result \"{}\" with value: {}\n".format(member_name, hex(value)))
             continue
 
         # Attempt to generate a name, and insert the value
