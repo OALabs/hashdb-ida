@@ -34,6 +34,12 @@
 ##
 ########################################################################################
 
+__AUTHOR__ = '@herrcore'
+
+PLUGIN_NAME = "HashDB"
+PLUGIN_HOTKEY = 'Alt+`'
+VERSION = '1.7.1'
+
 import sys
 
 import idaapi
@@ -42,10 +48,132 @@ import ida_kernwin
 import ida_enum
 import ida_bytes
 import ida_netnode
-import requests
-import functools
-import string
+
+# Imports for the exception handler
 import traceback
+import json
+import webbrowser
+import urllib.parse
+
+#--------------------------------------------------------------------------
+# IDA Python version madness
+#--------------------------------------------------------------------------
+
+major, minor = map(int, idaapi.get_kernel_version().split("."))
+assert (major > 6),"ERROR: HashDB plugin requires IDA v7+"
+assert (sys.version_info >= (3, 6)), "ERROR: HashDB plugin requires Python 3.6"
+
+#--------------------------------------------------------------------------
+# Global exception hook to detect plugin exceptions until
+#  we implement a proper test-driven development setup
+# Note: minimum Python version support is 3.5 
+#--------------------------------------------------------------------------
+HASHDB_REPORT_BUG_URL = "https://github.com/OALabs/hashdb-ida/issues/new"
+def hashdb_exception_hook(exception_type, value, traceback_object):
+    is_hashdb_exception = False
+
+    frame_data = {
+        "user_data": {
+            "platform": sys.platform,
+            "python_version": '.'.join([str(sys.version_info.major), str(sys.version_info.minor), str(sys.version_info.micro)]),
+            "plugin_version": VERSION,
+            "ida": {
+                "kernel_version": ida_kernwin.get_kernel_version(),
+                "bits": 32 if not idaapi.get_inf_structure().is_64bit() else 64
+            }
+        },
+        "exception_data": {
+            "exception_type": exception_type.__name__,
+            "exception_value": str(value)
+        },
+        "frames": []}
+    frame_summaries = traceback.StackSummary.extract(traceback.walk_tb(traceback_object), capture_locals=True)
+    for frame_index, frame_summary in enumerate(frame_summaries):
+        file_name = frame_summary.filename
+        if "__file__" in globals():
+            if not file_name == __file__:
+                continue
+        is_hashdb_exception = True
+
+        # Save frame data
+        frame_data["frames"].append({
+            "frame_index": frame_index,
+            "line_number": frame_summary.lineno,
+            "function_name": frame_summary.name,
+            "line": frame_summary.line,
+            "locals": frame_summary.locals
+        })
+
+    if is_hashdb_exception:
+        class crash_detection_form(ida_kernwin.Form):
+            def __init__(self):
+                form = "BUTTON YES* Yes\nBUTTON CANCEL No\nHashDB Error!\n\n{format}"
+                controls = {
+                    "format": super().StringLabel(
+                    """<center>
+                        <p style="margin: 0; font-size: 20px; color: #F44336"><b>HashDB has detected an internal error.</b><p>
+                        <p style="margin: 0; font-size: 12px">Would you like to submit a stack trace to the developers?</p>
+                        <ol style="font-size: 11px; text-align: left">
+                            <li>Selecting "Yes" will open a feedback dialogue and redirect you to:
+                                <p style="margin: 0 4px 0 0;"><b><i>github.com/OALabs/hashdb-ida</i></b></p>
+                            </li>
+                            <li>All personally identifiable information will be removed.</li>
+                            <li>Afterwards, you will be asked if you want to unload the plugin.</li>
+                        </ol>
+                    </center>""", super().FT_HTML_LABEL)
+                }
+                super().__init__(form, controls)
+                
+                # Compile
+                self.Compile()
+
+        # Execute the crash detection form on the main thread
+        crash_form = crash_detection_form()
+        crash_button_selected = ida_kernwin.execute_sync(crash_form.Execute, ida_kernwin.MFF_FAST)
+        crash_form.Free()
+
+        # Did the user allow us to submit a request?
+        if crash_button_selected == 1: # Yes button
+            # Setup the body
+            body = "## Steps to reproduce:\n1. \n\n## Stack trace:\n```\n{}\n```".format(json.dumps(frame_data))
+            
+            # Open the tab
+            global HASHDB_REPORT_BUG_URL
+            webbrowser.open_new_tab(HASHDB_REPORT_BUG_URL + "?" + urllib.parse.urlencode({
+                "title": "[BUG]: ",
+                "body": body
+            }))
+    
+        # Ask the user if they want to terminate the plugin
+        class unload_plugin_form(ida_kernwin.Form):
+            def __init__(self):
+                form = "BUTTON YES* Yes\nBUTTON CANCEL No\nHashDB\n\n{format}"
+                controls = {
+                    "format": super().StringLabel(
+                    """<center>
+                        <p style="margin: 0; font-size: 20px; color: #F44336"><b>Would you like to unload the plugin?</b><p>
+                        <p>This action will make the plugin unusable until IDA is restarted.</p>
+                    </center>""", super().FT_HTML_LABEL)
+                }
+                super().__init__(form, controls)
+                
+                # Compile
+                self.Compile()
+        unload_form = unload_plugin_form()
+        unload_button_selected = ida_kernwin.execute_sync(unload_form.Execute, ida_kernwin.MFF_FAST)
+        unload_form.Free()
+        
+        if unload_button_selected == 1: # Yes button
+            global HASHDB_PLUGIN_OBJECT
+            ida_kernwin.execute_sync(HASHDB_PLUGIN_OBJECT.term, ida_kernwin.MFF_FAST)
+
+    sys.__excepthook__(exception_type, value, traceback_object)
+sys.excepthook = hashdb_exception_hook
+
+# Rest of the imports
+import functools
+import requests
+import string
 from typing import Union
 
 # These imports are specific to the Worker implementation
@@ -57,24 +185,7 @@ from enum import Enum
 from threading import Thread
 from collections.abc import Iterable
 from typing import Awaitable, Callable
-from asyncio.events import AbstractEventLoop
 from asyncio.exceptions import CancelledError, TimeoutError
-
-
-__AUTHOR__ = '@herrcore'
-
-PLUGIN_NAME = "HashDB"
-PLUGIN_HOTKEY = 'Alt+`'
-VERSION = '1.7.1'
-
-#--------------------------------------------------------------------------
-# IDA Python version madness
-#--------------------------------------------------------------------------
-
-major, minor = map(int, idaapi.get_kernel_version().split("."))
-assert (major > 6),"ERROR: HashDB plugin requires IDA v7+"
-assert (sys.version_info >= (3, 6)), "ERROR: HashDB plugin requires Python 3.6"
-
 
 #--------------------------------------------------------------------------
 # Global settings/variables
@@ -183,8 +294,6 @@ SCAN_ICON_DATA = b"".join([b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10
                           b'\x13#\x13K\x93\x14\x03\x13 D\x804\xc3d\x03#\xb3T \xcb\xd8\xd4\xc8\xc4\xcc\xc4\x1c\xc4\x07',
                           b'\xcb\x80H\xa0J.\x00\xea\x17\x11t\xf2B5\x95\x00\x00\x00\x00IEND\xaeB`\x82'])
 SCAN_ICON = ida_kernwin.load_custom_icon(data=SCAN_ICON_DATA, format="png")
-
-
 
 #--------------------------------------------------------------------------
 # Error class
@@ -525,10 +634,8 @@ def hunt_hash(hash_value, api_url='https://hashdb.openanalysis.net', timeout = N
 #--------------------------------------------------------------------------
 def load_settings():
     global HASHDB_API_URL 
-    global HASHDB_USE_XOR
-    global HASHDB_XOR_VALUE 
-    global HASHDB_ALGORITHM
-    global ENUM_PREFIX
+    global HASHDB_USE_XOR, HASHDB_XOR_VALUE 
+    global HASHDB_ALGORITHM, ENUM_PREFIX
     global NETNODE_NAME
     node = ida_netnode.netnode(NETNODE_NAME)
     if ida_netnode.exist(node):
@@ -555,10 +662,8 @@ def load_settings():
 
 def save_settings():
     global HASHDB_API_URL 
-    global HASHDB_USE_XOR
-    global HASHDB_XOR_VALUE 
-    global HASHDB_ALGORITHM
-    global ENUM_PREFIX
+    global HASHDB_USE_XOR, HASHDB_XOR_VALUE 
+    global HASHDB_ALGORITHM, ENUM_PREFIX
     global NETNODE_NAME
     node = ida_netnode.netnode()
     if node.create(NETNODE_NAME):
@@ -570,7 +675,7 @@ def save_settings():
             node.hashset_buf("HASHDB_XOR_VALUE", str(HASHDB_XOR_VALUE))
         if HASHDB_ALGORITHM != None:
             node.hashset_buf("HASHDB_ALGORITHM", str(HASHDB_ALGORITHM))
-        if HASHDB_ALGORITHM != None:
+        if HASHDB_ALGORITHM_SIZE != None:
             node.hashset_buf("HASHDB_ALGORITHM_SIZE", str(HASHDB_ALGORITHM_SIZE))
         if ENUM_PREFIX != None:
             node.hashset_buf("ENUM_PREFIX", str(ENUM_PREFIX))
@@ -1767,6 +1872,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
     # We only want a hotkey for the actual hash lookup
     wanted_hotkey = ''
     flags = idaapi.PLUGIN_KEEP
+    terminated = False
 
     #--------------------------------------------------------------------------
     # Plugin Overloads
@@ -1775,7 +1881,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         """
         This is called by IDA when it is loading the plugin.
         """
-        global p_initialized
+        global p_initialized, HASHDB_PLUGIN_OBJECT
 
         # Check if already initialized 
         if p_initialized is False:
@@ -1801,6 +1907,8 @@ class HashDB_Plugin_t(idaapi.plugin_t):
             self._init_action_iat_scan()
             # initialize plugin hooks
             self._init_hooks()
+
+            HASHDB_PLUGIN_OBJECT = self
             return idaapi.PLUGIN_KEEP
 
 
@@ -1809,24 +1917,31 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         This is called by IDA when the plugin is run from the plugins menu
         """
         global_settings()
-        
-
+    
 
     def term(self):
         """
         This is called by IDA when it is unloading the plugin.
         """
+        # Already terminated?
+        if self.terminated:
+            return
+        
         # Save settings
         save_settings()
-        # unhook our plugin hooks
+
+        # Unhook our plugin hooks
         self._hooks.unhook()
-        # unregister our actions & free their resources
+
+        # Unregister our actions & free their resources
         self._del_action_hash_lookup()
         self._del_action_set_xor()
         self._del_action_hunt()
         self._del_action_iat_scan()
-        # done
-        idaapi.msg("%s terminated...\n" % self.wanted_name)
+
+        # Done
+        self.terminated = True
+        idaapi.msg("HashDB: {} terminated...\n".format(self.wanted_name))
 
 
     #--------------------------------------------------------------------------
@@ -2080,6 +2195,9 @@ class IDACtxEntry(idaapi.action_handler_t):
 
 # Global flag to ensure plugin is only initialized once
 p_initialized = False
+
+# Global plugin object
+HASHDB_PLUGIN_OBJECT = None
 
 # Register IDA plugin
 def PLUGIN_ENTRY():
