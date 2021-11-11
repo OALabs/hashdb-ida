@@ -879,7 +879,6 @@ More than one string matches this hash!
 #--------------------------------------------------------------------------
 # Hash hunt results form
 #--------------------------------------------------------------------------
-
 class hunt_result_form_t(ida_kernwin.Form):
 
     class algorithm_chooser_t(ida_kernwin.Choose):
@@ -986,7 +985,6 @@ Do you want to import all function hashes from this module?
                         readonly=True,
                         selval=0),
         })
-
 
     def OnFormChange(self, fid):
         if fid == -1:
@@ -1118,6 +1116,7 @@ def html_format_invalid_characters(string: str, invalid_characters: list, color:
 def add_enums(enum_name, hash_list, enum_size = 0):
     """
     Adds a hash list to an enum by name.
+     IMPORTANT: This function should always be executed on the main thread.
 
     The hash list should be a list of tuples with three values:
      name: str, value: int, is_api: bool
@@ -1148,6 +1147,31 @@ def add_enums(enum_name, hash_list, enum_size = 0):
         # First, we have to check if this name and value already exist in the enum
         if ida_enum.get_enum_member(enum_id, value, 0, 0) != idaapi.BADNODE:
             continue # Skip if the value already exists in the enum
+
+        # Replace spaces with underscores
+        for index, character in enumerate(member_name):
+            if character.isspace():
+                # Count not specified to replace all occurrences at once
+                member_name = member_name.replace(character, '_')
+
+        # Check if a member name is valid
+        skip = False
+        invalid_characters = get_invalid_characters(member_name)
+        while invalid_characters:
+            # Open the unqualified name form
+            new_member_name = unqualified_name_replace_t.show(member_name, invalid_characters)
+
+            # Did the user skip, or provide an empty string?
+            if not new_member_name:
+                skip = True
+                break
+            
+            member_name = new_member_name
+            # Check if the user provided an invalid name
+            invalid_characters = get_invalid_characters(member_name)
+        if skip:
+            idaapi.msg("HashDB: Skipping hash result \"{}\" with value: {}".format(member_name, hex(value)))
+            continue
 
         # Attempt to generate a name, and insert the value
         for index in range(MAXIMUM_ATTEMPTS):
