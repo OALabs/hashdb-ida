@@ -45,6 +45,7 @@ import sys
 import idaapi
 import idc
 import ida_kernwin
+import ida_name
 import ida_enum
 import ida_bytes
 import ida_netnode
@@ -1016,6 +1017,22 @@ Do you want to import all function hashes from this module?
 #--------------------------------------------------------------------------
 # IDA helper functions
 #--------------------------------------------------------------------------
+def get_invalid_characters(string: str) -> list:
+    invalid_characters = []
+    # Iterate through the characters in the string,
+    #  and check if they are valid using
+    #  ida_name.is_ident_cp
+    for index, character in enumerate(string):
+        if not ida_name.is_ident_cp(ord(character)):
+            invalid_characters.append({
+                "index": index,
+                "char": character
+            })
+
+    # Return the invalid characters
+    return invalid_characters
+
+
 def add_enums(enum_name, hash_list, enum_size = 0):
     '''
     Add a list of string,hash pairs to enum.
