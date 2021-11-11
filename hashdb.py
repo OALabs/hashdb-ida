@@ -1059,10 +1059,12 @@ def html_format_invalid_characters(string: str, color: str = "#F44336") -> str:
 
 
 def add_enums(enum_name, hash_list, enum_size = 0):
-    '''
-    Add a list of string,hash pairs to enum.
-    hash_list = [(string1,hash1),(string2,hash2)]
-    '''
+    """
+    Adds a hash list to an enum by name.
+
+    The hash list should be a list of tuples with three values:
+     name: str, value: int, is_api: bool
+    """
     # Resolve the enum size
     if not enum_size:
         global HASHDB_ALGORITHM_SIZE
