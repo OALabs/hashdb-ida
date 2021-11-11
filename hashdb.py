@@ -1019,6 +1019,17 @@ Do you want to import all function hashes from this module?
 #--------------------------------------------------------------------------
 def get_invalid_characters(string: str) -> list:
     invalid_characters = []
+    # Is the string empty?
+    if not string:
+        return invalid_characters
+
+    # Is the first character a digit?
+    if string[0].isdigit():
+        invalid_characters.append({
+            "index": 0,
+            "char": string[0]
+        })
+
     # Iterate through the characters in the string,
     #  and check if they are valid using
     #  ida_name.is_ident_cp
