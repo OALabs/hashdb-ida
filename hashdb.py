@@ -61,7 +61,7 @@ import urllib.parse
 
 major, minor = map(int, idaapi.get_kernel_version().split("."))
 assert (major > 6),"ERROR: HashDB plugin requires IDA v7+"
-assert (sys.version_info >= (3, 6)), "ERROR: HashDB plugin requires Python 3.6"
+assert (sys.version_info >= (3, 5)), "ERROR: HashDB plugin requires Python 3.5"
 
 #--------------------------------------------------------------------------
 # Global exception hook to detect plugin exceptions until
