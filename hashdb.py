@@ -62,7 +62,7 @@ import urllib.parse
 
 major, minor = map(int, idaapi.get_kernel_version().split("."))
 assert (major > 6),"ERROR: HashDB plugin requires IDA v7+"
-assert (sys.version_info >= (3, 6)), "ERROR: HashDB plugin requires Python 3.6"
+assert (sys.version_info >= (3, 5)), "ERROR: HashDB plugin requires Python 3.5"
 
 #--------------------------------------------------------------------------
 # Global exception hook to detect plugin exceptions until
@@ -178,15 +178,11 @@ import string
 from typing import Union
 
 # These imports are specific to the Worker implementation
-import ctypes
 import logging
-import asyncio
 import threading
-from enum import Enum
 from threading import Thread
 from collections.abc import Iterable
-from typing import Awaitable, Callable
-from asyncio.exceptions import CancelledError, TimeoutError
+from typing import Callable
 
 #--------------------------------------------------------------------------
 # Global settings/variables
@@ -306,29 +302,14 @@ class HashDBError(Exception):
 #--------------------------------------------------------------------------
 # Worker implementation
 #--------------------------------------------------------------------------
-class Signal(Enum):
-    """
-    The `Signal` class is an `Enum`,
-    which contains all the possible constants
-    used when communicating between threads.
-    """
-    NONE = 0
-    STOP = 1
-
-
 class Worker(Thread):
     """
     The `Worker` class represents a custom `Thread` object.
-
-    A `Worker` can have a timeout, where the execution will end abruptly, if its exceeded.
     """
     # Private variables:
-    __timeout = None
     __done_callback = None
     __error_callback = None
     __target = None
-    __loop = None
-    __coroutine_target = None
 
     def __wrapper(self, *args, **kwargs):
         """
@@ -342,20 +323,25 @@ class Worker(Thread):
         # Run
         try:
             result = self.__target(*args, **kwargs)
+
             # Support for multiple return values
             if not isinstance(result, Iterable):
                 result = [result]
+            
             # If we have a done callback, invoke it
             if self.__done_callback is not None:
                 self.__done_callback(*result)
-        except SystemExit as exception:
-            logging.debug("Caught an expected exception: {}".format(type(exception).__name__))
+        except Exception as exception:
             # Execute the error callback
             if self.__error_callback is not None:
                 self.__error_callback(exception)
-        except Exception as exception:
-            logging.exception("Caught an unexpected exception: {}, raising.".format(type(exception).__name__))
-            raise exception
+
+            exception_type = type(exception)
+            if exception_type == SystemExit:
+                logging.debug("Caught an expected exception: {}".format(exception_type.__name__))
+            else:
+                logging.exception("Caught an unexpected exception: {}, raising.".format(exception_type.__name__))
+                raise exception
         finally:
             # Decrement the reference count, no longer required
             if self.__done_callback is not None:
@@ -364,99 +350,23 @@ class Worker(Thread):
                 del self.__error_callback
             del self.__target
 
-    def __async_wrapper(self, *args, **kwargs):
-        """
-        The `__async_wrapper` method serves as an exception handling wrapper for coroutines.
-         When a `Worker` is sent a `Signal` it handles it.
-
-        If a done callback is provided it will be invoked when the target routine is finished.
-
-        If an unexpected exception is thrown from the target/callback, it's raised.
-        """
-        # Setup the loop
-        loop = asyncio.new_event_loop()
-        self.__loop = loop
-        asyncio.set_event_loop(loop)
-
-        # Wait until the callback is finished
-        try:
-            coroutine = None
-            # Do we have a defined timeout?
-            if self.__timeout:
-                coroutine = asyncio.wait_for(self.__coroutine_target(*args, **kwargs), self.__timeout)
-            else:
-                coroutine = self.__coroutine_target(*args, **kwargs)
-
-            # Wait for the coroutine to finish
-            result = loop.run_until_complete(coroutine)
-            # Support for multiple return values
-            if not isinstance(result, Iterable):
-                result = [result]
-
-            # If we have a done callback, invoke it
-            if self.__done_callback is not None:
-                if asyncio.iscoroutinefunction(self.__done_callback):
-                    loop.run_until_complete(self.__done_callback(*result))
-                else:
-                    self.__done_callback(*result)
-        except (CancelledError, TimeoutError, RuntimeError) as exception:
-            logging.debug("Caught an expected exception: {}".format(type(exception).__name__))
-
-            # Was an error callback set?
-            if self.__error_callback is not None:
-                if asyncio.iscoroutinefunction(self.__error_callback):
-                    loop.run_until_complete(self.__error_callback(exception))
-                else:
-                    self.__error_callback(exception)
-        except Exception as exception:
-            logging.exception("Caught an unexpected exception: {}, raising.".format(type(exception).__name__))
-            raise exception
-        finally:
-            loop.close()
-            # Decrement the reference count, no longer required
-            if self.__timeout is not None:
-                del self.__timeout
-            if self.__done_callback is not None:
-                del self.__done_callback
-            if self.__error_callback is not None:
-                del self.__error_callback
-            del self.__coroutine_target, self.__loop
-
-    def start(self, timeout: Union[int, float] = 0,
-              done_callback: Union[Callable, Awaitable] = None,
-              error_callback: Union[Callable, Awaitable] = None):
+    def start(self, done_callback:  Callable = None,
+                    error_callback: Callable = None):
         """
         The `start` method is invoked when we attempt to start a new thread.
         
         If a done callback is provided, it's invoked after the target is gracefully finished.
 
         If an error callback is provided, it's invoked if the target throws an expected exception.
-
-        If a timeout is provided, and the taget/callback is a coroutine,
-         the internal timeout variable is set.
         """
-        # Set the timeout (only supported for coroutines)
-        is_target_coroutine = asyncio.iscoroutinefunction(self._target)
-        if is_target_coroutine and timeout:
-            self.__timeout = timeout
 
         # Set the done callback
         if done_callback is not None:
-            is_callback_coroutine = asyncio.iscoroutinefunction(done_callback)
-            # If the target function is not a coroutine function the callback must not be a coroutine
-            if is_target_coroutine or not is_target_coroutine and not is_callback_coroutine:
-                self.__done_callback = done_callback
-            else:
-                raise TypeError("Type mismatch between the target and done callbacks.")
+            self.__done_callback = done_callback
 
         # Set the error callback
         if error_callback is not None:
-            is_callback_coroutine = asyncio.iscoroutinefunction(error_callback)
-            # If the target function is not a coroutine function the callback must not be a coroutine
-            if is_target_coroutine or not is_target_coroutine and not is_callback_coroutine:
-                self.__error_callback = error_callback
-            else:
-                raise TypeError("Type mismatch between the target and error callbacks.")
+            self.__error_callback = error_callback
 
         # Call Thread.start()
         super().start()
@@ -467,85 +377,12 @@ class Worker(Thread):
 
         This is where we setup the wrappers, and call the `Thread.run`.
         """
-        # Is the target a coroutine?
-        if asyncio.iscoroutinefunction(self._target):
-            # Wrap the target to assure an event loop is created in its context
-            self.__coroutine_target = self._target
-            self._target = self.__async_wrapper
-        else:
-            # Wrap the target to enable catching exceptions for signals
-            self.__target = self._target
-            self._target = self.__wrapper
+        # Wrap the target to enable catching exceptions for signals
+        self.__target = self._target
+        self._target = self.__wrapper
+
         # Call Thread.run()
         super().run()
-
-    async def signal(self, signal: Signal) -> None:
-        """
-        The `signal` method is used for inter thread communication.
-
-        The thread is sent a signal constant in the form of an exception,
-         which is then handled by its wrapper.
-        """
-        # Is the thread still running?
-        if not self.is_alive():
-            return
-
-        # Are we running a coroutine?
-        if self.__loop is not None and self.__coroutine_target is not None:
-            return await self.__signal_to_coroutine(signal)
-
-        # Is it a valid signal?
-        if signal is Signal.NONE:
-            return
-
-        # Throw an unhandled exception inside of the thread
-        threadId = self.ident
-        if threading._HAVE_THREAD_NATIVE_ID:
-            threadId = self.native_id
-
-        # Handle the signal
-        if signal == Signal.STOP:
-            logging.debug("STOP signal received, stopping the thread and waiting until it's finished.")
-
-            # Throw an exception in the thread's context
-            exception = SystemExit
-            thread_states_modified = ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(threadId), ctypes.py_object(exception))
-            if not thread_states_modified:
-                return  # invalid thread id
-            if thread_states_modified != 1:
-                logging.warn("Exception could not be set successfully, clearing any exception states.")
-
-                # Clear any pending exception (cleanup)
-                nullptr = 0
-                ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(threadId), nullptr)
-            else:
-                logging.debug("Exception set successfully, joining thread.")
-                self.join()
-
-    async def __signal_to_coroutine(self, signal: Signal):
-        """
-        The `signal` method is used for inter thread communication when the
-         target/callback is a coroutine.
-
-        Based on the signal constant, a specific function or method is queued
-         on the thread's event loop.
-        """
-        # Fetch the loop and execute a function
-        loop = self.__loop
-        # Is the loop still running?
-        if not loop.is_running():
-            return
-
-        # Handle the signal
-        if signal is Signal.NONE:
-            return
-        elif signal is Signal.STOP:
-            logging.debug("STOP signal received, stopping the thread and waiting until it's finished.")
-            # Stop the loop and wait for the thread to exit
-            loop.call_soon_threadsafe(loop.stop)
-            self.join()
-            return
-
 
 #--------------------------------------------------------------------------
 # HashDB API 
@@ -1532,7 +1369,7 @@ def hash_lookup_done_handler(hash_list: Union[None, list], hash_value: int = Non
     if enum_id is None:
         idaapi.msg("ERROR: Unable to create or find enum: {}\n".format(generate_enum_name(ENUM_PREFIX)))
     else:
-        idaapi.msg("Added {} hashes for module {}\n".format(len(enum_list), module_name))
+        idaapi.msg("HashDB: Added {} hashes for module {}\n".format(len(enum_list), module_name))
 
 
 def hash_lookup_done(hash_list: Union[None, list] = None, hash_value: int = None):
@@ -1546,12 +1383,12 @@ def hash_lookup_done(hash_list: Union[None, list] = None, hash_value: int = None
 def hash_lookup_error(exception: Exception):
     global HASHDB_REQUEST_LOCK
     exception_string = traceback.format_exc()
-    logging.critical("hash_lookup_request {}".format("timed out." if type(exception) == TimeoutError else "errored: {}".format(exception_string)))
+    logging.critical("hash_lookup_request errored: {}".format(exception_string))
     idaapi.msg("ERROR: HashDB hash scan failed: {}\n".format(exception_string))
     HASHDB_REQUEST_LOCK.release()
 
 
-async def hash_lookup_request(api_url: str, algorithm: str,
+def hash_lookup_request(api_url: str, algorithm: str,
                               hash_value: int, xor_value: Union[None, int],
                               timeout: Union[int, float]):
     # Perform the request
@@ -1603,7 +1440,7 @@ def hash_lookup_run(timeout: Union[int, float] = 0) -> bool:
     # Lookup the hash and show a match select form
     worker = Worker(target=hash_lookup_request, args=(
         HASHDB_API_URL, HASHDB_ALGORITHM, hash_value, HASHDB_XOR_VALUE if HASHDB_USE_XOR else None, timeout))
-    worker.start(timeout=timeout, done_callback=hash_lookup_done, error_callback=hash_lookup_error)
+    worker.start(done_callback=hash_lookup_done, error_callback=hash_lookup_error)
     return False # Do not release the lock
 
 
@@ -1616,7 +1453,7 @@ def hash_lookup():
     """
     # Check if we're already running a request
     global HASHDB_REQUEST_LOCK, HASHDB_REQUEST_TIMEOUT
-    timeout_string = "{}".format(HASHDB_REQUEST_TIMEOUT) + "second{}".format('s' if HASHDB_REQUEST_TIMEOUT != 1 else "")
+    timeout_string = "{}".format(HASHDB_REQUEST_TIMEOUT) + " second{}".format('s' if HASHDB_REQUEST_TIMEOUT != 1 else "")
     if HASHDB_REQUEST_LOCK.locked():
         logging.debug("An async operation was requested, but the response lock was locked. Aborting.")
         ida_kernwin.info("Please wait until the previous request is finished.\n" +
@@ -1748,12 +1585,12 @@ def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list] = 
 def hash_scan_error(exception: Exception):
     global HASHDB_REQUEST_LOCK
     exception_string = traceback.format_exc()
-    logging.critical("hash_scan_request {}".format("timed out." if type(exception) == TimeoutError else "errored: {}".format(exception_string)))
+    logging.critical("hash_scan_request errored: {}".format(exception_string))
     idaapi.msg("ERROR: HashDB hash scan failed: {}\n".format(exception_string))
     HASHDB_REQUEST_LOCK.release()
 
 
-async def hash_scan_request(convert_values: bool, hash_list: list,
+def hash_scan_request(convert_values: bool, hash_list: list,
                             api_url: str, algorithm: str, xor_value: int,
                             timeout: Union[int, float]) -> Union[None, list]:
     for hash_entry in hash_list:
@@ -1843,7 +1680,7 @@ def hash_scan_run(convert_values: bool, timeout: Union[int, float] = 0) -> bool:
                                                     HASHDB_API_URL, HASHDB_ALGORITHM,
                                                     HASHDB_XOR_VALUE if HASHDB_USE_XOR else None,
                                                     timeout))
-    worker.start(timeout=timeout, done_callback=hash_scan_done, error_callback=hash_scan_error)
+    worker.start(done_callback=hash_scan_done, error_callback=hash_scan_error)
     return False # Do not release the lock
 
 
@@ -1856,7 +1693,7 @@ def hash_scan(convert_values = True):
     """
     # Check if we're already running a request
     global HASHDB_REQUEST_LOCK, HASHDB_REQUEST_TIMEOUT
-    timeout_string = "{}".format(HASHDB_REQUEST_TIMEOUT) + "second{}".format('s' if HASHDB_REQUEST_TIMEOUT != 1 else "")
+    timeout_string = "{}".format(HASHDB_REQUEST_TIMEOUT) + " second{}".format('s' if HASHDB_REQUEST_TIMEOUT != 1 else "")
     if HASHDB_REQUEST_LOCK.locked():
         logging.debug("An async operation was requested, but the response lock was locked. Aborting.")
         ida_kernwin.info("Please wait until the previous request is finished.\n" +
@@ -1894,12 +1731,12 @@ def hunt_algorithm_done(response: Union[None, list] = None):
 def hunt_algorithm_error(exception: Exception):
     global HASHDB_REQUEST_LOCK
     exception_string = traceback.format_exc()
-    logging.critical("hunt_algorithm_request {}".format("timed out." if type(exception) == TimeoutError else "errored: {}".format(exception_string)))
+    logging.critical("hunt_algorithm_request errored: {}".format(exception_string))
     idaapi.msg("ERROR: HashDB hash scan failed: {}\n".format(exception_string))
     HASHDB_REQUEST_LOCK.release()
 
 
-async def hunt_algorithm_request(hash_value: int, timeout=None) -> Union[None, list]:
+def hunt_algorithm_request(hash_value: int, timeout=None) -> Union[None, list]:
     """
     Perform the actual request, and provide the results to the
      `hunt_algorithm_done` callback.
@@ -1956,7 +1793,7 @@ def hunt_algorithm_run(timeout: Union[int, float] = 0) -> bool:
 
     # Hunt the algorithm and show the hunt result form
     worker = Worker(target=hunt_algorithm_request, args=(hash_value, timeout))
-    worker.start(timeout=timeout, done_callback=hunt_algorithm_done, error_callback=hunt_algorithm_error)
+    worker.start(done_callback=hunt_algorithm_done, error_callback=hunt_algorithm_error)
     return False # Do not release the lock
 
 
@@ -1969,7 +1806,7 @@ def hunt_algorithm():
     """
     # Check if we're already running a request
     global HASHDB_REQUEST_LOCK, HASHDB_REQUEST_TIMEOUT
-    timeout_string = "{}".format(HASHDB_REQUEST_TIMEOUT) + "second{}".format('s' if HASHDB_REQUEST_TIMEOUT != 1 else "")
+    timeout_string = "{}".format(HASHDB_REQUEST_TIMEOUT) + " second{}".format('s' if HASHDB_REQUEST_TIMEOUT != 1 else "")
     if HASHDB_REQUEST_LOCK.locked():
         logging.debug("An async operation was requested, but the response lock was locked. Aborting.")
         ida_kernwin.info("Please wait until the previous request is finished.\n" +
