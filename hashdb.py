@@ -1124,7 +1124,7 @@ def add_enums(enum_name, hash_list, enum_size = 0):
     # Resolve the enum size
     if not enum_size:
         global HASHDB_ALGORITHM_SIZE
-        enum_size = int(HASHDB_ALGORITHM_SIZE / 8)
+        enum_size = HASHDB_ALGORITHM_SIZE // 8
 
     # Create enum
     enum_id = idc.add_enum(-1, enum_name, ida_bytes.hex_flag())
@@ -1312,7 +1312,7 @@ def convert_data_to_integer(ea, size: int = 0) -> int:
     '''
     global HASHDB_ALGORITHM_SIZE
     if not size:
-        size = int(HASHDB_ALGORITHM_SIZE / 8)
+        size = HASHDB_ALGORITHM_SIZE // 8
 
     if size == 8:
         ida_bytes.create_qword(ea, size, True)
@@ -1825,7 +1825,7 @@ def hash_scan_run(convert_values: bool, timeout: Union[int, float] = 0) -> bool:
             # If the type wasn't valid (undefined), convert it in the database
             #   and modify the hash value and step size accordingly:
             if convert_values and not was_type_valid:
-                [hash_value, step_size, was_type_valid] = read_integer_from_db(ea, int(HASHDB_ALGORITHM_SIZE / 8))
+                [hash_value, step_size, was_type_valid] = read_integer_from_db(ea, HASHDB_ALGORITHM_SIZE // 8)
 
             # Insert the hash value into the list
             hash_values.append({"ea": ea, "hash_value": hash_value, "size": step_size})
