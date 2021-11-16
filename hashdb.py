@@ -45,6 +45,7 @@ import sys
 import idaapi
 import idc
 import ida_kernwin
+import ida_name
 import ida_enum
 import ida_bytes
 import ida_netnode
@@ -878,7 +879,6 @@ More than one string matches this hash!
 #--------------------------------------------------------------------------
 # Hash hunt results form
 #--------------------------------------------------------------------------
-
 class hunt_result_form_t(ida_kernwin.Form):
 
     class algorithm_chooser_t(ida_kernwin.Choose):
@@ -986,7 +986,6 @@ Do you want to import all function hashes from this module?
                         selval=0),
         })
 
-
     def OnFormChange(self, fid):
         if fid == -1:
             # Form is initialized
@@ -1014,13 +1013,114 @@ Do you want to import all function hashes from this module?
 
 
 #--------------------------------------------------------------------------
+# Unqualified name replacement form
+# Logic: When an unqualified name is encountered, the user is asked to
+#         provide a replacement.
+# Example: "-path" is an unqualified name, the user should replace it with
+#           a qualified name such as "_path" 
+#--------------------------------------------------------------------------   
+class unqualified_name_replace_t(ida_kernwin.Form):
+    def __init__(self, unqualified_name: str, invalid_characters: list) -> None:
+        form = "BUTTON YES* Replace\n" \
+               "BUTTON CANCEL Skip\n" \
+               "HashDB: Please replace the invalid characters\n\n" \
+               "{form_change_callback}\n" \
+               "Some of the characters in the hashed string are invalid (highlighted red):\n" \
+               "{unqualified_name}\n" \
+               "<##New name\: :{new_name}>"
+        
+        invalid_characters_html = "<span style=\"font-size: 16px\">{}</span>"
+        controls = {
+            "form_change_callback": super().FormChangeCb(self.form_changed),
+            "unqualified_name": super().StringLabel(
+                invalid_characters_html.format(html_format_invalid_characters(
+                    unqualified_name, invalid_characters)),
+                super().FT_HTML_LABEL),
+            # value -> initial value
+            "new_name": super().StringInput(value=unqualified_name)
+        }
+        super().__init__(form, controls)
+
+        # Compile
+        self.Compile()
+    
+    def form_changed(self, field_id: int) -> int:
+        # Form initialized, focus to the new name text field
+        if field_id == -1:
+            self.SetFocusedField(self.new_name)
+        return 1
+
+    @staticmethod
+    def show(unqualified_name: str, invalid_characters: list) -> str:
+        """
+        Show the unqualified name replace form and return
+         the new user-defined name, or None if
+         the user decides to skip.
+        """
+
+        # Construct and compile the form
+        unqualified_name_form = unqualified_name_replace_t(unqualified_name, invalid_characters)
+        # Execute/show the form
+        selected_button = unqualified_name_form.Execute()
+        new_name = unqualified_name_form.new_name.value
+
+        # Free the form
+        unqualified_name_form.Free()
+
+        if selected_button == 1: # Replace button
+            return new_name
+        return None
+
+
+#--------------------------------------------------------------------------
 # IDA helper functions
 #--------------------------------------------------------------------------
+def get_invalid_characters(string: str) -> list:
+    invalid_characters = []
+    # Is the string empty?
+    if not string:
+        return invalid_characters
+
+    # Is the first character a digit?
+    if string[0].isdigit():
+        invalid_characters.append(0)
+
+    # Iterate through the characters in the string,
+    #  and check if they are valid using
+    #  ida_name.is_ident_cp
+    for index, character in enumerate(string):
+        if not ida_name.is_ident_cp(ord(character)):
+            invalid_characters.append(index)
+
+    # Return the invalid characters
+    return invalid_characters
+
+
+def html_format_invalid_characters(string: str, invalid_characters: list, color: str = "#F44336") -> str:
+    # Are there any invalid characters in the string?
+    if not invalid_characters:
+        return string
+    
+    # Format the invalid characters
+    formatted_string = ""
+    for index, character in enumerate(string):
+        if index in invalid_characters and color:
+            formatted_string += "<span style=\"color: {}\">{}</span>".format(color, character)
+        else:
+            formatted_string += character
+
+    # Return the formatted string
+    return formatted_string
+
+
 def add_enums(enum_name, hash_list, enum_size = 0):
-    '''
-    Add a list of string,hash pairs to enum.
-    hash_list = [(string1,hash1),(string2,hash2)]
-    '''
+    """
+    Adds a hash list to an enum by name.
+     IMPORTANT: This function should always be executed on the main thread.
+
+    The hash list should be a list of tuples with three values:
+     name: str, value: int, is_api: bool
+    """
     # Resolve the enum size
     if not enum_size:
         global HASHDB_ALGORITHM_SIZE
@@ -1047,6 +1147,31 @@ def add_enums(enum_name, hash_list, enum_size = 0):
         # First, we have to check if this name and value already exist in the enum
         if ida_enum.get_enum_member(enum_id, value, 0, 0) != idaapi.BADNODE:
             continue # Skip if the value already exists in the enum
+
+        # Replace spaces with underscores
+        for index, character in enumerate(member_name):
+            if character.isspace():
+                # Count not specified to replace all occurrences at once
+                member_name = member_name.replace(character, '_')
+
+        # Check if a member name is valid
+        skip = False
+        invalid_characters = get_invalid_characters(member_name)
+        while invalid_characters:
+            # Open the unqualified name form
+            new_member_name = unqualified_name_replace_t.show(member_name, invalid_characters)
+
+            # Did the user skip, or provide an empty string?
+            if not new_member_name:
+                skip = True
+                break
+            
+            member_name = new_member_name
+            # Check if the user provided an invalid name
+            invalid_characters = get_invalid_characters(member_name)
+        if skip:
+            idaapi.msg("HashDB: Skipping hash result \"{}\" with value: {}\n".format(member_name, hex(value)))
+            continue
 
         # Attempt to generate a name, and insert the value
         for index in range(MAXIMUM_ATTEMPTS):
