@@ -23,6 +23,9 @@ def PLUGIN_ENTRY():
 
 
 class VersionCheck:
+    """
+    A secondary scope for version support testing
+    """
     @staticmethod
     def is_python_version_supported() -> bool:
         """
