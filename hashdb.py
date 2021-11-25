@@ -503,24 +503,28 @@ def save_settings():
     global HASHDB_USE_XOR, HASHDB_XOR_VALUE 
     global HASHDB_ALGORITHM, ENUM_PREFIX
     global NETNODE_NAME
-    node = ida_netnode.netnode()
-    if node.create(NETNODE_NAME):
-        if HASHDB_API_URL != None:
-            node.hashset_buf("HASHDB_API_URL", str(HASHDB_API_URL))
-        if HASHDB_USE_XOR != None:
-            node.hashset_buf("HASHDB_USE_XOR", str(HASHDB_USE_XOR))
-        if HASHDB_XOR_VALUE != None:
-            node.hashset_buf("HASHDB_XOR_VALUE", str(HASHDB_XOR_VALUE))
-        if HASHDB_ALGORITHM != None:
-            node.hashset_buf("HASHDB_ALGORITHM", str(HASHDB_ALGORITHM))
-        if HASHDB_ALGORITHM_SIZE != None:
-            node.hashset_buf("HASHDB_ALGORITHM_SIZE", str(HASHDB_ALGORITHM_SIZE))
-        if ENUM_PREFIX != None:
-            node.hashset_buf("ENUM_PREFIX", str(ENUM_PREFIX))
-        idaapi.msg("HashDB settings saved\n")
-    else:
-        idaapi.msg("ERROR: Unable to save HashDB settings\n")
-    return
+
+    # Check if our netnode already exists, otherwise create a new one
+    node = ida_netnode.netnode(NETNODE_NAME)
+    if not ida_netnode.exist(node):
+        node = ida_netnode.netnode()
+        if not node.create(NETNODE_NAME):
+            idaapi.msg("ERROR: Unable to save HashDB settings, failed to create the netnode.\n")
+            return
+
+    if HASHDB_API_URL != None:
+        node.hashset_buf("HASHDB_API_URL", str(HASHDB_API_URL))
+    if HASHDB_USE_XOR != None:
+        node.hashset_buf("HASHDB_USE_XOR", str(HASHDB_USE_XOR))
+    if HASHDB_XOR_VALUE != None:
+        node.hashset_buf("HASHDB_XOR_VALUE", str(HASHDB_XOR_VALUE))
+    if HASHDB_ALGORITHM != None:
+        node.hashset_buf("HASHDB_ALGORITHM", str(HASHDB_ALGORITHM))
+    if HASHDB_ALGORITHM_SIZE != None:
+        node.hashset_buf("HASHDB_ALGORITHM_SIZE", str(HASHDB_ALGORITHM_SIZE))
+    if ENUM_PREFIX != None:
+        node.hashset_buf("ENUM_PREFIX", str(ENUM_PREFIX))
+    idaapi.msg("HashDB settings saved\n")
 
 
 #--------------------------------------------------------------------------
