@@ -1,9 +1,5 @@
-# System packages/modules
-import sys
-
 # IDAPython
 import ida_idaapi
-import ida_kernwin
 from ida_idp import IDP_INTERFACE_VERSION
 
 # HashDB
