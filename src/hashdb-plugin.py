@@ -1,3 +1,6 @@
+# System packages/modules
+import importlib
+
 # IDAPython
 import ida_idaapi
 from ida_idp import IDP_INTERFACE_VERSION
@@ -8,7 +11,6 @@ from hashdb.core import HashDBCore as Core
 from hashdb.config import PLUGIN_NAME
 from hashdb.utilities.versions import *
 from hashdb.utilities.logging import warning, debug
-from hashdb.python.reload import reload_package
 
 
 # noinspection PyPep8Naming
@@ -89,10 +91,14 @@ class HashDBPlugin(ida_idaapi.plugin_t):
         # Unload the plugin
         self.__core.unload()
 
-        # Reload the package
-        reload_package(hashdb)
+        # Decrement the reference count on self.__core
+        del self.__core
 
-        # Reload the core instance
+        # Reload the package
+        # TODO (printup) testing required
+        importlib.reload(hashdb)
+
+        # Create a new self.__core instance
         self.__core = Core(initial_setup=False)
 
     def run_tests(self, reload: bool = False) -> None:
