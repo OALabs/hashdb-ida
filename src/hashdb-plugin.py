@@ -9,6 +9,7 @@ from ida_idp import IDP_INTERFACE_VERSION
 # HashDB
 import hashdb
 from hashdb.core import HashDBCore as Core
+from hashdb.config import PLUGIN_NAME
 from src.hashdb.utilities.logging import warning, debug
 from src.hashdb.python.reload import reload_package
 
@@ -63,7 +64,7 @@ class HashDBPlugin(ida_idaapi.plugin_t):
     flags: int = ida_idaapi.PLUGIN_KEEP
     comment: str = "HashDB Lookup Service"
     help: str = ""
-    wanted_name: str = "HashDB"
+    wanted_name: str = PLUGIN_NAME  # hashdb.config
     wanted_hotkey: str = ""
 
     # Core instance variable
