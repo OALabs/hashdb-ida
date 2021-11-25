@@ -47,7 +47,7 @@ class HashDBPlugin(ida_idaapi.plugin_t):
         """
         Invoked when IDA is loading the plugin.
         @return: PLUGIN_KEEP if the system supports the minimum requirements,
-                   otherwise, return PLUGIN_SKIP
+                 otherwise, return PLUGIN_SKIP
         """
         # Check if the minimum requirements are met
         if not is_python_version_supported():  # hashdb.utilities.versions
@@ -96,6 +96,7 @@ class HashDBPlugin(ida_idaapi.plugin_t):
 
         # Reload the package
         # TODO (printup) testing required
+        # noinspection PyTypeChecker
         importlib.reload(hashdb)
 
         # Create a new self.__core instance
