@@ -71,7 +71,7 @@ class HashDBCore:
         """
         self.__hexrays_hooks.unhook()
 
-    # noinspection PyUnusedLocal
+    # noinspection PyUnusedLocal,PyMethodMayBeStatic
     def __on_hexrays_populating_popup(self, widget, popup_handle, vu) -> int:
         # TODO (printup): implement the context menu items
         return 0
