@@ -3,12 +3,19 @@ AUTHOR: str = "Sergei Frankoff"
 VERSION: tuple = (2, 0, 0)  # major, minor, micro
 VERSION_STRING: str = ".".join([str(element) for element in VERSION])
 PLUGIN_NAME: str = "HashDB"
-PLUGIN_DEFAULT_SETTINGS = {
+PLUGIN_SETTINGS = {
     "API_URL":         "https://hashdb.openanalysis.net",
-    "NETNODE_ID":      "$hashdb",  # unique netnode ID for database specific settings
     "ENUM_PREFIX":     "hashdb_strings",
     "REQUEST_TIMEOUT": 15  # in seconds
 }
+# Note: hotkeys are bound to actions!
+PLUGIN_HOTKEYS = {
+    "lookup_hash": "Alt+`",
+    "hunt_hash_algo": None,
+    "scan_hashes": None
+}
+PLUGIN_NETNODE_ID: str = "$hashdb"     # unique netnode ID for database specific settings
+PLUGIN_ACTIONS_PREFIX: str = "hashdb"  # prefixed to all actions (popup menu)
 
 # TODO (printup): move these TODOs to git issues :)
 

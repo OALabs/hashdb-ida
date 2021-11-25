@@ -1,8 +1,12 @@
+# IDAPython
+import ida_kernwin
+
 # HashDB
 from ida.hooks.ui import UiHooks
 from utilities.hexrays import is_hexrays_decompiler_available
 if is_hexrays_decompiler_available():  # Conditionally import, if the Hex-Rays decompiler is available
     from ida.hooks.hexrays import HexRaysHooks
+from ida.actions.actions import Actions
 
 
 class HashDBCore:
@@ -10,6 +14,7 @@ class HashDBCore:
     __ui_hooks: UiHooks
     if is_hexrays_decompiler_available():
         __hexrays_hooks: HexRaysHooks
+    __actions: Actions
 
     def __init__(self, initial_setup: bool):
         """
@@ -27,6 +32,9 @@ class HashDBCore:
         # Is the Hex-Rays decompiler available?
         if is_hexrays_decompiler_available():
             self.__hexrays_hooks = HexRaysHooks()
+
+        # Create an Actions instance
+        self.__actions = Actions()
 
         # Assume the plugin is being reloaded, load directly
         if not initial_setup:
@@ -73,7 +81,21 @@ class HashDBCore:
 
     # noinspection PyUnusedLocal,PyMethodMayBeStatic
     def __on_hexrays_populating_popup(self, widget, popup_handle, vu) -> int:
+        """
+        Invoked when a popup event is triggered. This callback allows us
+          to add new menu entries into the context menu.
+        @param widget: TWidget*
+        @param popup_handle: TPopupMenu*
+        @param vu: vdui_t*
+        @return: 1 is the event was handled (decompiler manual)
+        """
         # TODO (printup): implement the context menu items
+        # ida_kernwin.attach_action_to_popup(
+        #     widget,
+        #     popup_handle,
+        #     "hashdb:name",  # name
+        #     None,  # popup path
+        #     ida_kernwin.SETMENU_APP)  # append
         return 0
 
     #--------------------------------------------------------------------------
