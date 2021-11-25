@@ -1,7 +1,7 @@
 # HashDB
 from ida.hooks.ui import UiHooks
 from utilities.hexrays import is_hexrays_decompiler_available
-if is_hexrays_decompiler_available():
+if is_hexrays_decompiler_available():  # Conditionally import, if the Hex-Rays decompiler is available
     from ida.hooks.hexrays import HexRaysHooks
 
 
@@ -46,8 +46,7 @@ class HashDBCore:
 
         # Is the Hex-Rays decompiler available?
         if is_hexrays_decompiler_available():
-            # TODO (printup): implement hex-rays hooks
-            pass
+            self.__register_hexrays_hooks()
 
         # Signal that loading was successful
         self.loaded = True
@@ -55,6 +54,31 @@ class HashDBCore:
     def unload(self) -> None:
         pass
 
+    #--------------------------------------------------------------------------
+    # Hex-Rays hooks
+    # ida_hexrays.html#ida_hexrays.Hexrays_Hooks.populating_popup
+    #--------------------------------------------------------------------------
+    def __register_hexrays_hooks(self) -> None:
+        """
+        Register any relevant Hex-Rays hooks
+        """
+        self.__hexrays_hooks.populating_popup = self.__on_hexrays_populating_popup
+        self.__hexrays_hooks.hook()
+
+    def __remove_hexrays_hooks(self) -> None:
+        """
+        Remove all Hex-Rays hooks
+        """
+        self.__hexrays_hooks.unhook()
+
+    # noinspection PyUnusedLocal
+    def __on_hexrays_populating_popup(self, widget, popup_handle, vu) -> int:
+        # TODO (printup): implement the context menu items
+        return 0
+
+    #--------------------------------------------------------------------------
+    # Unit testing
+    #--------------------------------------------------------------------------
     def run_tests_cli(self) -> None:
         pass
 
