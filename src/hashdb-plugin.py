@@ -10,8 +10,9 @@ from ida_idp import IDP_INTERFACE_VERSION
 import hashdb
 from hashdb.core import HashDBCore as Core
 from hashdb.config import PLUGIN_NAME
-from src.hashdb.utilities.logging import warning, debug
-from src.hashdb.python.reload import reload_package
+from hashdb.utilities.versions import *
+from hashdb.utilities.logging import warning, debug
+from hashdb.python.reload import reload_package
 
 
 # noinspection PyPep8Naming
@@ -21,35 +22,6 @@ def PLUGIN_ENTRY():
     @return: HashDBPlugin
     """
     return HashDBPlugin()
-
-
-class VersionCheck:
-    """
-    A secondary scope for version support testing
-    """
-    @staticmethod
-    def is_python_version_supported() -> bool:
-        """
-        Checks if the Python version number is higher or
-          equal to 3.6
-        @return: sys.version_info >= 3.6
-        """
-        minimum_major = 3
-        minimum_minor = 6
-        return sys.version_info >= (minimum_major, minimum_minor)
-
-    @staticmethod
-    def is_ida_version_supported() -> bool:
-        """
-        Checks if the IDA kernel version is higher or
-          equal to 7.0
-        @return: ida_kernel_version >= 7.0
-        """
-        minimum_major = 7
-        minimum_minor = 0
-
-        ida_kernel_version = tuple(map(int, ida_kernwin.get_kernel_version().split(".")))
-        return ida_kernel_version >= (minimum_major, minimum_minor)
 
 
 # https://hex-rays.com/products/ida/support/sdkdoc/classplugin__t.html
@@ -80,10 +52,10 @@ class HashDBPlugin(ida_idaapi.plugin_t):
                    otherwise, return PLUGIN_SKIP
         """
         # Check if the minimum requirements are met
-        if not VersionCheck.is_python_version_supported():
+        if not is_python_version_supported():  # hashdb.utilities.versions
             warning("Minimum Python version requirements not met.")
             return ida_idaapi.PLUGIN_SKIP
-        if not VersionCheck.is_ida_version_supported():
+        if not is_ida_version_supported():  # hashdb.utilities.versions
             warning("Minimum IDA version requirements not met.")
             return ida_idaapi.PLUGIN_SKIP
 
