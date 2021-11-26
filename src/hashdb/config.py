@@ -4,9 +4,11 @@ VERSION: tuple = (2, 0, 0)  # major, minor, micro
 VERSION_STRING: str = ".".join([str(element) for element in VERSION])
 PLUGIN_NAME: str = "HashDB"
 PLUGIN_SETTINGS = {
-    "API_URL":         "https://hashdb.openanalysis.net",
-    "ENUM_PREFIX":     "hashdb_strings",
-    "REQUEST_TIMEOUT": 15  # in seconds
+    "API_URL":         "https://hashdb.openanalysis.net",  # local, global
+    "ENUM_PREFIX":     "hashdb_strings",                   # local, global
+    "REQUEST_TIMEOUT": 15,    # in seconds                 # local, global
+    "ALGORITHM":       None,  # algorithm name             # local
+    "ALGORITHM_SIZE":  0,     # algorithm size             # local
 }
 # Note: hotkeys are bound to actions!
 PLUGIN_HOTKEYS = {
