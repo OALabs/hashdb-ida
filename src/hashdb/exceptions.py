@@ -30,7 +30,7 @@ class Exceptions:
         Used when a timeout is reached.
         """
 
-    class InvalidAlgorithmType(Error):
+    class UnknownAlgorithmType(Error):
         """
         Used when an algorithm has an
           invalid size.
