@@ -1,10 +1,10 @@
-class Algorithm:
+# System packages/modules
+from typing import NamedTuple
+
+
+class Algorithm(NamedTuple):
     """
     Interface for a hash algorithm.
     """
-    name: str
-    size: int
-
-    def __init__(self, name: str, size: int):
-        self.name = name
-        self.size = size
+    name: str  # algorithm name
+    size: int  # algorithm size
