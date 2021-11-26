@@ -61,8 +61,34 @@ class Action:
         """
         if self.icon != -1:
             ida_kernwin.free_custom_icon(self.icon)
+            self.icon = -1
 
     # noinspection PyPropertyAccess
     @property
     def name(self) -> str:
         return self.descriptor.name
+
+    # noinspection PyPropertyAccess
+    @property
+    def label(self) -> str:
+        return self.descriptor.label
+
+    # noinspection PyPropertyAccess
+    @property
+    def callback(self) -> str:
+        return self.descriptor.callback
+
+    # noinspection PyPropertyAccess
+    @property
+    def shortcut(self) -> str:
+        return self.descriptor.shortcut
+
+    # noinspection PyPropertyAccess
+    @property
+    def tooltip(self) -> str:
+        return self.descriptor.tooltip
+
+    # noinspection PyPropertyAccess
+    @property
+    def flags(self) -> str:
+        return self.descriptor.flags
