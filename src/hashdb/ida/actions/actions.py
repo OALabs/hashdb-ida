@@ -66,22 +66,21 @@ class Actions:
     Dedicated class for initializing and handling
       IDA popup menu actions.
     """
-    lookup_hash: LookupHash
-    hunt_hash_algo: HuntHashAlgorithm
-    scan_hashes: ScanHashes
+    action_items: list[Action]
 
     def setup(self) -> None:
         """
         Register all actions.
         """
         # Setup the actions
-        self.lookup_hash = LookupHash(callback=self.__on_lookup_hash)
-        self.hunt_hash_algo = HuntHashAlgorithm(callback=self.__on_hunt_hash_algo)
-        self.scan_hashes = ScanHashes(callback=self.__on_scan_hashes)
+        self.action_items = []
+        self.action_items.append(LookupHash(callback=self.__on_lookup_hash))
+        self.action_items.append(HuntHashAlgorithm(callback=self.__on_hunt_hash_algo))
+        self.action_items.append(ScanHashes(callback=self.__on_scan_hashes))
 
         # Register the actions
         action: Action
-        for action in (self.lookup_hash, self.hunt_hash_algo, self.scan_hashes):
+        for action in self.action_items:
             if not action.register():
                 warning(f"Failed to register action: {action.name}")
 
@@ -92,7 +91,7 @@ class Actions:
         @param popup_handle: TPopupMenu*
         """
         action: Action
-        for action in (self.lookup_hash, self.hunt_hash_algo, self.scan_hashes):
+        for action in self.action_items:
             ida_kernwin.attach_action_to_popup(
                 widget, popup_handle,
                 action.name,
@@ -105,7 +104,7 @@ class Actions:
         Cleanup all actions (unregister and free their icons)
         """
         action: Action
-        for action in (self.lookup_hash, self.hunt_hash_algo, self.scan_hashes):
+        for action in self.action_items:
             action.unregister()
             action.free_icon()
 
