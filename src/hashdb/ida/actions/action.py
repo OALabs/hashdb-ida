@@ -5,7 +5,7 @@ from typing import Callable
 import ida_kernwin
 
 # HashDB
-from handler import Handler
+from .handler import Handler
 from ...config import PLUGIN_ACTIONS_PREFIX
 
 
@@ -51,7 +51,7 @@ class Action:
         @return: True if unregistered successfully,
                  False if it failed
         """
-        return ida_kernwin.unregister_action(self.descriptor)
+        return ida_kernwin.unregister_action(self.name)
 
     def free_icon(self) -> None:
         """
