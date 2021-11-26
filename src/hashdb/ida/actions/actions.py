@@ -86,7 +86,7 @@ class Actions:
         # Register the actions
         action: Action
         for action in self.action_items:
-            if not action.register():
+            if type(action) is not Separator and not action.register():
                 warning(f"Failed to register action: {action.name}")
 
     def attach_to_popup(self, widget, popup_handle) -> None:
@@ -100,7 +100,7 @@ class Actions:
             ida_kernwin.attach_action_to_popup(
                 widget, popup_handle,
                 action.name, f"{PLUGIN_NAME}/",  # popuppath
-                ida_kernwin.SETMENU_APP  # append
+                ida_kernwin.SETMENU_APP          # append
             )
 
     def cleanup(self) -> None:
