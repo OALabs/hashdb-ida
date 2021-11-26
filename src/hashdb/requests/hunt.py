@@ -46,7 +46,7 @@ def format_response(response_data: dict) -> list[str]:
     # Parse the hash algorithms
     algorithms = []
 
-    algorithm: str
+    algorithm: dict
     # Iterate the algorithms
     for algorithm in response_data.get("hits", []):
         name = algorithm.get("algorithm")
