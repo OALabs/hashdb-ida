@@ -17,6 +17,7 @@ class Action:
     A prefix is automatically prepended to the name.
     It also manages its lifetime (registration, deletion).
     """
+    icon: int = -1
     descriptor: ida_kernwin.action_desc_t
 
     def __init__(self, name: str, label: str, callback: Callable,
@@ -44,10 +45,22 @@ class Action:
         """
         return ida_kernwin.register_action(self.descriptor)
 
-    def delete(self) -> bool:
+    def unregister(self) -> bool:
         """
         Delete the action descriptor.
         @return: True if unregistered successfully,
                  False if it failed
         """
         return ida_kernwin.unregister_action(self.descriptor)
+
+    def free_icon(self) -> None:
+        """
+        Free an icon instance, if it exists
+        """
+        if self.icon != -1:
+            ida_kernwin.free_custom_icon(self.icon)
+
+    # noinspection PyPropertyAccess
+    @property
+    def name(self) -> str:
+        return self.descriptor.name
