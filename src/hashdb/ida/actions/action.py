@@ -6,7 +6,7 @@ import ida_kernwin
 
 # HashDB
 from .handler import Handler
-from ...config import PLUGIN_ACTIONS_PREFIX
+from ...config import PLUGIN_NAME, PLUGIN_ACTIONS_PREFIX
 
 
 class Action:
@@ -63,6 +63,19 @@ class Action:
             ida_kernwin.free_custom_icon(self.icon)
             self.icon = -1
 
+    def attach_to_menu(self) -> bool:
+        return ida_kernwin.attach_action_to_menu(
+            f"Edit/Plugins/{PLUGIN_NAME}/{self.label}",  # menupath
+            self.name,                                   # name
+            ida_kernwin.SETMENU_APP                      # append
+        )
+
+    def detach_from_menu(self) -> bool:
+        return ida_kernwin.detach_action_from_menu(
+            f"Edit/Plugins/{PLUGIN_NAME}/{self.label}",  # menupath
+            self.name                                    # name
+        )
+
     # noinspection PyPropertyAccess
     @property
     def name(self) -> str:
@@ -72,11 +85,6 @@ class Action:
     @property
     def label(self) -> str:
         return self.descriptor.label
-
-    # noinspection PyPropertyAccess
-    @property
-    def callback(self) -> str:
-        return self.descriptor.callback
 
     # noinspection PyPropertyAccess
     @property
