@@ -10,9 +10,9 @@ PLUGIN_SETTINGS = {
 }
 # Note: hotkeys are bound to actions!
 PLUGIN_HOTKEYS = {
-    "lookup_hash": "Alt+`",
+    "lookup_hash":    "Alt+`",
     "hunt_hash_algo": None,
-    "scan_hashes": None
+    "scan_hashes":    None
 }
 PLUGIN_NETNODE_ID: str = "$hashdb"     # unique netnode ID for database specific settings
 PLUGIN_ACTIONS_PREFIX: str = "hashdb"  # prefixed to all actions (popup menu)
