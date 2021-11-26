@@ -39,25 +39,45 @@ class HashDBCore:
 
     def load(self) -> None:
         """
-        Registers the proper UI hooks (e.g. Hex-Rays)
-         and handles the setup.
+        Registers the UI hooks (UI, Hex-Rays)
+          and handles the setup.
         """
         # Initialize the actions and their icons
-        self.__actions.setup()  # TODO (printup): call cleanup() when unloading
+        self.__actions.setup()
 
         # Register the UI action hooks
-        self.__register_ui_hooks()  # TODO (printup): unhook on unload
+        self.__register_ui_hooks()
 
-        # Is the Hex-Rays decompiler available?
+        # If the Hex-Rays decompiler available,
+        #  register Hex-Rays specific hooks:
         if is_hexrays_decompiler_available():
-            self.__register_hexrays_hooks()  # TODO (printup): remove on unload
+            self.__register_hexrays_hooks()
 
-        # Signal that loading was successful
-        self.loaded = True  # TODO (printup): set to False on unload
+        # Mark the Core as loaded
+        self.loaded = True
 
     def unload(self) -> None:
-        # TODO (printup): unload self.__ui_hooks
-        pass
+        """
+        Unhooks the UI hooks, and cleans up
+          any relevant code (e.g. actions)
+        """
+        # If the Hex-Rays decompiler available,
+        #  unhook and dereference the Hex-Rays
+        #  specific hooks:
+        if is_hexrays_decompiler_available():
+            self.__remove_hexrays_hooks()
+            del self.__hexrays_hooks
+
+        # Unhook and dereference the UI hooks
+        self.__remove_ui_hooks()
+        del self.__ui_hooks
+
+        # Cleanup and dereference the Actions instance
+        self.__actions.cleanup()
+        del self.__actions
+
+        # Mark the Core as unloaded
+        self.loaded = False
 
     # --------------------------------------------------------------------------
     # UI hooks
