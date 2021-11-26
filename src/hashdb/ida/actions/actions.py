@@ -24,6 +24,11 @@ def load_custom_icon(compressed_data: bytes, image_format: str = "png") -> int:
     return ida_kernwin.load_custom_icon(data=data, format=image_format)
 
 
+class Separator(Action):
+    def __init__(self):
+        super().__init__(name="-", label="", callback=lambda x: None, name_prefix=False)
+
+
 class LookupHash(Action):
     def __init__(self, callback: Callable):
         self.icon = load_custom_icon(LOOKUP_HASH_ICON_COMPRESSED)
