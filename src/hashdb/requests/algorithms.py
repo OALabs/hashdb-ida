@@ -13,6 +13,7 @@ def fetch(api_url: str, timeout: int) -> dict:
     @param api_url: api url to use
     @param timeout: amount of seconds before we timeout
     @return: a json object (dict) fetched from the server
+             containing data about each algorithm
     @raise Exceptions.Timeout: if a request timed out
     @raise Exceptions.ResponseCode: if an unexpected status code is encountered,
     @raise Exceptions.Json: if the response body isn't valid JSON.
