@@ -13,6 +13,9 @@ def fetch(api_url: str, timeout: int) -> dict:
     @param api_url: api url to use
     @param timeout: amount of seconds before we timeout
     @return: a json object (dict) fetched from the server
+    @raise Exceptions.Timeout: if a request timed out
+    @raise Exceptions.ResponseCode: if an unexpected status code is encountered,
+    @raise Exceptions.Json: if the response body isn't valid JSON.
     """
     # Perform the request
     url = f"{api_url}/hash"
@@ -37,6 +40,7 @@ def format_response(response_data: dict) -> list[Algorithm]:
     Formats the raw json response into friendly structures.
     @param response_data: a json
     @return: a list of Algorithm instances
+    @raise Exceptions.UnknownAlgorithmType: if an unknown algorithm type is encountered
     """
     # Parse the algorithms
     algorithms = []
@@ -60,6 +64,7 @@ def parse_algorithm_type(algorithm_type: str) -> int:
       size in bits.
     @param algorithm_type: type of the algorithm
     @return: size of the algorithm in bits
+    @raise Exceptions.UnknownAlgorithmType: if the algorithm type is unknown
     """
     predetermined_sizes = {
         "unsigned_int":  32,
@@ -68,7 +73,7 @@ def parse_algorithm_type(algorithm_type: str) -> int:
 
     # Check if the algorithm type is a valid type
     if algorithm_type not in predetermined_sizes.keys():
-        raise Exceptions.InvalidAlgorithmType(f"Invalid algorithm type encountered: {algorithm_type}",
+        raise Exceptions.UnknownAlgorithmType(f"Unknown algorithm type encountered: {algorithm_type}",
                                               algorithm_type=algorithm_type)
 
     # Return the size of the algorithm
