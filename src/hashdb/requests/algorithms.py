@@ -49,8 +49,8 @@ def format_response(response_data: dict) -> list[Algorithm]:
     algorithm: dict
     # Iterate the algorithms
     for algorithm in response_data.get("algorithms", []):
-        name = algorithm.get("algorithm")
-        size = parse_algorithm_type(algorithm.get("type"))
+        name: str = algorithm.get("algorithm")
+        size: int = parse_algorithm_type(algorithm.get("type"))
 
         # Append an Algorithm instance
         algorithms.append(Algorithm(name=name, size=size))

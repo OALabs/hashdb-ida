@@ -49,9 +49,9 @@ def format_response(response_data: dict) -> list[Hit]:
     hit: dict
     # Iterate the algorithms
     for hit in response_data.get("hits", []):
-        name = hit.get("algorithm")
-        count = hit.get("count")
-        hitrate = hit.get("hitrate")
+        name: str = hit.get("algorithm")
+        count: int = hit.get("count")
+        hitrate: float = hit.get("hitrate")
 
         # Append the name if it doesn't already exist
         hits.append(Hit(name=name, count=count, hitrate=hitrate))
