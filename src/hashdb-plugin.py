@@ -95,7 +95,6 @@ class HashDBPlugin(ida_idaapi.plugin_t):
         del self.__core
 
         # Reload the package
-        # TODO (printup) testing required
         # noinspection PyTypeChecker
         importlib.reload(hashdb)
 
