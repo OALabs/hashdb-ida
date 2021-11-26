@@ -1,6 +1,3 @@
-# IDAPython
-import ida_kernwin
-
 # HashDB
 from ida.hooks.ui import UiHooks
 from utilities.hexrays import is_hexrays_decompiler_available
@@ -45,22 +42,49 @@ class HashDBCore:
         Registers the proper UI hooks (e.g. Hex-Rays)
          and handles the setup.
         """
-        # Remove hooks
-        self.__ui_hooks.unhook()
+        # Initialize the actions and their icons
+        self.__actions.setup()  # TODO (printup): call cleanup() when unloading
 
-        # Dereference the self.__hooks object, it's no
-        #  longer required
-        del self.__ui_hooks
+        # Register the UI action hooks
+        self.__register_ui_hooks()  # TODO (printup): unhook on unload
 
         # Is the Hex-Rays decompiler available?
         if is_hexrays_decompiler_available():
-            self.__register_hexrays_hooks()
+            self.__register_hexrays_hooks()  # TODO (printup): remove on unload
 
         # Signal that loading was successful
-        self.loaded = True
+        self.loaded = True  # TODO (printup): set to False on unload
 
     def unload(self) -> None:
+        # TODO (printup): unload self.__ui_hooks
         pass
+
+    # --------------------------------------------------------------------------
+    # UI hooks
+    # --------------------------------------------------------------------------
+    def __register_ui_hooks(self) -> None:
+        """
+        Register the UI hooks.
+        """
+        self.__actions.populating_widget_popup = self.__on_ui_populating_widget_popup
+
+    def __remove_ui_hooks(self) -> None:
+        """
+        Remove all UI hooks.
+        """
+        self.__ui_hooks.unhook()
+
+    # noinspection PyUnusedLocal
+    def __on_ui_populating_widget_popup(self, widget, popup_handle, context=None):
+        """
+        Invoked when a popup event is triggered. This callback allows us
+          to add new menu entries into the context menu.
+        @param widget: TWidget*
+        @param popup_handle: TPopupMenu*
+        @return: 1 is the event was handled (decompiler manual)
+        """
+        self.__actions.attach_to_popup(widget, popup_handle)
+        return 0
 
     #--------------------------------------------------------------------------
     # Hex-Rays hooks
@@ -68,14 +92,14 @@ class HashDBCore:
     #--------------------------------------------------------------------------
     def __register_hexrays_hooks(self) -> None:
         """
-        Register any relevant Hex-Rays hooks
+        Register the Hex-Rays hooks.
         """
         self.__hexrays_hooks.populating_popup = self.__on_hexrays_populating_popup
         self.__hexrays_hooks.hook()
 
     def __remove_hexrays_hooks(self) -> None:
         """
-        Remove all Hex-Rays hooks
+        Remove all Hex-Rays hooks.
         """
         self.__hexrays_hooks.unhook()
 
@@ -89,13 +113,7 @@ class HashDBCore:
         @param vu: vdui_t*
         @return: 1 is the event was handled (decompiler manual)
         """
-        # TODO (printup): implement the context menu items
-        # ida_kernwin.attach_action_to_popup(
-        #     widget,
-        #     popup_handle,
-        #     "hashdb:name",  # name
-        #     None,  # popup path
-        #     ida_kernwin.SETMENU_APP)  # append
+        self.__actions.attach_to_popup(widget, popup_handle)
         return 0
 
     #--------------------------------------------------------------------------
