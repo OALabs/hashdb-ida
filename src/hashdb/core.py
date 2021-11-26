@@ -11,7 +11,7 @@ from .utilities.logging import info
 class HashDBCore:
     loaded: bool = False  # has the `ready_to_run` event been called?
     __ui_hooks: UiHooks
-    if is_hexrays_decompiler_available():
+    if is_hexrays_module_available():
         __hexrays_hooks: HexRaysHooks
     __actions: Actions
 
