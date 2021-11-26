@@ -57,6 +57,10 @@ class ScanHashes(Action):
                          icon=self.icon)
 
 
+# TODO (printup): we should create a new menu,
+#                 specifically for HashDB functions -
+#                 similar to how the Lumina menu is
+#                 fragmented
 class Actions:
     """
     Dedicated class for initializing and handling
