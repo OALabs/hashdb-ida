@@ -26,7 +26,8 @@ class HashDBCore:
         self.__ui_hooks = UiHooks()
         if initial_setup:
             self.__ui_hooks.ready_to_run = self.load
-            self.__ui_hooks.hook()
+        # Active the hooks
+        self.__ui_hooks.hook()
 
         # Is the Hex-Rays decompiler available?
         if is_hexrays_decompiler_available():
