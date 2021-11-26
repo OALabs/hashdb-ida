@@ -13,6 +13,7 @@ class Handler(ida_kernwin.action_handler_t):
     def activate(self, context):
         """
         Execute the embedded callback when this context menu is invoked.
+        @param context: action_activation_ctx_t
         """
         self.callback(context)
         return 1
@@ -20,5 +21,6 @@ class Handler(ida_kernwin.action_handler_t):
     def update(self, context):
         """
         Ensure the context menu is always available in IDA.
+        @param context: action_activation_ctx_t
         """
         return ida_kernwin.AST_ENABLE_ALWAYS
