@@ -9,3 +9,6 @@ class UiHooks(ida_kernwin.UI_Hooks):
     """
     def ready_to_run(self):
         pass
+
+    def populating_widget_popup(self, widget, popup_handle, context=None):
+        pass

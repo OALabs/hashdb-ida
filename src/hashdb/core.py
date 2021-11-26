@@ -95,7 +95,7 @@ class HashDBCore:
         """
         Register the UI hooks.
         """
-        self.__actions.populating_widget_popup = self.__on_ui_populating_widget_popup
+        self.__ui_hooks.populating_widget_popup = self.__on_ui_populating_widget_popup
 
     def __remove_ui_hooks(self) -> None:
         """

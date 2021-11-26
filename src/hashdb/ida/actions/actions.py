@@ -7,7 +7,7 @@ from typing import Callable
 import ida_kernwin
 
 # HashDB
-from ...utilities.logging import info
+from ...utilities.logging import info, warning
 from .action import Action
 from ...config import PLUGIN_NAME, PLUGIN_HOTKEYS
 from ..ui.icons import LOOKUP_HASH_ICON_COMPRESSED, HUNT_HASH_ICON_COMPRESSED, SCAN_HASHES_ICON_COMPRESSED
@@ -33,7 +33,6 @@ class LookupHash(Action):
                          shortcut=PLUGIN_HOTKEYS["lookup_hash"],
                          tooltip="Try to lookup a hash",
                          icon=self.icon)
-        assert self.register(), "Failed to register the lookup_hash action descriptor."
 
 
 class HuntHashAlgorithm(Action):
@@ -45,7 +44,6 @@ class HuntHashAlgorithm(Action):
                          shortcut=PLUGIN_HOTKEYS["hunt_hash_algo"],
                          tooltip="Try to find the hashing algorithm used for this hash",
                          icon=self.icon)
-        assert self.register(), "Failed to register the hunt_hash_algo action descriptor."
 
 
 class ScanHashes(Action):
@@ -57,7 +55,6 @@ class ScanHashes(Action):
                          shortcut=PLUGIN_HOTKEYS["scan_hashes"],
                          tooltip="Try to lookup multiple hashes at once",
                          icon=self.icon)
-        assert self.register(), "Failed to register the scan_hashes action descriptor."
 
 
 class Actions:
@@ -73,9 +70,16 @@ class Actions:
         """
         Register all actions.
         """
+        # Setup the actions
         self.lookup_hash = LookupHash(callback=self.__on_lookup_hash)
         self.hunt_hash_algo = HuntHashAlgorithm(callback=self.__on_hunt_hash_algo)
         self.scan_hashes = ScanHashes(callback=self.__on_scan_hashes)
+
+        # Register the actions
+        action: Action
+        for action in (self.lookup_hash, self.hunt_hash_algo, self.scan_hashes):
+            if not action.register():
+                warning(f"Failed to register action: {action.name}")
 
     def attach_to_popup(self, widget, popup_handle) -> None:
         """
