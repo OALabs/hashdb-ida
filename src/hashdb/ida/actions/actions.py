@@ -8,7 +8,7 @@ import ida_kernwin
 
 # HashDB
 from ...utilities.logging import info
-from action import Action
+from .action import Action
 from ...config import PLUGIN_NAME, PLUGIN_HOTKEYS
 from ..ui.icons import LOOKUP_HASH_ICON_COMPRESSED, HUNT_HASH_ICON_COMPRESSED, SCAN_HASHES_ICON_COMPRESSED
 
