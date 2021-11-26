@@ -1,9 +1,11 @@
 # HashDB
-from ida.hooks.ui import UiHooks
-from utilities.hexrays import is_hexrays_decompiler_available
-if is_hexrays_decompiler_available():  # Conditionally import, if the Hex-Rays decompiler is available
-    from ida.hooks.hexrays import HexRaysHooks
-from ida.actions.actions import Actions
+from .config import AUTHOR, VERSION_STRING
+from .ida.hooks.ui import UiHooks
+from .utilities.hexrays import is_hexrays_module_available, is_hexrays_decompiler_available
+if is_hexrays_module_available():  # Conditionally import, if the Hex-Rays decompiler is available
+    from .ida.hooks.hexrays import HexRaysHooks
+from .ida.actions.actions import Actions
+from .utilities.logging import info
 
 
 class HashDBCore:
@@ -56,11 +58,18 @@ class HashDBCore:
         # Mark the Core as loaded
         self.loaded = True
 
+        # Tell the user that we loaded successfully
+        info(f"Plugin version {VERSION_STRING} by {AUTHOR} loaded successfully.")
+
     def unload(self) -> None:
         """
         Unhooks the UI hooks, and cleans up
           any relevant code (e.g. actions)
         """
+        # If the plugin isn't loaded, abort:
+        if not self.loaded:
+            return
+
         # If the Hex-Rays decompiler available,
         #  unhook and dereference the Hex-Rays
         #  specific hooks:
