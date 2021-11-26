@@ -21,6 +21,7 @@ class Action:
     descriptor: ida_kernwin.action_desc_t
 
     def __init__(self, name: str, label: str, callback: Callable,
+                 name_prefix: bool = True,
                  shortcut: str = None, tooltip: str = None,
                  icon: int = -1, flags: int = 0):
         """
@@ -33,8 +34,9 @@ class Action:
         @param icon:     optional icon (ida_kernwin.load_custom_icon)
         @param flags:    optional flags
         """
+        action_name = f"{PLUGIN_ACTIONS_PREFIX}:{name}" if name_prefix else name
         self.descriptor = ida_kernwin.action_desc_t(
-            f"{PLUGIN_ACTIONS_PREFIX}:{name}", label, Handler(callback),
+            action_name, label, Handler(callback),
             shortcut, tooltip, icon, flags)
 
     def register(self) -> bool:
