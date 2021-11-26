@@ -33,7 +33,7 @@ class LookupHash(Action):
     def __init__(self, callback: Callable):
         self.icon = load_custom_icon(LOOKUP_HASH_ICON_COMPRESSED)
         super().__init__(name="lookup_hash",
-                         label=f"{PLUGIN_NAME} Lookup",
+                         label="Lookup Hash",
                          callback=callback,
                          shortcut=PLUGIN_HOTKEYS["lookup_hash"],
                          tooltip="Try to lookup a hash",
@@ -44,7 +44,7 @@ class HuntHashAlgorithm(Action):
     def __init__(self, callback: Callable):
         self.icon = load_custom_icon(HUNT_HASH_ICON_COMPRESSED)
         super().__init__(name="hunt_hash_algo",
-                         label=f"{PLUGIN_NAME} Hunt Algorithm",
+                         label="Hunt Algorithm",
                          callback=callback,
                          shortcut=PLUGIN_HOTKEYS["hunt_hash_algo"],
                          tooltip="Try to find the hashing algorithm used for this hash",
@@ -55,7 +55,7 @@ class ScanHashes(Action):
     def __init__(self, callback: Callable):
         self.icon = load_custom_icon(SCAN_HASHES_ICON_COMPRESSED)
         super().__init__(name="scan_hashes",
-                         label=f"{PLUGIN_NAME} Scan Hashes",
+                         label="Scan Hashes",
                          callback=callback,
                          shortcut=PLUGIN_HOTKEYS["scan_hashes"],
                          tooltip="Try to lookup multiple hashes at once",
@@ -99,8 +99,7 @@ class Actions:
         for action in self.action_items:
             ida_kernwin.attach_action_to_popup(
                 widget, popup_handle,
-                action.name,
-                None,
+                action.name, f"{PLUGIN_NAME}/",  # popuppath
                 ida_kernwin.SETMENU_APP  # append
             )
 
@@ -110,7 +109,8 @@ class Actions:
         """
         action: Action
         for action in self.action_items:
-            action.unregister()
+            if type(action) is not Separator and not action.unregister():  # Do not unregister separators
+                warning(f"Failed to unregister action: {action.name}")
             action.free_icon()
 
     # --------------------------------------------------------------------------
