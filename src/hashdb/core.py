@@ -60,7 +60,7 @@ class HashDBCore:
         self.loaded = True
 
         # Tell the user that we loaded successfully
-        info(f"Plugin version {VERSION_STRING} by {AUTHOR} loaded successfully.")
+        info(f"Plugin version v{VERSION_STRING} by {AUTHOR} loaded successfully.")
 
     def unload(self) -> None:
         """
