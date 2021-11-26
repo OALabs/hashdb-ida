@@ -7,5 +7,5 @@ class UiHooks(ida_kernwin.UI_Hooks):
     """
     Extends the UI_Hooks proxy class.
     """
-    def ready_to_run(self, *args) -> "void":
+    def ready_to_run(self):
         pass

@@ -22,4 +22,3 @@ def is_hexrays_decompiler_available() -> bool:
         return ida_hexrays.init_hexrays_plugin()
     except ImportError:
         return False
-
