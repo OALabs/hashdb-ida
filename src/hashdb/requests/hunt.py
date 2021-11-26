@@ -4,6 +4,7 @@ import requests
 
 # HashDB
 from ..exceptions import Exceptions
+from ..types.hit import Hit
 
 
 def fetch(api_url: str, timeout: int, hash_value: int) -> dict:
@@ -13,7 +14,7 @@ def fetch(api_url: str, timeout: int, hash_value: int) -> dict:
     @param timeout: amount of seconds before we timeout
     @param hash_value: integer value of a hash
     @return: a json object (dict) fetched from the server
-             containing a list of hash algorithms
+             containing a list of hits
     @raise Exceptions.Timeout: if a request timed out
     @raise Exceptions.ResponseCode: if an unexpected status code is encountered,
     @raise Exceptions.Json: if the response body isn't valid JSON.
@@ -36,24 +37,24 @@ def fetch(api_url: str, timeout: int, hash_value: int) -> dict:
         raise Exceptions.Json(f"Invalid response body from: {url}, body={response.text}")
 
 
-def format_response(response_data: dict) -> list[str]:
+def format_response(response_data: dict) -> list[Hit]:
     """
     Formats the raw json response into a list of hash algorithms.
     @param response_data: a json
-    @return: a list of Algorithm instances
-    @raise Exceptions.UnknownAlgorithmType: if an unknown algorithm type is encountered
+    @return: a list of Hit instances
     """
     # Parse the hash algorithms
-    algorithms = []
+    hits = []
 
-    algorithm: dict
+    hit: dict
     # Iterate the algorithms
-    for algorithm in response_data.get("hits", []):
-        name = algorithm.get("algorithm")
+    for hit in response_data.get("hits", []):
+        name = hit.get("algorithm")
+        count = hit.get("count")
+        hitrate = hit.get("hitrate")
 
         # Append the name if it doesn't already exist
-        if name not in algorithms:
-            algorithms.append(name)
+        hits.append(Hit(name=name, count=count, hitrate=hitrate))
 
     # Return the list of hash algorithms
-    return algorithms
+    return hits
