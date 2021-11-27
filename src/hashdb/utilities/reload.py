@@ -5,6 +5,10 @@ from types import ModuleType
 
 
 def reload(module: ModuleType) -> None:
+    importlib.reload(module)
+
+
+def recursive_reload(module: ModuleType) -> None:
     """
     Recursively reload a module and its submodules.
     @param module: a Python module
@@ -16,4 +20,4 @@ def reload(module: ModuleType) -> None:
 
     modules = filter(comparator, tuple(sys.modules))
     for mod in sorted(modules, key=lambda name: name.count("."), reverse=True):
-        importlib.reload(sys.modules[mod])
+        reload(sys.modules[mod])

@@ -6,7 +6,7 @@ from ida_idp import IDP_INTERFACE_VERSION
 import hashdb
 from hashdb.core import HashDBCore as Core
 from hashdb.config import PLUGIN_NAME
-from hashdb.utilities.reload import reload
+from hashdb.utilities.reload import recursive_reload
 from hashdb.utilities.versions import *
 from hashdb.utilities.logging import warning, debug
 
@@ -80,6 +80,7 @@ class HashDBPlugin(ida_idaapi.plugin_t):
     #--------------------------------------------------------------------------
     # Development code
     #--------------------------------------------------------------------------
+    # noinspection PyTypeChecker,PyShadowingNames
     def reload(self) -> None:
         """
         Hot-reload the plugin.
@@ -93,11 +94,11 @@ class HashDBPlugin(ida_idaapi.plugin_t):
         del self.__core
 
         # Reload the package recursively
-        # noinspection PyTypeChecker
-        reload(hashdb)
+        recursive_reload(hashdb)
 
         # Create a new self.__core instance
-        self.__core = hashdb.core.HashDBCore(initial_setup=False)
+        from hashdb.core import HashDBCore as Core
+        self.__core = Core(initial_setup=False)
 
     def run_tests(self, perform_reload: bool = False) -> None:
         """
