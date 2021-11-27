@@ -1,3 +1,7 @@
+# System packages/modules
+from dataclasses import dataclass
+
+
 class Exceptions:
     """
     This class is used as a namespace for the actual
@@ -30,25 +34,20 @@ class Exceptions:
         Used when a timeout is reached.
         """
 
+    @dataclass
     class UnknownAlgorithmType(Error):
         """
         Used when an algorithm has an
           invalid size.
         """
+        message: str
         algorithm_type: str
 
-        def __init__(self, message: str, algorithm_type: str):
-            super().__init__(message)
-            self.algorithm_type = algorithm_type
-
+    @dataclass
     class InvalidHashObject(Error):
         """
         Used when a hash object wasn't
           formatted properly by the server.
         """
+        message: str
         hash_object: dict
-
-        def __init__(self, message: str, hash_object: dict):
-            super().__init__(message)
-            self.hash_object = hash_object
-
