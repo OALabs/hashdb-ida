@@ -32,7 +32,7 @@ def fetch(api_url: str, timeout: int) -> dict:
 def format_response(response_data: dict) -> list[Algorithm]:
     """
     Formats the raw json response into friendly structures.
-    @param response_data: a json
+    @param response_data: a json object
     @return: a list of Algorithm instances
     @raise Exceptions.UnknownAlgorithmType: if an unknown algorithm type is encountered
     """

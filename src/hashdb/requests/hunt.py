@@ -34,7 +34,7 @@ def fetch(api_url: str, timeout: int,
 def format_response(response_data: dict) -> list[Hit]:
     """
     Formats the raw json response into a list of hash algorithms.
-    @param response_data: a json
+    @param response_data: a json object
     @return: a list of Hit instances
     """
     # Parse the hash algorithms
