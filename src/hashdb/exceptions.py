@@ -40,3 +40,15 @@ class Exceptions:
         def __init__(self, message: str, algorithm_type: str):
             super().__init__(message)
             self.algorithm_type = algorithm_type
+
+    class InvalidHashObject(Error):
+        """
+        Used when a hash object wasn't
+          formatted properly by the server.
+        """
+        hash_object: dict
+
+        def __init__(self, message: str, hash_object: dict):
+            super().__init__(message)
+            self.hash_object = hash_object
+
