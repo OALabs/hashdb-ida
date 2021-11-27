@@ -18,16 +18,14 @@ class Exceptions:
           has an invalid json format.
         """
 
+    @dataclass
     class ResponseCode(Error):
         """
         Used when a response status code
           isn't equal to 200 (OK)
         """
+        message: str
         response_code: int
-
-        def __init__(self, message: str, response_code: int):
-            super().__init__(message)
-            self.response_code = response_code
 
     class Timeout(Error):
         """
