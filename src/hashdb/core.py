@@ -1,5 +1,5 @@
 # HashDB
-from .settings.config import AUTHOR, VERSION_STRING
+from .settings.plugin import AUTHOR, VERSION_STRING
 from .ida.hooks.ui import UiHooks
 from .utilities.hexrays import is_hexrays_module_available, is_hexrays_decompiler_available
 if is_hexrays_module_available():  # Conditionally import, if the Hex-Rays decompiler is available

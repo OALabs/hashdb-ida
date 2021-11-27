@@ -6,7 +6,7 @@ import ida_kernwin
 
 # HashDB
 from .handler import Handler
-from ...settings.config import PLUGIN_NAME, PLUGIN_ACTIONS_PREFIX
+from ...settings.plugin import PLUGIN_NAME, PLUGIN_ACTIONS_PREFIX
 
 
 class Action:

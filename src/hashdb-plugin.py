@@ -1,3 +1,6 @@
+# System packages/modules
+import sys
+
 # IDAPython
 import ida_idaapi
 from ida_idp import IDP_INTERFACE_VERSION
@@ -5,9 +8,9 @@ from ida_idp import IDP_INTERFACE_VERSION
 # HashDB
 import hashdb
 from hashdb.core import HashDBCore as Core
-from hashdb.settings.config import PLUGIN_NAME
+from hashdb.settings.plugin import PLUGIN_NAME
 from hashdb.utilities.reload import recursive_reload
-from hashdb.utilities.versions import *
+from hashdb.utilities.versions import is_python_version_supported, is_ida_version_supported
 from hashdb.utilities.logging import warning, debug
 
 
@@ -32,7 +35,7 @@ class HashDBPlugin(ida_idaapi.plugin_t):
     flags: int = ida_idaapi.PLUGIN_KEEP
     comment: str = "HashDB Lookup Service"
     help: str = ""
-    wanted_name: str = PLUGIN_NAME  # hashdb.settings
+    wanted_name: str = PLUGIN_NAME
     wanted_hotkey: str = ""
 
     # Core instance variable
@@ -48,10 +51,10 @@ class HashDBPlugin(ida_idaapi.plugin_t):
                  otherwise, return PLUGIN_SKIP
         """
         # Check if the minimum requirements are met
-        if not is_python_version_supported():  # hashdb.utilities.versions
+        if not is_python_version_supported():
             warning("Minimum Python version requirements not met.")
             return ida_idaapi.PLUGIN_SKIP
-        if not is_ida_version_supported():  # hashdb.utilities.versions
+        if not is_ida_version_supported():
             warning("Minimum IDA version requirements not met.")
             return ida_idaapi.PLUGIN_SKIP
 
