@@ -1,5 +1,5 @@
 # noinspection SpellCheckingInspection
-AUTHOR: str = "Sergei Frankoff"
+AUTHOR: str = "Sergei Frankoff (herrcore)"
 VERSION: tuple = (2, 0, 0)  # major, minor, micro
 VERSION_STRING: str = ".".join([str(element) for element in VERSION])
 PLUGIN_NAME: str = "HashDB"

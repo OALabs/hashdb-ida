@@ -7,7 +7,7 @@ import logging
 import ida_kernwin
 
 # HashDB
-from ..config import PLUGIN_NAME
+from ..settings.config import PLUGIN_NAME
 
 # Global logging prefix, used when logging messages
 logging_prefix: str = f"[{PLUGIN_NAME}]"
