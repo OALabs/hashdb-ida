@@ -1,8 +1,9 @@
 # System packages/modules
-from typing import NamedTuple
+from dataclasses import dataclass
 
 
-class Algorithm(NamedTuple):
+@dataclass
+class Algorithm:
     """
     Interface for a hash algorithm.
     """
