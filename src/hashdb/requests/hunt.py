@@ -7,7 +7,8 @@ from ..exceptions import Exceptions
 from ..types.hit import Hit
 
 
-def fetch(api_url: str, timeout: int, hash_value: int) -> dict:
+def fetch(api_url: str, timeout: int,
+          hash_value: int) -> dict:
     """
     Fetches all hash matches/hits from the server.
     @param api_url: api url to use
