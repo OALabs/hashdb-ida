@@ -1,8 +1,8 @@
 # System packages/modules
 import json
-import requests
 
 # HashDB
+from ..utilities.requests import get as get_request
 from ..exceptions import Exceptions
 from ..types.algorithm import Algorithm
 
@@ -15,19 +15,12 @@ def fetch(api_url: str, timeout: int) -> dict:
     @return: a json object (dict) fetched from the server
              containing data about each algorithm
     @raise Exceptions.Timeout: if a request timed out
-    @raise Exceptions.ResponseCode: if an unexpected status code is encountered,
+    @raise Exceptions.ResponseCode: if an unexpected status code is encountered
     @raise Exceptions.Json: if the response body isn't valid JSON.
     """
     # Perform the request
     url = f"{api_url}/hash"
-    try:
-        response = requests.get(url, timeout=timeout)
-    except requests.Timeout:
-        raise Exceptions.Timeout(f"Timed out when executing a request: {url}")
-
-    # Check if the response code was 200 OK
-    if not response.ok:
-        raise Exceptions.ResponseCode(f"Unexpected response code from: {url}", response_code=response.status_code)
+    response = get_request(url, timeout=timeout)
 
     # Convert and return the results
     try:
