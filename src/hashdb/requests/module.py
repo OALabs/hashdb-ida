@@ -4,7 +4,7 @@ import json
 # HashDB
 from ..utilities.requests import get as get_request
 from ..exceptions import Exceptions
-from ..types.hash import Hash
+from ..types.hash import Hash, parse_hash
 
 
 def fetch(api_url: str, timeout: int,
@@ -48,31 +48,8 @@ def format_response(response_data: dict) -> list[Hash]:
     hash: dict
     # Iterate the algorithms
     for hash in response_data.get("hashes", []):
-        value: int = hash.get("hash")
-        string_object: dict = hash.get("string")
-
-        # Check if the string object is valid
-        if not string_object:
-            raise Exceptions.InvalidHashObject("\"string\" object doesn't exist, or is empty.", hash_object=hash)
-
-        string: str = string_object.get("string")
-        is_api: bool = string_object.get("is_api")
-
-        # If the hash is not an API, append a Hash instance,
-        #  and skip resolving other properties:
-        if not is_api:
-            hashes.append(Hash(value=value, string=string, is_api=is_api))
-            continue
-
-        # Resolve the remaining properties
-        permutation_type: str = string_object.get("permutation")
-        api: str = string_object.get("api")
-        modules: list = string_object.get("modules")
-
         # Append a Hash instance
-        hashes.append(Hash(value=value, string=string, is_api=is_api,
-                           permutation_type=permutation_type, api=api,
-                           modules=tuple(modules)))
+        hashes.append(parse_hash(hash))
 
     # Return the list of hashes
     return hashes
