@@ -1,6 +1,3 @@
-# System packages/modules
-import importlib
-
 # IDAPython
 import ida_idaapi
 from ida_idp import IDP_INTERFACE_VERSION
@@ -9,6 +6,7 @@ from ida_idp import IDP_INTERFACE_VERSION
 import hashdb
 from hashdb.core import HashDBCore as Core
 from hashdb.config import PLUGIN_NAME
+from hashdb.utilities.reload import reload
 from hashdb.utilities.versions import *
 from hashdb.utilities.logging import warning, debug
 
@@ -94,18 +92,18 @@ class HashDBPlugin(ida_idaapi.plugin_t):
         # Decrement the reference count on self.__core
         del self.__core
 
-        # Reload the package
+        # Reload the package recursively
         # noinspection PyTypeChecker
-        importlib.reload(hashdb)
+        reload(hashdb)
 
         # Create a new self.__core instance
-        self.__core = Core(initial_setup=False)
+        self.__core = hashdb.core.HashDBCore(initial_setup=False)
 
-    def run_tests(self, reload: bool = False) -> None:
+    def run_tests(self, perform_reload: bool = False) -> None:
         """
         Perform automated bug testing.
         """
-        if reload:  # Should we perform a reload?
+        if perform_reload:  # Should we perform a reload?
             self.reload()
         # Run the unit tests
         self.__core.run_tests_ida()
