@@ -1,8 +1,8 @@
 # System packages/modules
 import json
-import requests
 
 # HashDB
+from ..utilities.requests import post as post_request
 from ..exceptions import Exceptions
 from ..types.hit import Hit
 
@@ -22,14 +22,7 @@ def fetch(api_url: str, timeout: int,
     """
     # Perform the request
     url = f"{api_url}/hunt"
-    try:
-        response = requests.post(url, json={"hashes": [hash_value]}, timeout=timeout)
-    except requests.Timeout:
-        raise Exceptions.Timeout(f"Timed out when executing a request: {url}")
-
-    # Check if the response code was 200 OK
-    if not response.ok:
-        raise Exceptions.ResponseCode(f"Unexpected response code from: {url}", response_code=response.status_code)
+    response = post_request(url, json={"hashes": [hash_value]}, timeout=timeout)
 
     # Convert and return the results
     try:
