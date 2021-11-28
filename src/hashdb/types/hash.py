@@ -25,23 +25,23 @@ class Hash(NamedTuple):
         Creates a new class instance from a json object (dict)
         @param json: a json object (dict)
         @return: a new class instance
-        @raise Exceptions.InvalidHashObject: if a hash object is missing
-                                             the "string" object
+        @raise Exceptions.InvalidHash: if a hash object is missing
+                                       the "string" object
         """
         # Parse the data
         value: int = json.get("hash")
         if value is None:  # None
-            raise Exceptions.InvalidHashObject("Missing hash value.", hash_object=json)
+            raise Exceptions.InvalidHash("Missing hash value.", hash_object=json)
         string_object: dict = json.get("string")
         if not string_object:  # None or empty
-            raise Exceptions.InvalidHashObject("Invalid \"string\" object.", hash_object=json)
+            raise Exceptions.InvalidHash("Invalid \"string\" object.", hash_object=json)
 
         string_value: str = string_object.get("string")
         if not string_value:  # None or empty string
-            raise Exceptions.InvalidHashObject("Invalid string value.", hash_object=json)
+            raise Exceptions.InvalidHash("Invalid string value.", hash_object=json)
         is_api: bool = string_object.get("is_api")
         if is_api is None:
-            raise Exceptions.InvalidHashObject("Missing is_api value.", hash_object=json)
+            raise Exceptions.InvalidHash("Missing is_api value.", hash_object=json)
 
         # If the hash is not an API, append a Hash instance,
         #  and skip resolving other properties:
@@ -51,14 +51,14 @@ class Hash(NamedTuple):
         # Resolve the remaining properties, and check their values
         permutation_type: str = string_object.get("permutation")
         if not permutation_type:  # None or empty string
-            raise Exceptions.InvalidHashObject("Invalid permutation type.", hash_object=json)
+            raise Exceptions.InvalidHash("Invalid permutation type.", hash_object=json)
         api: str = string_object.get("api")
         if not api or api != string_value:  # None or empty string or api != string
-            raise Exceptions.InvalidHashObject("Invalid api name, or api doesn't match the raw string.",
-                                               hash_object=json)
+            raise Exceptions.InvalidHash("Invalid api name, or api doesn't match the raw string.",
+                                         hash_object=json)
         modules: list = string_object.get("modules")
         if not modules or not len(modules):  # None or empty list
-            raise Exceptions.InvalidHashObject("Missing modules.", hash_object=json)
+            raise Exceptions.InvalidHash("Missing modules.", hash_object=json)
 
         # Return a Hash instance
         return cls(value=value, string=string_value, is_api=is_api,

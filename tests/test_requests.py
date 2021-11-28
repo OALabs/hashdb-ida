@@ -21,5 +21,5 @@ def test_parse_invalid_hashes(invalid_hash_data: dict):
     """
     # Should throw an exception
     for hash_data in invalid_hash_data["hashes"]:
-        with pytest.raises(Exceptions.InvalidHashObject):
+        with pytest.raises(Exceptions.InvalidHash):
             Hash.from_json(hash_data)

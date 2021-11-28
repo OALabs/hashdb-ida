@@ -42,7 +42,7 @@ class Exceptions:
         algorithm_type: str
 
     @dataclass
-    class InvalidAlgorithmObject(Error):
+    class InvalidAlgorithm(Error):
         """
         Used when an algorithm object wasn't
           formatted properly by the server.
@@ -50,7 +50,7 @@ class Exceptions:
         message: str
 
     @dataclass
-    class InvalidHashObject(Error):
+    class InvalidHash(Error):
         """
         Used when a hash object wasn't
           formatted properly by the server.
