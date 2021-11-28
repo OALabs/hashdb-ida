@@ -1,14 +1,14 @@
 import pytest
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def valid_algorithms_data():
     yield {'algorithms': [
         {'algorithm': 'crc32', 'description': 'Standard crc32 hash.', 'type': 'unsigned_int'},
         {'algorithm': 'fnv1a_64', 'description': 'FNV1a hash (64-bit)', 'type': 'unsigned_long'}]}
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def invalid_algorithms_data():
     yield {'algorithms': [
         {},  # empty object
@@ -20,7 +20,7 @@ def invalid_algorithms_data():
         {'algorithm': 'crc32', 'description': 'Standard crc32 hash.', 'type': 'unsigned_float'}]}
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def valid_hash_data():
     yield {'hashes': [{'hash': 1653273962, 'string': {'string': 'RouteTheCall', 'is_api': True,
                                                       'permutation': 'api', 'api': 'RouteTheCall',
@@ -28,7 +28,7 @@ def valid_hash_data():
                       {'hash': 2998556761, 'string': {'string': 'DllCanUnloadNow', 'is_api': False}}]}
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def invalid_hash_data():
     yield {'hashes': [{},  # empty object
                       # missing string object
@@ -54,12 +54,12 @@ def invalid_hash_data():
                            'api': 'DllGetClassObject'}}]}
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def valid_hits_data():
     yield {'hits': [{'algorithm': 'crc32', 'count': 1, 'hitrate': 1.0}]}
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def invalid_hits_data():
     yield {'hits': [
         {},  # empty object
