@@ -43,12 +43,8 @@ def format_response(response_data: dict) -> tuple[Hit]:
     hit: dict
     # Iterate the algorithms
     for hit in response_data.get("hits", []):
-        name: str = hit.get("algorithm")
-        count: int = hit.get("count")
-        hitrate: float = hit.get("hitrate")
-
         # Append the name if it doesn't already exist
-        hits.append(Hit(name=name, count=count, hitrate=hitrate))
+        hits.append(Hit.from_json(hit))
 
     # Return the list of hash algorithms
     return tuple(hits)
