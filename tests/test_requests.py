@@ -6,8 +6,7 @@ from hashdb.exceptions import Exceptions
 
 def test_parse_valid_hashes(valid_hash_data: dict):
     """
-    Simulate handling a valid response from:
-      https://hashdb.openanalysis.net/module/zipfldr/crc32/api
+    Simulate parsing valid hash objects.
     """
     hash_data: dict
     for index, hash_data in enumerate(valid_hash_data["hashes"]):
@@ -18,7 +17,7 @@ def test_parse_valid_hashes(valid_hash_data: dict):
 
 def test_parse_invalid_hashes(invalid_hash_data: dict):
     """
-    Simulate handling multiple invalid hash objects.
+    Simulate parsing multiple invalid hash objects.
     """
     # Should throw an exception
     for hash_data in invalid_hash_data["hashes"]:
