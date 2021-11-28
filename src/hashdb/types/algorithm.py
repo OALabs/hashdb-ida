@@ -50,7 +50,7 @@ def parse_algorithm_type(algorithm_type: str) -> int:
 
     # Check if the algorithm type is a valid type
     if algorithm_type not in predetermined_sizes.keys():
-        raise Exceptions.UnknownAlgorithmType(f"Unknown algorithm type.",
+        raise Exceptions.UnknownAlgorithmType("Unknown algorithm type.",
                                               algorithm_type=algorithm_type)
 
     # Return the size of the algorithm
