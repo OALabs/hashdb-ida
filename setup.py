@@ -1,1 +1,4 @@
-# TODO: single step setup through the CLI for all possible environments
+from setuptools import setup
+
+if __name__ == "__main__":
+    setup()
