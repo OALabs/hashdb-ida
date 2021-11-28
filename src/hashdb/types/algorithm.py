@@ -21,7 +21,6 @@ class Algorithm:
         @param json: a json object (dict)
         @return: a new class instance
         @raise Exceptions.InvalidAlgorithm: if any of the required keys are missing
-        @raise Exceptions.UnknownAlgorithmType: if the algorithm type is unknown
         """
         try:
             name: str = json["algorithm"]
@@ -29,6 +28,8 @@ class Algorithm:
             size: int = parse_algorithm_type(json["type"])
         except KeyError as exception:
             raise Exceptions.InvalidAlgorithm(f"Missing key: {exception.args[0]}")
+        except Exceptions.UnknownAlgorithmType as exception:
+            raise Exceptions.InvalidAlgorithm(f"Invalid algorithm type: {exception.algorithm_type}")
 
         # Return an Algorithm instance
         return cls(name=name, description=description, size=size)
@@ -49,7 +50,7 @@ def parse_algorithm_type(algorithm_type: str) -> int:
 
     # Check if the algorithm type is a valid type
     if algorithm_type not in predetermined_sizes.keys():
-        raise Exceptions.UnknownAlgorithmType(f"Unknown algorithm type encountered: {algorithm_type}",
+        raise Exceptions.UnknownAlgorithmType(f"Unknown algorithm type.",
                                               algorithm_type=algorithm_type)
 
     # Return the size of the algorithm
