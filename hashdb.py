@@ -27,7 +27,7 @@
 ##          select the hash algorithm you need from the drop-down
 ##          OK
 ##      Lookup Hash:
-##          Highlight constant in IDA disassembly or pseudocode view
+##          Highlight constant in IDA disassembly or psuedocode view
 ##          Right-click -> HashDB Lookup
 ##          If a hash is found it will be added to an enum controlled in the settings
 ##          Right-click on the constant again -> Enum -> Select new hash enum
@@ -61,7 +61,7 @@ import urllib.parse
 #--------------------------------------------------------------------------
 
 major, minor = map(int, idaapi.get_kernel_version().split("."))
-assert (major > 6), "ERROR: HashDB plugin requires IDA v7+"
+assert (major > 6),"ERROR: HashDB plugin requires IDA v7+"
 assert (sys.version_info >= (3, 5)), "ERROR: HashDB plugin requires Python 3.5"
 
 #--------------------------------------------------------------------------
@@ -70,17 +70,13 @@ assert (sys.version_info >= (3, 5)), "ERROR: HashDB plugin requires Python 3.5"
 # Note: minimum Python version support is 3.5 
 #--------------------------------------------------------------------------
 HASHDB_REPORT_BUG_URL = "https://github.com/OALabs/hashdb-ida/issues/new"
-
-
 def hashdb_exception_hook(exception_type, value, traceback_object):
     is_hashdb_exception = False
 
     frame_data = {
         "user_data": {
             "platform": sys.platform,
-            "python_version": '.'.join([str(sys.version_info.major),
-                                        str(sys.version_info.minor),
-                                        str(sys.version_info.micro)]),
+            "python_version": '.'.join([str(sys.version_info.major), str(sys.version_info.minor), str(sys.version_info.micro)]),
             "plugin_version": VERSION,
             "ida": {
                 "kernel_version": ida_kernwin.get_kernel_version(),
@@ -115,20 +111,20 @@ def hashdb_exception_hook(exception_type, value, traceback_object):
                 form = "BUTTON YES* Yes\nBUTTON CANCEL No\nHashDB Error!\n\n{format}"
                 controls = {
                     "format": super().StringLabel(
-                        """<center>
-                            <p style="margin: 0; font-size: 20px; color: #F44336"><b>HashDB has detected an internal error.</b><p>
-                            <p style="margin: 0; font-size: 12px">Would you like to submit a stack trace to the developers?</p>
-                            <ol style="font-size: 11px; text-align: left">
-                                <li>Selecting "Yes" will open a feedback dialogue and redirect you to:
-                                    <p style="margin: 0 4px 0 0;"><b><i>github.com/OALabs/hashdb-ida</i></b></p>
-                                </li>
-                                <li>All personally identifiable information will be removed.</li>
-                                <li>Afterwards, you will be asked if you want to unload the plugin.</li>
-                            </ol>
-                        </center>""", super().FT_HTML_LABEL)
+                    """<center>
+                        <p style="margin: 0; font-size: 20px; color: #F44336"><b>HashDB has detected an internal error.</b><p>
+                        <p style="margin: 0; font-size: 12px">Would you like to submit a stack trace to the developers?</p>
+                        <ol style="font-size: 11px; text-align: left">
+                            <li>Selecting "Yes" will open a feedback dialogue and redirect you to:
+                                <p style="margin: 0 4px 0 0;"><b><i>github.com/OALabs/hashdb-ida</i></b></p>
+                            </li>
+                            <li>All personally identifiable information will be removed.</li>
+                            <li>Afterwards, you will be asked if you want to unload the plugin.</li>
+                        </ol>
+                    </center>""", super().FT_HTML_LABEL)
                 }
                 super().__init__(form, controls)
-
+                
                 # Compile
                 self.Compile()
 
@@ -138,44 +134,41 @@ def hashdb_exception_hook(exception_type, value, traceback_object):
         crash_form.Free()
 
         # Did the user allow us to submit a request?
-        if crash_button_selected == 1:  # Yes button
+        if crash_button_selected == 1: # Yes button
             # Setup the body
             body = "## Steps to reproduce:\n1. \n\n## Stack trace:\n```\n{}\n```".format(json.dumps(frame_data))
-
+            
             # Open the tab
             global HASHDB_REPORT_BUG_URL
             webbrowser.open_new_tab(HASHDB_REPORT_BUG_URL + "?" + urllib.parse.urlencode({
                 "title": "[BUG]: ",
                 "body": body
             }))
-
+    
         # Ask the user if they want to terminate the plugin
         class unload_plugin_form(ida_kernwin.Form):
             def __init__(self):
                 form = "BUTTON YES* Yes\nBUTTON CANCEL No\nHashDB\n\n{format}"
                 controls = {
                     "format": super().StringLabel(
-                        """<center>
-                            <p style="margin: 0; font-size: 20px; color: #F44336"><b>Would you like to unload the plugin?</b><p>
-                            <p>This action will make the plugin unusable until IDA is restarted.</p>
-                        </center>""", super().FT_HTML_LABEL)
+                    """<center>
+                        <p style="margin: 0; font-size: 20px; color: #F44336"><b>Would you like to unload the plugin?</b><p>
+                        <p>This action will make the plugin unusable until IDA is restarted.</p>
+                    </center>""", super().FT_HTML_LABEL)
                 }
                 super().__init__(form, controls)
-
+                
                 # Compile
                 self.Compile()
         unload_form = unload_plugin_form()
         unload_button_selected = ida_kernwin.execute_sync(unload_form.Execute, ida_kernwin.MFF_FAST)
         unload_form.Free()
-
-        if unload_button_selected == 1:  # Yes button
+        
+        if unload_button_selected == 1: # Yes button
             global HASHDB_PLUGIN_OBJECT
-            # noinspection PyUnresolvedReferences
             ida_kernwin.execute_sync(HASHDB_PLUGIN_OBJECT.term, ida_kernwin.MFF_FAST)
 
     sys.__excepthook__(exception_type, value, traceback_object)
-
-
 sys.excepthook = hashdb_exception_hook
 
 # Rest of the imports
@@ -194,113 +187,110 @@ from typing import Callable
 #--------------------------------------------------------------------------
 # Global settings/variables
 #--------------------------------------------------------------------------
-HASHDB_API_URL = "https://hashdb.openanalysis.net"
+
+HASHDB_API_URL ="https://hashdb.openanalysis.net"
 HASHDB_USE_XOR = False
 HASHDB_XOR_VALUE = 0
-HASHDB_ALGORITHM: str
+HASHDB_ALGORITHM = None
 HASHDB_ALGORITHM_SIZE = 0
 ENUM_PREFIX = "hashdb_strings"
-HASHDB_NETNODE_ID = "$hashdb"
+NETNODE_NAME = "$hashdb"
 
 # Variables for async operations
-HASHDB_REQUEST_TIMEOUT = 15  # Limit to 15 seconds
+HASHDB_REQUEST_TIMEOUT = 15 # Limit to 15 seconds
 HASHDB_REQUEST_LOCK = threading.Lock()
 
 #--------------------------------------------------------------------------
 # Setup Icon
 #--------------------------------------------------------------------------
-# noinspection SpellCheckingInspection
-HASH_ICON_DATA = b"".join((b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10\x00\x00\x00\x10\x08',
-                           b'\x04\x00\x00\x00\xb5\xfa7\xea\x00\x00\x00\x04gAMA\x00\x00\xb1\x8f\x0b\xfca',
-                           b'\x05\x00\x00\x00 cHRM\x00\x00z&\x00\x00\x80\x84\x00\x00\xfa\x00\x00\x00\x80',
-                           b'\xe8\x00\x00u0\x00\x00\xea`\x00\x00:\x98\x00\x00\x17p\x9c\xbaQ<\x00\x00\x00',
-                           b'\x02bKGD\x00\xff\x87\x8f\xcc\xbf\x00\x00\x00\tpHYs\x00\x00\x0b\x13\x00\x00',
-                           b'\x0b\x13\x01\x00\x9a\x9c\x18\x00\x00\x00\x07tIME\x07\xe5\t\x18\x12\x18(\xba',
-                           b'\xecz-\x00\x00\x01#IDAT(\xcfm\xd1\xbdJ\x9ba\x18\xc6\xf1_\xde<\xd5d\x08\xc1',
-                           b'\xb46\x967!\x1d,\x88\xd0\xa1P\xe8\x01\x14\x0c\xb8\xbbt\xa9\xa3\x07\xd0\xb9',
-                           b'\xab \x1e\x83s\x87R\xa4]K\xe8".*NEpJZL\x9b\xa2V\x90\xc6\xa4\xc6\xc7%\x92\xa0',
-                           b'\xfe\xd7\xeb\xe6\xe6\xfa`\x9c\x8c\x82\x04\xe4\xe4\xdd\xc3\xb4\x0fV\x95\xf0',
-                           b'\xd6\x17\x0bw\x0f\xeaz\xf6<\xf4\xc0\xa6h\x05\xc3\x877,\x98\xf0\xd5\xb1g^i\xfb',
-                           b'\x06\x01AY\x10\x15\xbdv\xe9\xbb\x19\x8bf4\x0c\xa4~g\x90\xfa\xa8\xeaJ\xd6c\x89',
-                           b'\x8e\xbe\xa2\xa2s\x7f\xb5\xbcI\xc6\x12\x94\x04\'\xfa\xf2\x8azNen\xa4\xac\'*^8',
-                           b'\xd0\xb5\xa4\xec\xbd\xe8\xb3\xa7\xaaR!\x08\xca\x12\x03\xb3j\x9a\x0e\xe5\xbc',
-                           b'\xc4\x8e\xbe\xa8c@\xcd\x96\x9f\x9a\xfe\x88\xbaZZ.D\x1d?lKG1\'\x94\\:\x11M\x99t',
-                           b'\xa6;r\x10\xa4*\x96\xfd\xb7\xef\xb9Y\r\xd1;\xa9\x9aT\x18U\xb4&Z\xc7\x9c#m\xf3',
-                           b'\xb7+~dOO\x1d+\xa2M\x93#);\xdc\xae\xec\x97\r\xff\x94L\xf9d\xf7\xeeL\x89\xc2',
-                           b'\xd0V^n\\\xb8\x06\xd6\xa1L\xe6_H\xbf\xfc\x00\x00\x00%tEXtdate:create\x00202',
-                           b'1-09-24T18:24:40+00:00\xd7;f\xf5\x00\x00\x00%tEXtdate:modify\x002021-09-24T',
-                           b'18:24:40+00:00\xa6f\xdeI\x00\x00\x00WzTXtRaw profile type iptc\x00\x00x\x9c',
-                           b'\xe3\xf2\x0c\x08qV((\xcaO\xcb\xccI\xe5R\x00\x03#\x0b.c\x0b\x13#\x13K\x93\x14',
-                           b'\x03\x13 D\x804\xc3d\x03#\xb3T \xcb\xd8\xd4\xc8\xc4\xcc\xc4\x1c\xc4\x07\xcb',
-                           b'\x80H\xa0J.\x00\xea\x17\x11t\xf2B5\x95\x00\x00\x00\x00IEND\xaeB`\x82'))
-HASH_ICON = ida_kernwin.load_custom_icon(data=HASH_ICON_DATA, format="png")
-# noinspection SpellCheckingInspection
-XOR_ICON_DATA = b"".join((b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10\x00\x00\x00\x10\x08\x04',
-                          b'\x00\x00\x00\xb5\xfa7\xea\x00\x00\x00\x04gAMA\x00\x00\xb1\x8f\x0b\xfca\x05\x00',
-                          b'\x00\x00 cHRM\x00\x00z&\x00\x00\x80\x84\x00\x00\xfa\x00\x00\x00\x80\xe8\x00\x00',
-                          b'u0\x00\x00\xea`\x00\x00:\x98\x00\x00\x17p\x9c\xbaQ<\x00\x00\x00\x02bKGD\x00\xff',
-                          b'\x87\x8f\xcc\xbf\x00\x00\x00\tpHYs\x00\x00\x0b\x13\x00\x00\x0b\x13\x01\x00\x9a',
-                          b'\x9c\x18\x00\x00\x00\x07tIME\x07\xe5\t\x18\x12\x0b";\xd6\xd2\xa1\x00\x00\x00\xc3',
-                          b'IDAT(\xcf\xa5\xd01N\x02\x01\x14\x04\xd0\x07B01\x9a\x10b\x89%\t\x8dg\xa0\xd0f-\xb8',
-                          b'\x80x\x86\x8d\r\xd9#X\xee\x05(\x94\x0b\xd0\xd0@A\xcb\t4\xdb\x98\xd8Z\x90\xacv\x82',
-                          b'Z,\xac\xab1P0\xdd\xfc\xcc\x9f\xcc\x0c\xfb\xa2\xf4\x8bU\x9c \xb5\xfcOPu\xe9F\x0b',
-                          b'\x89{\x13\x1f\xd9\xf9 \xff\xbd\x15\x99;\xf2.\x11\xaa\x99\xfb,\x9a_y\x12 \x16#X3',
-                          b'\x94\xd7>\xd7F\xc6\xb9|l\xa4\x97\xb9g\x19\xea\xa6^=*\xe9`\xe6K\xdb\xa9\x0b\x8b',
-                          b'\x8d\xc3\x16T@*\xf1\xa2\x8f\x18!\xee\x9cI\x7f2\xac\x0cu7\xb1\x10\xe8z\xb0*\xd6',
-                          b'|v(\xd2\xd4\xd6p.40\xccj\xee\x1c\xea\xef\xd4\xc7x+N\xbd?\xbe\x01\xa7\xee.6\xd9',
-                          b'\xf6\xa5\xd2\x00\x00\x00%tEXtdate:create\x002021-09-24T18:11:34+00:00Vz\xe6\xba',
-                          b'\x00\x00\x00%tEXtdate:modify\x002021-09-24T18:11:34+00:00\'\'^\x06\x00\x00\x00',
-                          b'WzTXtRaw profile type iptc\x00\x00x\x9c\xe3\xf2\x0c\x08qV((\xcaO\xcb\xccI\xe5R',
-                          b'\x00\x03#\x0b.c\x0b\x13#\x13K\x93\x14\x03\x13 D\x804\xc3d\x03#\xb3T \xcb\xd8\xd4',
-                          b'\xc8\xc4\xcc\xc4\x1c\xc4\x07\xcb\x80H\xa0J.\x00\xea\x17\x11t\xf2B5\x95\x00\x00',
-                          b'\x00\x00IEND\xaeB`\x82'))
-XOR_ICON = ida_kernwin.load_custom_icon(data=XOR_ICON_DATA, format="png")
-# noinspection SpellCheckingInspection
-HUNT_ICON_DATA = b"".join((b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10\x00\x00\x00\x10\x08\x04',
-                           b'\x00\x00\x00\xb5\xfa7\xea\x00\x00\x00\x04gAMA\x00\x00\xb1\x8f\x0b\xfca\x05\x00',
-                           b'\x00\x00 cHRM\x00\x00z&\x00\x00\x80\x84\x00\x00\xfa\x00\x00\x00\x80\xe8\x00\x00u0',
-                           b'\x00\x00\xea`\x00\x00:\x98\x00\x00\x17p\x9c\xbaQ<\x00\x00\x00\x02bKGD\x00\xff\x87',
-                           b'\x8f\xcc\xbf\x00\x00\x00\tpHYs\x00\x00\x0b\x13\x00\x00\x0b\x13\x01\x00\x9a\x9c\x18',
-                           b'\x00\x00\x00\x07tIME\x07\xe5\t\x1d\x10#"R\xd1XW\x00\x00\x01.IDAT(\xcf\x8d\xd1;K\x9b',
-                           b'\x01\x18\xc5\xf1\x9fI\xa8C\xbd\xf1\x0e\xdd\xd2\xc5NJ\x07;h\xd5\xa1\xf1\x0bT\xd4M',
-                           b'\x14//\x82\xad\x8b\x83\x93`\xf1\x02~\x84\x08-b\x1c\xea\xe6\xe2 \x08^\x9aAQ\x07\x87',
-                           b'R\x9d:\x99Atx\x15\xab`\xbc\xd0\x0eitS\xcf\xf2\xc0\xe1\xf0\x1c\xf8\x9f\x12\x0f*Q!@',
-                           b'\xe4\xdc\xdf\x07\xb3xkuz\xe7\x05\xae\xedY\xb0_\x08\x15\x02\t=\x06l\xdap\x89\x97Z4',
-                           b'\xfbf\xde-\t\xd0#4\xa1J\xef\xff\x8aE\xab\xc60[\xf8\xf0\xd6W\x93\xde\xfb`\xce!^\xeb',
-                           b'\x93\xb5\xed\x8b\x01\xbf\xe2\x18v\xe4T\xbbQ\xcd\xba\xa4\\I\xebw\xe0N\x8d\xb5\x98Ju~h',
-                           b'\x93\xd1\xaa\xda\xb8q\xd5>\xcah\x93U\xa72&P\xeaB \xa7\xde\x8cA\x83f4\xc8\t\xfcQ*\x88yB',
-                           b'\t\x91\xbc2\x91\xa4]\x9f\xa4\xf1\xd9\x8e\xa4H\xb9\xbc(.\xaf\xd6\x1b\xebBi\xaftK\xf9i',
-                           b'\xc9\x88\xef\x1a\xe5,\xc7ql\xc8\x8a;\xa1UK\xb2n\x8c\xc8\xfa\xad\xcb\xb4\x93\x02\xc9PhJ',
-                           b'\x95\x8e{Pg\xc6\xcc\x16A\x15Qo\xd9p\x812-\x9a\x8a\xa8\x9f9\xd6#s\xff\x03\xabm^\xab\xaf',
-                           b'\xe8z\xc0\x00\x00\x00%tEXtdate:create\x002021-09-29T16:35:34+00:00\xf4Q\xb1\xe8\x00\x00',
-                           b'\x00%tEXtdate:modify\x002021-09-29T16:35:34+00:00\x85\x0c\tT\x00\x00\x00WzTXtRaw prof',
-                           b'ile type iptc\x00\x00x\x9c\xe3\xf2\x0c\x08qV((\xcaO\xcb\xccI\xe5R\x00\x03#\x0b.c\x0b',
-                           b'\x13#\x13K\x93\x14\x03\x13 D\x804\xc3d\x03#\xb3T \xcb\xd8\xd4\xc8\xc4\xcc\xc4\x1c',
-                           b'\xc4\x07\xcb\x80H\xa0J.\x00\xea\x17\x11t\xf2B5\x95\x00\x00\x00\x00IEND\xaeB`\x82'))
-HUNT_ICON = ida_kernwin.load_custom_icon(data=HUNT_ICON_DATA, format="png")
-# noinspection SpellCheckingInspection
-SCAN_ICON_DATA = b"".join((b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10\x00\x00\x00\x10\x08\x04\x00\x00',
-                           b'\x00\xb5\xfa7\xea\x00\x00\x00\x04gAMA\x00\x00\xb1\x8f\x0b\xfca\x05\x00\x00\x00 cHRM',
-                           b'\x00\x00z&\x00\x00\x80\x84\x00\x00\xfa\x00\x00\x00\x80\xe8\x00\x00u0\x00\x00\xea`\x00',
-                           b'\x00:\x98\x00\x00\x17p\x9c\xbaQ<\x00\x00\x00\x02bKGD\x00\xff\x87\x8f\xcc\xbf\x00\x00',
-                           b'\x00\tpHYs\x00\x00\x0b\x13\x00\x00\x0b\x13\x01\x00\x9a\x9c\x18\x00\x00\x00\x07tIME\x07',
-                           b'\xe5\n\x08\x17\x1c\x04\xfd*<n\x00\x00\x01#IDAT(\xcfe\xd1\xb1K\xe2\x01\x18\xc6\xf1\x8f',
-                           b'\xf6\xcb\xeb\xd0\x04\xc7 \xa8Ii\x89\xa2\xed~\x16\xc4m\xd6\xbf\xd0\x18\xed\xd1m\x07F-ECK',
-                           b'\xa0K\xc49_\rACk\x10\xdc\x12\x04\x91qR\xd2\xd0PS\xd7\xa0h\x905\xe8\x85\xd9\xf7\x1d\xdfgx',
-                           b'\xdf\xe7K\x9b@\xa8\xa8\xa2aO\x9f.\x02\x90\xb2l\xc9\x80\xb2s\'ZzH)i\xda\x17\x8a\x8b\x89',
-                           b'\xf6\xae\xa3\xd65m\x88\xcbXud\xa57\x12z\xf0[\xc2\xbc\xaa\xbaK?{\x03EO\xa6e\\\xbb\x94',
-                           b'\x93\xfcx"\xfc\xf5GB^MN\xca\x8a\x1f\x86\x0c\xf8\xda\x99\xfe\xc0\xb0s\xcf\xa6T\x9dZ\xb4',
-                           b'\xe5\xc5\x82G-\x11Q-\xd5\xc0g^}1\xe9\x9f\x8aq\x13\x81;#b\xce|\x97\xb5\x8bW\xbf\xcc*)',
-                           b'\xd8q,A\xe1\xfd\xc8\xb2\x9c\xa4\xa49W\xae\xa5\xcdxR t\xdfy\xf3F\xdd\x85\x0bu7\xe6\r:p/',
-                           b'\xec.*-\xef\xd0\xa1\xbc\xb4\x84MMk\xedN\xfeW\x9d\x15\x17\x13\x13\x97u\xa0\xa9$E\xe4\x83',
-                           b'\xac+\xb7\x185\xa6\xa1h\xdbc\xb7\xd5\xb6\xee\x9a\x9a\x8a\xa2o\x1d\xcf\xde\x00\x9fhY\xc0',
-                           b'\x9b\x9d\xab^\x00\x00\x00%tEXtdate:create\x002021-10-08T23:28:04+00:00\xee\x90\xd3~\x00',
-                           b'\x00\x00%tEXtdate:modify\x002021-10-08T23:28:04+00:00\x9f\xcdk\xc2\x00\x00\x00WzTXtRaw ',
-                           b'profile type iptc\x00\x00x\x9c\xe3\xf2\x0c\x08qV((\xcaO\xcb\xccI\xe5R\x00\x03#\x0b.c\x0b',
-                           b'\x13#\x13K\x93\x14\x03\x13 D\x804\xc3d\x03#\xb3T \xcb\xd8\xd4\xc8\xc4\xcc\xc4\x1c\xc4\x07',
-                           b'\xcb\x80H\xa0J.\x00\xea\x17\x11t\xf2B5\x95\x00\x00\x00\x00IEND\xaeB`\x82'))
-SCAN_ICON = ida_kernwin.load_custom_icon(data=SCAN_ICON_DATA, format="png")
 
+HASH_ICON_DATA = b"".join([b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10\x00\x00\x00\x10\x08',
+                          b'\x04\x00\x00\x00\xb5\xfa7\xea\x00\x00\x00\x04gAMA\x00\x00\xb1\x8f\x0b\xfca',
+                          b'\x05\x00\x00\x00 cHRM\x00\x00z&\x00\x00\x80\x84\x00\x00\xfa\x00\x00\x00\x80',
+                          b'\xe8\x00\x00u0\x00\x00\xea`\x00\x00:\x98\x00\x00\x17p\x9c\xbaQ<\x00\x00\x00',
+                          b'\x02bKGD\x00\xff\x87\x8f\xcc\xbf\x00\x00\x00\tpHYs\x00\x00\x0b\x13\x00\x00',
+                          b'\x0b\x13\x01\x00\x9a\x9c\x18\x00\x00\x00\x07tIME\x07\xe5\t\x18\x12\x18(\xba',
+                          b'\xecz-\x00\x00\x01#IDAT(\xcfm\xd1\xbdJ\x9ba\x18\xc6\xf1_\xde<\xd5d\x08\xc1',
+                          b'\xb46\x967!\x1d,\x88\xd0\xa1P\xe8\x01\x14\x0c\xb8\xbbt\xa9\xa3\x07\xd0\xb9',
+                          b'\xab \x1e\x83s\x87R\xa4]K\xe8".*NEpJZL\x9b\xa2V\x90\xc6\xa4\xc6\xc7%\x92\xa0',
+                          b'\xfe\xd7\xeb\xe6\xe6\xfa`\x9c\x8c\x82\x04\xe4\xe4\xdd\xc3\xb4\x0fV\x95\xf0',
+                          b'\xd6\x17\x0bw\x0f\xeaz\xf6<\xf4\xc0\xa6h\x05\xc3\x877,\x98\xf0\xd5\xb1g^i\xfb',
+                          b'\x06\x01AY\x10\x15\xbdv\xe9\xbb\x19\x8bf4\x0c\xa4~g\x90\xfa\xa8\xeaJ\xd6c\x89',
+                          b'\x8e\xbe\xa2\xa2s\x7f\xb5\xbcI\xc6\x12\x94\x04\'\xfa\xf2\x8azNen\xa4\xac\'*^8',
+                          b'\xd0\xb5\xa4\xec\xbd\xe8\xb3\xa7\xaaR!\x08\xca\x12\x03\xb3j\x9a\x0e\xe5\xbc',
+                          b'\xc4\x8e\xbe\xa8c@\xcd\x96\x9f\x9a\xfe\x88\xbaZZ.D\x1d?lKG1\'\x94\\:\x11M\x99t',
+                          b'\xa6;r\x10\xa4*\x96\xfd\xb7\xef\xb9Y\r\xd1;\xa9\x9aT\x18U\xb4&Z\xc7\x9c#m\xf3',
+                          b'\xb7+~dOO\x1d+\xa2M\x93#);\xdc\xae\xec\x97\r\xff\x94L\xf9d\xf7\xeeL\x89\xc2',
+                          b'\xd0V^n\\\xb8\x06\xd6\xa1L\xe6_H\xbf\xfc\x00\x00\x00%tEXtdate:create\x00202',
+                          b'1-09-24T18:24:40+00:00\xd7;f\xf5\x00\x00\x00%tEXtdate:modify\x002021-09-24T',
+                          b'18:24:40+00:00\xa6f\xdeI\x00\x00\x00WzTXtRaw profile type iptc\x00\x00x\x9c',
+                          b'\xe3\xf2\x0c\x08qV((\xcaO\xcb\xccI\xe5R\x00\x03#\x0b.c\x0b\x13#\x13K\x93\x14',
+                          b'\x03\x13 D\x804\xc3d\x03#\xb3T \xcb\xd8\xd4\xc8\xc4\xcc\xc4\x1c\xc4\x07\xcb',
+                          b'\x80H\xa0J.\x00\xea\x17\x11t\xf2B5\x95\x00\x00\x00\x00IEND\xaeB`\x82'])
+HASH_ICON = ida_kernwin.load_custom_icon(data=HASH_ICON_DATA, format="png")
+XOR_ICON_DATA = b"".join([b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10\x00\x00\x00\x10\x08\x04',
+                         b'\x00\x00\x00\xb5\xfa7\xea\x00\x00\x00\x04gAMA\x00\x00\xb1\x8f\x0b\xfca\x05\x00',
+                         b'\x00\x00 cHRM\x00\x00z&\x00\x00\x80\x84\x00\x00\xfa\x00\x00\x00\x80\xe8\x00\x00',
+                         b'u0\x00\x00\xea`\x00\x00:\x98\x00\x00\x17p\x9c\xbaQ<\x00\x00\x00\x02bKGD\x00\xff',
+                         b'\x87\x8f\xcc\xbf\x00\x00\x00\tpHYs\x00\x00\x0b\x13\x00\x00\x0b\x13\x01\x00\x9a',
+                         b'\x9c\x18\x00\x00\x00\x07tIME\x07\xe5\t\x18\x12\x0b";\xd6\xd2\xa1\x00\x00\x00\xc3',
+                         b'IDAT(\xcf\xa5\xd01N\x02\x01\x14\x04\xd0\x07B01\x9a\x10b\x89%\t\x8dg\xa0\xd0f-\xb8',
+                         b'\x80x\x86\x8d\r\xd9#X\xee\x05(\x94\x0b\xd0\xd0@A\xcb\t4\xdb\x98\xd8Z\x90\xacv\x82',
+                         b'Z,\xac\xab1P0\xdd\xfc\xcc\x9f\xcc\x0c\xfb\xa2\xf4\x8bU\x9c \xb5\xfcOPu\xe9F\x0b',
+                         b'\x89{\x13\x1f\xd9\xf9 \xff\xbd\x15\x99;\xf2.\x11\xaa\x99\xfb,\x9a_y\x12 \x16#X3',
+                         b'\x94\xd7>\xd7F\xc6\xb9|l\xa4\x97\xb9g\x19\xea\xa6^=*\xe9`\xe6K\xdb\xa9\x0b\x8b',
+                         b'\x8d\xc3\x16T@*\xf1\xa2\x8f\x18!\xee\x9cI\x7f2\xac\x0cu7\xb1\x10\xe8z\xb0*\xd6',
+                         b'|v(\xd2\xd4\xd6p.40\xccj\xee\x1c\xea\xef\xd4\xc7x+N\xbd?\xbe\x01\xa7\xee.6\xd9',
+                         b'\xf6\xa5\xd2\x00\x00\x00%tEXtdate:create\x002021-09-24T18:11:34+00:00Vz\xe6\xba',
+                         b'\x00\x00\x00%tEXtdate:modify\x002021-09-24T18:11:34+00:00\'\'^\x06\x00\x00\x00',
+                         b'WzTXtRaw profile type iptc\x00\x00x\x9c\xe3\xf2\x0c\x08qV((\xcaO\xcb\xccI\xe5R',
+                         b'\x00\x03#\x0b.c\x0b\x13#\x13K\x93\x14\x03\x13 D\x804\xc3d\x03#\xb3T \xcb\xd8\xd4',
+                         b'\xc8\xc4\xcc\xc4\x1c\xc4\x07\xcb\x80H\xa0J.\x00\xea\x17\x11t\xf2B5\x95\x00\x00',
+                         b'\x00\x00IEND\xaeB`\x82'])
+XOR_ICON = ida_kernwin.load_custom_icon(data=XOR_ICON_DATA, format="png")
+HUNT_ICON_DATA = b"".join([b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10\x00\x00\x00\x10\x08\x04',
+                          b'\x00\x00\x00\xb5\xfa7\xea\x00\x00\x00\x04gAMA\x00\x00\xb1\x8f\x0b\xfca\x05\x00',
+                          b'\x00\x00 cHRM\x00\x00z&\x00\x00\x80\x84\x00\x00\xfa\x00\x00\x00\x80\xe8\x00\x00u0',
+                          b'\x00\x00\xea`\x00\x00:\x98\x00\x00\x17p\x9c\xbaQ<\x00\x00\x00\x02bKGD\x00\xff\x87',
+                          b'\x8f\xcc\xbf\x00\x00\x00\tpHYs\x00\x00\x0b\x13\x00\x00\x0b\x13\x01\x00\x9a\x9c\x18',
+                          b'\x00\x00\x00\x07tIME\x07\xe5\t\x1d\x10#"R\xd1XW\x00\x00\x01.IDAT(\xcf\x8d\xd1;K\x9b',
+                          b'\x01\x18\xc5\xf1\x9fI\xa8C\xbd\xf1\x0e\xdd\xd2\xc5NJ\x07;h\xd5\xa1\xf1\x0bT\xd4M',
+                          b'\x14//\x82\xad\x8b\x83\x93`\xf1\x02~\x84\x08-b\x1c\xea\xe6\xe2 \x08^\x9aAQ\x07\x87',
+                          b'R\x9d:\x99Atx\x15\xab`\xbc\xd0\x0eitS\xcf\xf2\xc0\xe1\xf0\x1c\xf8\x9f\x12\x0f*Q!@',
+                          b'\xe4\xdc\xdf\x07\xb3xkuz\xe7\x05\xae\xedY\xb0_\x08\x15\x02\t=\x06l\xdap\x89\x97Z4',
+                          b'\xfbf\xde-\t\xd0#4\xa1J\xef\xff\x8aE\xab\xc60[\xf8\xf0\xd6W\x93\xde\xfb`\xce!^\xeb',
+                          b'\x93\xb5\xed\x8b\x01\xbf\xe2\x18v\xe4T\xbbQ\xcd\xba\xa4\\I\xebw\xe0N\x8d\xb5\x98Ju~h',
+                          b'\x93\xd1\xaa\xda\xb8q\xd5>\xcah\x93U\xa72&P\xeaB \xa7\xde\x8cA\x83f4\xc8\t\xfcQ*\x88yB',
+                          b'\t\x91\xbc2\x91\xa4]\x9f\xa4\xf1\xd9\x8e\xa4H\xb9\xbc(.\xaf\xd6\x1b\xebBi\xaftK\xf9i',
+                          b'\xc9\x88\xef\x1a\xe5,\xc7ql\xc8\x8a;\xa1UK\xb2n\x8c\xc8\xfa\xad\xcb\xb4\x93\x02\xc9PhJ',
+                          b'\x95\x8e{Pg\xc6\xcc\x16A\x15Qo\xd9p\x812-\x9a\x8a\xa8\x9f9\xd6#s\xff\x03\xabm^\xab\xaf',
+                          b'\xe8z\xc0\x00\x00\x00%tEXtdate:create\x002021-09-29T16:35:34+00:00\xf4Q\xb1\xe8\x00\x00',
+                          b'\x00%tEXtdate:modify\x002021-09-29T16:35:34+00:00\x85\x0c\tT\x00\x00\x00WzTXtRaw prof',
+                          b'ile type iptc\x00\x00x\x9c\xe3\xf2\x0c\x08qV((\xcaO\xcb\xccI\xe5R\x00\x03#\x0b.c\x0b',
+                          b'\x13#\x13K\x93\x14\x03\x13 D\x804\xc3d\x03#\xb3T \xcb\xd8\xd4\xc8\xc4\xcc\xc4\x1c',
+                          b'\xc4\x07\xcb\x80H\xa0J.\x00\xea\x17\x11t\xf2B5\x95\x00\x00\x00\x00IEND\xaeB`\x82'])
+HUNT_ICON = ida_kernwin.load_custom_icon(data=HUNT_ICON_DATA, format="png")
+SCAN_ICON_DATA = b"".join([b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x10\x00\x00\x00\x10\x08\x04\x00\x00',
+                          b'\x00\xb5\xfa7\xea\x00\x00\x00\x04gAMA\x00\x00\xb1\x8f\x0b\xfca\x05\x00\x00\x00 cHRM',
+                          b'\x00\x00z&\x00\x00\x80\x84\x00\x00\xfa\x00\x00\x00\x80\xe8\x00\x00u0\x00\x00\xea`\x00',
+                          b'\x00:\x98\x00\x00\x17p\x9c\xbaQ<\x00\x00\x00\x02bKGD\x00\xff\x87\x8f\xcc\xbf\x00\x00',
+                          b'\x00\tpHYs\x00\x00\x0b\x13\x00\x00\x0b\x13\x01\x00\x9a\x9c\x18\x00\x00\x00\x07tIME\x07',
+                          b'\xe5\n\x08\x17\x1c\x04\xfd*<n\x00\x00\x01#IDAT(\xcfe\xd1\xb1K\xe2\x01\x18\xc6\xf1\x8f',
+                          b'\xf6\xcb\xeb\xd0\x04\xc7 \xa8Ii\x89\xa2\xed~\x16\xc4m\xd6\xbf\xd0\x18\xed\xd1m\x07F-ECK',
+                          b'\xa0K\xc49_\rACk\x10\xdc\x12\x04\x91qR\xd2\xd0PS\xd7\xa0h\x905\xe8\x85\xd9\xf7\x1d\xdfgx',
+                          b'\xdf\xe7K\x9b@\xa8\xa8\xa2aO\x9f.\x02\x90\xb2l\xc9\x80\xb2s\'ZzH)i\xda\x17\x8a\x8b\x89',
+                          b'\xf6\xae\xa3\xd65m\x88\xcbXud\xa57\x12z\xf0[\xc2\xbc\xaa\xbaK?{\x03EO\xa6e\\\xbb\x94',
+                          b'\x93\xfcx"\xfc\xf5GB^MN\xca\x8a\x1f\x86\x0c\xf8\xda\x99\xfe\xc0\xb0s\xcf\xa6T\x9dZ\xb4',
+                          b'\xe5\xc5\x82G-\x11Q-\xd5\xc0g^}1\xe9\x9f\x8aq\x13\x81;#b\xce|\x97\xb5\x8bW\xbf\xcc*)',
+                          b'\xd8q,A\xe1\xfd\xc8\xb2\x9c\xa4\xa49W\xae\xa5\xcdxR t\xdfy\xf3F\xdd\x85\x0bu7\xe6\r:p/',
+                          b'\xec.*-\xef\xd0\xa1\xbc\xb4\x84MMk\xedN\xfeW\x9d\x15\x17\x13\x13\x97u\xa0\xa9$E\xe4\x83',
+                          b'\xac+\xb7\x185\xa6\xa1h\xdbc\xb7\xd5\xb6\xee\x9a\x9a\x8a\xa2o\x1d\xcf\xde\x00\x9fhY\xc0',
+                          b'\x9b\x9d\xab^\x00\x00\x00%tEXtdate:create\x002021-10-08T23:28:04+00:00\xee\x90\xd3~\x00',
+                          b'\x00\x00%tEXtdate:modify\x002021-10-08T23:28:04+00:00\x9f\xcdk\xc2\x00\x00\x00WzTXtRaw ',
+                          b'profile type iptc\x00\x00x\x9c\xe3\xf2\x0c\x08qV((\xcaO\xcb\xccI\xe5R\x00\x03#\x0b.c\x0b',
+                          b'\x13#\x13K\x93\x14\x03\x13 D\x804\xc3d\x03#\xb3T \xcb\xd8\xd4\xc8\xc4\xcc\xc4\x1c\xc4\x07',
+                          b'\xcb\x80H\xa0J.\x00\xea\x17\x11t\xf2B5\x95\x00\x00\x00\x00IEND\xaeB`\x82'])
+SCAN_ICON = ida_kernwin.load_custom_icon(data=SCAN_ICON_DATA, format="png")
 
 #--------------------------------------------------------------------------
 # Error class
@@ -337,7 +327,7 @@ class Worker(Thread):
             # Support for multiple return values
             if not isinstance(result, Iterable):
                 result = [result]
-
+            
             # If we have a done callback, invoke it
             if self.__done_callback is not None:
                 self.__done_callback(*result)
@@ -394,10 +384,10 @@ class Worker(Thread):
         # Call Thread.run()
         super().run()
 
-
 #--------------------------------------------------------------------------
 # HashDB API 
 #--------------------------------------------------------------------------
+
 def get_algorithms(api_url='https://hashdb.openanalysis.net', timeout=None):
     # Handle an empty timeout
     global HASHDB_REQUEST_TIMEOUT
@@ -411,7 +401,7 @@ def get_algorithms(api_url='https://hashdb.openanalysis.net', timeout=None):
     results = r.json()
 
     algorithms = []
-    for algorithm in results.get('algorithms', []):
+    for algorithm in results.get('algorithms',[]):
         size = determine_algorithm_size(algorithm.get('type', None))
         if size == 'Unknown':
             idaapi.msg("ERROR: Unknown algorithm type encountered when fetching algorithms: %s" % size)
@@ -432,13 +422,13 @@ def get_strings_from_hash(algorithm, hash_value, xor_value=0, api_url='https://h
         raise HashDBError("Get hash API request failed, status %s" % r.status_code)
     results = r.json()
     # Remove null bytes from non-api strings
-    hashes = results.get('hashes', [])
+    hashes = results.get('hashes',[])
     out_hashes = []
     for hash_info in hashes:
-        if not hash_info.get('string', {}).get('is_api', True):
-            hash_info['string']['string'] = hash_info['string']['string'].replace('\x00', '')
+        if not hash_info.get('string',{}).get('is_api',True):
+            hash_info['string']['string'] = hash_info['string']['string'].replace('\x00','')
         out_hashes.append(hash_info)
-    return {'hashes': out_hashes}
+    return {'hashes':out_hashes}
 
 
 def get_module_hashes(module_name, algorithm, permutation, api_url='https://hashdb.openanalysis.net', timeout=None):
@@ -446,7 +436,7 @@ def get_module_hashes(module_name, algorithm, permutation, api_url='https://hash
     global HASHDB_REQUEST_TIMEOUT
     if timeout is None:
         timeout = HASHDB_REQUEST_TIMEOUT
-
+    
     module_url = api_url + '/module/%s/%s/%s' % (module_name, algorithm, permutation)
     r = requests.get(module_url, timeout=timeout)
     if not r.ok:
@@ -455,21 +445,24 @@ def get_module_hashes(module_name, algorithm, permutation, api_url='https://hash
     return results
 
 
-def hunt_hash(hash_value, api_url='https://hashdb.openanalysis.net', timeout=None):
+def hunt_hash(hash_value, api_url='https://hashdb.openanalysis.net', timeout = None):
     # Handle an empty timeout
     global HASHDB_REQUEST_TIMEOUT
     if timeout is None:
         timeout = HASHDB_REQUEST_TIMEOUT
-
+    
     matches = []
     hash_list = [hash_value]
     module_url = api_url + '/hunt'
     r = requests.post(module_url, json={"hashes": hash_list}, timeout=timeout)
     if not r.ok:
+        print(module_url)
+        print(hash_list)
+        print(r.json())
         raise HashDBError("Get hash API request failed, status %s" % r.status_code)
-    for hit in r.json().get('hits', []):
-        algo = hit.get('algorithm', None)
-        if algo is not None and algo not in matches:
+    for hit in r.json().get('hits',[]):
+        algo = hit.get('algorithm',None)
+        if (algo != None) and (algo not in matches):
             matches.append(algo)
     return matches
 
@@ -478,19 +471,18 @@ def hunt_hash(hash_value, api_url='https://hashdb.openanalysis.net', timeout=Non
 # Save and restore settings
 #--------------------------------------------------------------------------
 def load_settings():
-    global HASHDB_API_URL
-    global HASHDB_USE_XOR, HASHDB_XOR_VALUE
+    global HASHDB_API_URL 
+    global HASHDB_USE_XOR, HASHDB_XOR_VALUE 
     global HASHDB_ALGORITHM, ENUM_PREFIX
-    global HASHDB_NETNODE_ID
-
-    node = ida_netnode.netnode(HASHDB_NETNODE_ID)
+    global NETNODE_NAME
+    node = ida_netnode.netnode(NETNODE_NAME)
     if ida_netnode.exist(node):
         if bool(node.hashstr("HASHDB_API_URL")):
             HASHDB_API_URL = node.hashstr("HASHDB_API_URL")
         if bool(node.hashstr("HASHDB_USE_XOR")):
             if node.hashstr("HASHDB_USE_XOR").lower() == "true":
                 HASHDB_USE_XOR = True
-            else:
+            else: 
                 HASHDB_USE_XOR = False
         if bool(node.hashstr("HASHDB_XOR_VALUE")):
             HASHDB_XOR_VALUE = int(node.hashstr("HASHDB_XOR_VALUE"))
@@ -502,34 +494,37 @@ def load_settings():
             ENUM_PREFIX = node.hashstr("ENUM_PREFIX")
         idaapi.msg("HashDB configuration loaded!\n")
     else:
-        idaapi.msg("HashDB: No saved HashDB configuration\n")
+        idaapi.msg("No saved HashDB configuration\n")
     return
 
 
 def save_settings():
-    global HASHDB_API_URL
-    global HASHDB_USE_XOR, HASHDB_XOR_VALUE
+    global HASHDB_API_URL 
+    global HASHDB_USE_XOR, HASHDB_XOR_VALUE 
     global HASHDB_ALGORITHM, ENUM_PREFIX
-    global HASHDB_NETNODE_ID
+    global NETNODE_NAME
 
-    node = ida_netnode.netnode()
-    if node.create(HASHDB_NETNODE_ID):
-        if HASHDB_API_URL is not None:
-            node.hashset_buf("HASHDB_API_URL", str(HASHDB_API_URL))
-        if HASHDB_USE_XOR is not None:
-            node.hashset_buf("HASHDB_USE_XOR", str(HASHDB_USE_XOR))
-        if HASHDB_XOR_VALUE is not None:
-            node.hashset_buf("HASHDB_XOR_VALUE", str(HASHDB_XOR_VALUE))
-        if HASHDB_ALGORITHM is not None:
-            node.hashset_buf("HASHDB_ALGORITHM", str(HASHDB_ALGORITHM))
-        if HASHDB_ALGORITHM_SIZE is not None:
-            node.hashset_buf("HASHDB_ALGORITHM_SIZE", str(HASHDB_ALGORITHM_SIZE))
-        if ENUM_PREFIX is not None:
-            node.hashset_buf("ENUM_PREFIX", str(ENUM_PREFIX))
-        idaapi.msg("HashDB settings saved\n")
-    else:
-        idaapi.msg("ERROR: Unable to save HashDB settings\n")
-    return
+    # Check if our netnode already exists, otherwise create a new one
+    node = ida_netnode.netnode(NETNODE_NAME)
+    if not ida_netnode.exist(node):
+        node = ida_netnode.netnode()
+        if not node.create(NETNODE_NAME):
+            idaapi.msg("ERROR: Unable to save HashDB settings, failed to create the netnode.\n")
+            return
+
+    if HASHDB_API_URL != None:
+        node.hashset_buf("HASHDB_API_URL", str(HASHDB_API_URL))
+    if HASHDB_USE_XOR != None:
+        node.hashset_buf("HASHDB_USE_XOR", str(HASHDB_USE_XOR))
+    if HASHDB_XOR_VALUE != None:
+        node.hashset_buf("HASHDB_XOR_VALUE", str(HASHDB_XOR_VALUE))
+    if HASHDB_ALGORITHM != None:
+        node.hashset_buf("HASHDB_ALGORITHM", str(HASHDB_ALGORITHM))
+    if HASHDB_ALGORITHM_SIZE != None:
+        node.hashset_buf("HASHDB_ALGORITHM_SIZE", str(HASHDB_ALGORITHM_SIZE))
+    if ENUM_PREFIX != None:
+        node.hashset_buf("ENUM_PREFIX", str(ENUM_PREFIX))
+    idaapi.msg("HashDB settings saved\n")
 
 
 #--------------------------------------------------------------------------
@@ -537,6 +532,7 @@ def save_settings():
 #--------------------------------------------------------------------------
 class hashdb_settings_t(ida_kernwin.Form):
     """Global settings form for hashdb"""
+
     class algorithm_chooser_t(ida_kernwin.Choose):
         """
         A simple chooser to be used as an embedded chooser
@@ -562,6 +558,7 @@ class hashdb_settings_t(ida_kernwin.Form):
         def OnGetSize(self):
             return len(self.items)
 
+
     def __init__(self, algorithms):
         self.__n = 0
         F = ida_kernwin.Form
@@ -576,17 +573,17 @@ HashDB Settings
 <Enable XOR:{rXor}>{cXorGroup}>  |  <##:{iXor}>(hex)
 <Select algorithm :{cAlgoChooser}><Refresh Algorithms:{iBtnRefresh}>
 
-""", {'FormChangeCb': F.FormChangeCb(self.OnFormChange),
-      'iServer': F.StringInput(),
-      'iEnum': F.StringInput(),
-      'cXorGroup': F.ChkGroupControl(("rXor",)),
-      'iXor': F.NumericInput(tp=F.FT_RAWHEX),
-      'cAlgoChooser': F.EmbeddedChooserControl(hashdb_settings_t.algorithm_chooser_t(algorithms)),
-      'iBtnRefresh': F.ButtonInput(self.OnBtnRefresh)})
+""", {      'FormChangeCb': F.FormChangeCb(self.OnFormChange),
+            'iServer': F.StringInput(),
+            'iEnum': F.StringInput(),
+            'cXorGroup': F.ChkGroupControl(("rXor",)),
+            'iXor': F.NumericInput(tp=F.FT_RAWHEX),
+            'cAlgoChooser' : F.EmbeddedChooserControl(hashdb_settings_t.algorithm_chooser_t(algorithms)),
+            'iBtnRefresh': F.ButtonInput(self.OnBtnRefresh),
+        })
 
     def OnBtnRefresh(self, code=0):
         api_url = self.GetControlValue(self.iServer)
-        algorithms = []
         try:
             ida_kernwin.show_wait_box("HIDECANCEL\nPlease wait...")
             algorithms = get_algorithms(api_url=api_url)
@@ -595,7 +592,7 @@ HashDB Settings
         finally:
             ida_kernwin.hide_wait_box()
         # Sort the algorithms by algorithm name (lowercase)
-        sorted_algorithms = sorted(algorithms, key=lambda algorithm: algorithm[0].lower())
+        sorted_algorithms = sorted(algorithms, key = lambda algorithm: algorithm[0].lower())
         self.cAlgoChooser.chooser.items = sorted_algorithms
         self.RefreshField(self.cAlgoChooser)
 
@@ -603,7 +600,7 @@ HashDB Settings
     def OnFormChange(self, fid):
         if fid == -1:
             # Form is initialized
-            # Hide Xor input if disabled
+            # Hide Xor input if dissabled 
             if self.GetControlValue(self.cXorGroup) == 1:
                 self.EnableField(self.iXor, True)
             else:
@@ -614,6 +611,9 @@ HashDB Settings
                 self.EnableField(self.iXor, True)
             else:
                 self.EnableField(self.iXor, False)
+        else:
+            pass
+            #print("Unknown fid %r" % fid)
         return 1
 
     @staticmethod
@@ -621,16 +621,14 @@ HashDB Settings
              enum_prefix="hashdb_strings",
              use_xor=False,
              xor_value=0,
-             algorithms=None):
-        if algorithms is None:
-            algorithms = []
+             algorithms=[]):
         global HASHDB_API_URL
         global HASHDB_USE_XOR
         global HASHDB_XOR_VALUE
         global HASHDB_ALGORITHM
         global ENUM_PREFIX
         # Sort the algorithms
-        sorted_algorithms = sorted(algorithms, key=lambda algorithm: algorithm[0].lower())
+        sorted_algorithms = sorted(algorithms, key = lambda algorithm: algorithm[0].lower())
         f = hashdb_settings_t(sorted_algorithms)
         f, args = f.Compile()
         # Set default values
@@ -650,14 +648,14 @@ HashDB Settings
             HASHDB_API_URL = f.iServer.value
             ENUM_PREFIX = f.iEnum.value
             # Check if algorithm is selected
-            if f.cAlgoChooser.selection is None:
+            if f.cAlgoChooser.selection == None:
                 # No algorithm selected bail!
                 idaapi.msg("HashDB: No algorithm selected!\n")
                 f.Free()
                 return False
             # Set the algorithm
             algorithm = f.cAlgoChooser.chooser.items[f.cAlgoChooser.selection[0]]
-            set_algorithm(algorithm[0], algorithm[1])  # Error messages handled inside of set_algorithm
+            set_algorithm(algorithm[0], algorithm[1]) # Error messages handled inside of set_algorithm
             f.Free()
             return True
         else:
@@ -681,20 +679,23 @@ HashDB Hash Collision
 More than one string matches this hash!
 <Select the correct string :{cbCollisions}>
 
-""", {'FormChangeCb': F.FormChangeCb(self.OnFormChange),
-      'cbCollisions': F.DropdownListControl(
-          items=collision_strings,
-          readonly=True,
-          selval=0),
-      })
+""", {      'FormChangeCb': F.FormChangeCb(self.OnFormChange),
+            'cbCollisions': F.DropdownListControl(
+                        items=collision_strings,
+                        readonly=True,
+                        selval=0),
+        })
+
 
     def OnFormChange(self, fid):
         if fid == -1:
             # Form is initialized
             self.SetFocusedField(self.cbCollisions)
         elif fid == self.cbCollisions.id:
-            # TODO: is this required?
-            self.GetControlValue(self.cbCollisions)
+            sel_idx = self.GetControlValue(self.cbCollisions)
+        else:
+            pass
+            #print("Unknown fid %r" % fid)
         return 1
 
     @staticmethod
@@ -757,39 +758,42 @@ Matched Algorithms
 {FormChangeCb}
 {cStrStatus}
 <:{cAlgoChooser}>
-""", {'cStrStatus': F.StringLabel(msg),
-      'FormChangeCb': F.FormChangeCb(self.OnFormChange),
-      'cAlgoChooser': F.EmbeddedChooserControl(hunt_result_form_t.algorithm_chooser_t(algo_list))})
+""", {
+            'cStrStatus': F.StringLabel(msg),
+            'FormChangeCb': F.FormChangeCb(self.OnFormChange),
+            'cAlgoChooser' : F.EmbeddedChooserControl(hunt_result_form_t.algorithm_chooser_t(algo_list))
+        })
 
     def OnFormChange(self, fid):
         if fid == -1:
             # Hide algorithm chooser if empty
-            if not self.cAlgoChooser.chooser.items:
+            if self.cAlgoChooser.chooser.items == []:
                 self.ShowField(self.cAlgoChooser, False)
         return 1
 
-    @staticmethod
     def show(algo_list):
-        global HASHDB_API_URL, HASHDB_USE_XOR, HASHDB_XOR_VALUE, HASHDB_ALGORITHM
+        global HASHDB_API_URL
+        global HASHDB_USE_XOR
+        global HASHDB_XOR_VALUE
+        global HASHDB_ALGORITHM
         # Set default values
         if len(algo_list) == 0:
             msg = "No algorithms matched the hash."
             f = hunt_result_form_t(algo_list, msg)
         else:
-            msg = "The following algorithms contain a matching hash.\nSelect an algorithm to set as the default for " \
-                  "HashDB."
+            msg = "The following algorithms contain a matching hash.\nSelect an algorithm to set as the default for HashDB."
             f = hunt_result_form_t(algo_list, msg)
         f, args = f.Compile()
         # Show form
         ok = f.Execute()
         if ok == 1:
-            if f.cAlgoChooser.selection is None:
+            if f.cAlgoChooser.selection == None:
                 # No algorithm selected bail!
                 f.Free()
                 return False
             # Set the algorithm
             algorithm = f.cAlgoChooser.chooser.items[f.cAlgoChooser.selection[0]]
-            set_algorithm(algorithm[0], algorithm[1])  # Error messages handled inside of set_algorithm
+            set_algorithm(algorithm[0], algorithm[1]) # Error messages handled inside of set_algorithm
             f.Free()
             return True
         else:
@@ -815,22 +819,23 @@ HashDB Bulk Import
 Do you want to import all function hashes from this module?
 <Select module :{cbModules}>
 
-""", {'FormChangeCb': F.FormChangeCb(self.OnFormChange),
-      'cStr1': F.StringLabel("<span style='float:left;'>The hash for <b>" + string_value +
-                             "</b> is a module function.<span>", tp=F.FT_HTML_LABEL),
-      'cbModules': F.DropdownListControl(
-            items=module_list,
-            readonly=True,
-            selval=0)
-      })
+""", {      'FormChangeCb': F.FormChangeCb(self.OnFormChange),
+            'cStr1': F.StringLabel("<span style='float:left;'>The hash for <b>"+string_value+"</b> is a module function.<span>", tp=F.FT_HTML_LABEL),
+            'cbModules': F.DropdownListControl(
+                        items=module_list,
+                        readonly=True,
+                        selval=0),
+        })
 
     def OnFormChange(self, fid):
         if fid == -1:
             # Form is initialized
             self.SetFocusedField(self.cbModules)
         elif fid == self.cbModules.id:
-            # TODO: is this required?
-            self.GetControlValue(self.cbModules)
+            sel_idx = self.GetControlValue(self.cbModules)
+        else:
+            pass
+            #print("Unknown fid %r" % fid)
         return 1
 
     @staticmethod
@@ -854,7 +859,7 @@ Do you want to import all function hashes from this module?
 #         provide a replacement.
 # Example: "-path" is an unqualified name, the user should replace it with
 #           a qualified name such as "_path" 
-#--------------------------------------------------------------------------
+#--------------------------------------------------------------------------   
 class unqualified_name_replace_t(ida_kernwin.Form):
     def __init__(self, unqualified_name: str, invalid_characters: list) -> None:
         form = "BUTTON YES* Replace\n" \
@@ -863,8 +868,8 @@ class unqualified_name_replace_t(ida_kernwin.Form):
                "{form_change_callback}\n" \
                "Some of the characters in the hashed string are invalid (highlighted red):\n" \
                "{unqualified_name}\n" \
-               r"<##New name\: :{new_name}>"
-
+               "<##New name\: :{new_name}>"
+        
         invalid_characters_html = "<span style=\"font-size: 16px\">{}</span>"
         controls = {
             "form_change_callback": super().FormChangeCb(self.form_changed),
@@ -879,7 +884,7 @@ class unqualified_name_replace_t(ida_kernwin.Form):
 
         # Compile
         self.Compile()
-
+    
     def form_changed(self, field_id: int) -> int:
         # Form initialized, focus to the new name text field
         if field_id == -1:
@@ -887,7 +892,7 @@ class unqualified_name_replace_t(ida_kernwin.Form):
         return 1
 
     @staticmethod
-    def show(unqualified_name: str, invalid_characters: list):
+    def show(unqualified_name: str, invalid_characters: list) -> str:
         """
         Show the unqualified name replace form and return
          the new user-defined name, or None if
@@ -903,7 +908,7 @@ class unqualified_name_replace_t(ida_kernwin.Form):
         # Free the form
         unqualified_name_form.Free()
 
-        if selected_button == 1:  # Replace button
+        if selected_button == 1: # Replace button
             return new_name
         return None
 
@@ -936,7 +941,7 @@ def html_format_invalid_characters(string: str, invalid_characters: list, color:
     # Are there any invalid characters in the string?
     if not invalid_characters:
         return string
-
+    
     # Format the invalid characters
     formatted_string = ""
     for index, character in enumerate(string):
@@ -949,7 +954,7 @@ def html_format_invalid_characters(string: str, invalid_characters: list, color:
     return formatted_string
 
 
-def add_enums(enum_name, hash_list, enum_size=0):
+def add_enums(enum_name, hash_list, enum_size = 0):
     """
     Adds a hash list to an enum by name.
      IMPORTANT: This function should always be executed on the main thread.
@@ -973,16 +978,16 @@ def add_enums(enum_name, hash_list, enum_size=0):
     # Set the enum size/width (expected to return True for valid sizes)
     if not ida_enum.set_enum_width(enum_id, enum_size):
         return None
-
+    
     # IDA API defines (https://hex-rays.com/products/ida/support/idapython_docs/ida_enum.html)
-    ENUM_MEMBER_ERROR_SUCCESS = 0  # successfully added
-    ENUM_MEMBER_ERROR_NAME    = 1  # a member with this name already exists
+    ENUM_MEMBER_ERROR_SUCCESS = 0 # successfully added
+    ENUM_MEMBER_ERROR_NAME    = 1 # a member with this name already exists
 
-    MAXIMUM_ATTEMPTS = 256  # ENUM_MEMBER_ERROR_VALUE -> only allows 256 members with this value
+    MAXIMUM_ATTEMPTS = 256 # ENUM_MEMBER_ERROR_VALUE -> only allows 256 members with this value
     for member_name, value, is_api in hash_list:
         # First, we have to check if this name and value already exist in the enum
         if ida_enum.get_enum_member(enum_id, value, 0, 0) != idaapi.BADNODE:
-            continue  # Skip if the value already exists in the enum
+            continue # Skip if the value already exists in the enum
 
         # Replace spaces with underscores
         for index, character in enumerate(member_name):
@@ -1001,7 +1006,7 @@ def add_enums(enum_name, hash_list, enum_size=0):
             if not new_member_name:
                 skip = True
                 break
-
+            
             member_name = new_member_name
             # Check if the user provided an invalid name
             invalid_characters = get_invalid_characters(member_name)
@@ -1014,16 +1019,15 @@ def add_enums(enum_name, hash_list, enum_size=0):
             if is_api:
                 enum_name = member_name + '_' + str(index)
             else:
-                # -1 to begin at 0 as opposed to `string_1`
-                enum_name = member_name if not index else member_name + '_' + str(index - 1)
+                enum_name = member_name if not index else member_name + '_' + str(index - 1) # -1 to begin at 0 as opposed to `string_1`
 
             result = ida_enum.add_enum_member(enum_id, enum_name, value)
             # Successfully added to the list
             if result == ENUM_MEMBER_ERROR_SUCCESS:
                 break
 
+            # Unhandled error (TODO: add logging)
             if result != ENUM_MEMBER_ERROR_NAME:
-                logging.warning("Unhandled error when calling ida_enum.add_enum_member: {}".format(result))
                 return None
     return enum_id
 
@@ -1040,13 +1044,13 @@ def make_const_enum(enum_id, hash_value):
     # We are in the disassembler we can set the enum directly
     ea = idc.here()
     start = idaapi.get_item_head(ea)
-    # Determine if this is code or data/undefined
+    # Determind if this is code or data/undefined
     if idc.is_code(idc.get_full_flags(ea)):
         # Find the operand position
-        if idc.get_operand_value(ea, 0) == hash_value:
+        if idc.get_operand_value(ea,0) == hash_value:
             ida_bytes.op_enum(start, 0, enum_id, 0)
             return True
-        elif idc.get_operand_value(ea, 1) == hash_value:
+        elif idc.get_operand_value(ea,1) == hash_value:
             ida_bytes.op_enum(start, 1, enum_id, 0)
             return True
         else:
@@ -1081,7 +1085,7 @@ def parse_highlighted_value():
     elif identifier.endswith('b'):
         identifier = identifier[:-1]
         type = "binary"
-
+    
     character_set = {
         "binary": "01",
         "octal": string.octdigits,
@@ -1093,7 +1097,7 @@ def parse_highlighted_value():
         if character not in character_set[type]:
             identifier = identifier[:index]
             break
-    if not identifier:  # The first character was bad
+    if not identifier: # The first character was bad
         return None
 
     types = {
@@ -1106,7 +1110,7 @@ def parse_highlighted_value():
 
 
 def determine_highlighted_type_size(ea: int) -> int:
-    """Guess the highlighted type and return the size in bytes."""
+    '''Guess the highlighted type and return the size in bytes.'''
     type = idaapi.idc_guess_type(ea)
     if type == '__int64':
         return 8
@@ -1120,11 +1124,11 @@ def determine_highlighted_type_size(ea: int) -> int:
     return 0
 
 
-def read_integer_from_db(ea: int, default_size: int = 0):
-    """
+def read_integer_from_db(ea: int, default_size: int = 0) -> int:
+    '''
     Read the highlighted data from the database.
     Returns: [value, size, was_type_valid]
-    """
+    '''
     type_size = determine_highlighted_type_size(ea)
     # 64-bit
     if type_size == 8 or (not type_size and default_size == 8):
@@ -1140,14 +1144,13 @@ def read_integer_from_db(ea: int, default_size: int = 0):
         return [ida_bytes.get_byte(ea), 1, bool(type_size)]
 
     # Should never get executed
-    raise HashDBError("Failed to read integer from database at location: {} with size {}.".format(hex(ea),
-                                                                                                  default_size))
+    raise HashDBError("Failed to read integer from database at location: {} with size {}.".format(hex(ea), default_size))
 
 
 def convert_data_to_integer(ea, size: int = 0) -> int:
-    """
+    '''
     Converts the data into a QWORD, DWORD, WORD, or BYTE based on the size provided
-    """
+    '''
     global HASHDB_ALGORITHM_SIZE
     if not size:
         size = HASHDB_ALGORITHM_SIZE // 8
@@ -1172,22 +1175,21 @@ def global_settings():
     global HASHDB_XOR_VALUE
     global HASHDB_ALGORITHM
     global ENUM_PREFIX
-    if HASHDB_ALGORITHM is not None:
+    if HASHDB_ALGORITHM != None:
         algorithms = [[HASHDB_ALGORITHM, str(HASHDB_ALGORITHM_SIZE)]]
     else:
         algorithms = []
-    settings_results = hashdb_settings_t.show(api_url=HASHDB_API_URL,
+    settings_results = hashdb_settings_t.show(api_url=HASHDB_API_URL, 
                                               enum_prefix=ENUM_PREFIX,
                                               use_xor=HASHDB_USE_XOR,
                                               xor_value=HASHDB_XOR_VALUE,
                                               algorithms=algorithms)
     if settings_results:
-        idaapi.msg("HashDB configured successfully!\nHASHDB_API_URL: %s\nHASHDB_USE_XOR: %s\nHASHDB_XOR_VALUE: "
-                   "%s\nHASHDB_ALGORITHM: %s\nHASHDB_ALGORITHM_SIZE: %s\n" %
+        idaapi.msg("HashDB configured successfully!\nHASHDB_API_URL: %s\nHASHDB_USE_XOR: %s\nHASHDB_XOR_VALUE: %s\nHASHDB_ALGORITHM: %s\nHASHDB_ALGORITHM_SIZE: %s\n" % 
                    (HASHDB_API_URL, HASHDB_USE_XOR, hex(HASHDB_XOR_VALUE), HASHDB_ALGORITHM, HASHDB_ALGORITHM_SIZE))
     else:
         idaapi.msg("HashDB configuration cancelled!\n")
-    return
+    return 
 
 
 #--------------------------------------------------------------------------
@@ -1199,24 +1201,21 @@ def set_algorithm(algorithm: str, size: int) -> bool:
 
     # Type checks to prevent accidental errors
     if not isinstance(algorithm, str):
-        idaapi.msg("HashDB encountered an error while trying to set the algorithm: provided algorithm is a string "
-                   "type: %s\n", algorithm)
+        idaapi.msg("HashDB encountered an error while trying to set the algorithm: provided algorithm is a string type: %s\n", algorithm)
         return False
-
+    
     if isinstance(size, str):
         size = int(size)
     if not isinstance(size, int):
-        idaapi.msg("HashDB encountered an error while trying to set the algorithm: provided size is not an integer: "
-                   "%s\n" % size)
+        idaapi.msg("HashDB encountered an error while trying to set the algorithm: provided size is not an integer: %s\n" % size)
         return False
-
+    
     # More checks for supported sizes
     supported_algorithm_sizes = [32, 64]
     if size not in supported_algorithm_sizes or size % 8 != 0:
-        idaapi.msg("HashDB encountered an error while trying to set the algorithm: the size provided was invalid: %s\n"
-                   % size)
+        idaapi.msg("HashDB encountered an error while trying to set the algorithm: the size provided was invalid: %s\n" % size)
         return False
-
+    
     # Set the algorithm and size
     HASHDB_ALGORITHM = algorithm
     HASHDB_ALGORITHM_SIZE = size
@@ -1227,7 +1226,7 @@ def determine_algorithm_size(algorithm_type: str) -> str:
     size = 'Unknown'
     if algorithm_type is None:
         return size
-
+    
     if algorithm_type == 'unsigned_int':
         size = '32'
     elif algorithm_type == 'unsigned_long':
@@ -1254,7 +1253,7 @@ def set_xor_key():
     HASHDB_USE_XOR = True
     idaapi.msg("XOR key set: {}\n".format(hex(xor_value)))
     return True
-
+    
 
 #--------------------------------------------------------------------------
 # Hash lookup
@@ -1264,11 +1263,13 @@ def hash_lookup_done_handler(hash_list: Union[None, list], hash_value: int = Non
     def add_enums_wrapper(enum_name, hash_list):
         nonlocal enum_id
         enum_id = add_enums(enum_name, hash_list)
-        return 0  # execute_sync dictates an int return value
-
+        return 0 # execute_sync dictates an int return value
+    
     if hash_list is None or hash_value is None:
         return
 
+    # Parse the hash list
+    hash_string = None
     if len(hash_list) == 1:
         hash_string = hash_list[0].get("string", {})
     else:
@@ -1281,22 +1282,23 @@ def hash_lookup_done_handler(hash_list: Union[None, list], hash_value: int = Non
                 collisions[string_value.get("api", "")] = string_value
             else:
                 collisions[string_value.get("string", "")] = string_value
-
+        
         # Execute the match_select_t form on the main thread
         def match_select_show(collision_strings):
             nonlocal selected_string
             selected_string = match_select_t.show(collision_strings)
-            return 0  # execute_sync dictates an int return value
+            return 0 # execute_sync dictates an int return value
 
         selected_string = None
         match_select_callable = functools.partial(match_select_show, [*collisions.keys()])
         ida_kernwin.execute_sync(match_select_callable, ida_kernwin.MFF_FAST)
         if selected_string is None:
             return
-
+        
         hash_string = collisions[selected_string]
-
+    
     # Parse the string from the hash_string match
+    string_value = ""
     if hash_string.get("is_api", False):
         string_value = hash_string.get("api", "")
     else:
@@ -1311,21 +1313,20 @@ def hash_lookup_done_handler(hash_list: Union[None, list], hash_value: int = Non
 
     # Add the hash to the global enum, and exit if we can't create it
     enum_id = None
-    add_enums_callable = functools.partial(add_enums_wrapper, generate_enum_name(ENUM_PREFIX),
-                                           [(string_value, hash_value, hash_string.get("is_api", False))])
+    add_enums_callable = functools.partial(add_enums_wrapper, generate_enum_name(ENUM_PREFIX), [(string_value, hash_value, hash_string.get("is_api", False))])
     ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
     if enum_id is None:
         idaapi.msg("ERROR: Unable to create or find enum: {}\n".format(generate_enum_name(ENUM_PREFIX)))
         return
-
+    
     # If the hash was pulled from the disassembly window
     # make the constant an enum 
     # TODO: I don't know how to do this in the decompiler window
     def make_const_enum_wrapper(enum_id, hash_value):
         if ida_kernwin.get_viewer_place_type(ida_kernwin.get_current_viewer()) == ida_kernwin.TCCPT_IDAPLACE:
             make_const_enum(enum_id, hash_value)
-        return 0  # execute_sync dictates an int return value
-
+        return 0 # execute_sync dictates an int return value
+    
     make_const_enum_wrapper_callable = functools.partial(make_const_enum_wrapper, enum_id, hash_value)
     ida_kernwin.execute_sync(make_const_enum_wrapper_callable, ida_kernwin.MFF_FAST)
 
@@ -1337,7 +1338,7 @@ def hash_lookup_done_handler(hash_list: Union[None, list], hash_value: int = Non
     def api_import_select_show(string_value, module_list) -> int:
         nonlocal module_name
         module_name = api_import_select_t.show(string_value, module_list)
-        return 0  # execute_sync dictates an int return value
+        return 0 # execute_sync dictates an int return value
 
     module_name = None
     api_import_select_callable = functools.partial(api_import_select_show, string_value, hash_string.get("modules", []))
@@ -1346,11 +1347,10 @@ def hash_lookup_done_handler(hash_list: Union[None, list], hash_value: int = Non
         return
 
     # Import all of the hashes from the module and permutation
-    global HASHDB_API_URL
+    module_hash_list = None
     try:
-        global HASHDB_ALGORITHM, HASHDB_REQUEST_TIMEOUT
-        module_hash_list = get_module_hashes(module_name, HASHDB_ALGORITHM, hash_string.get("permutation", ""),
-                                             HASHDB_API_URL, timeout=HASHDB_REQUEST_TIMEOUT)
+        global HASHDB_ALGORITHM, HASHDB_API_URL, HASHDB_REQUEST_TIMEOUT
+        module_hash_list = get_module_hashes(module_name, HASHDB_ALGORITHM, hash_string.get("permutation", ""), HASHDB_API_URL, timeout=HASHDB_REQUEST_TIMEOUT)
     except requests.Timeout:
         idaapi.msg("ERROR: HashDB API module hashes request timed out.\n")
         logging.exception("API request to {} timed out.".format(HASHDB_API_URL))
@@ -1362,10 +1362,10 @@ def hash_lookup_done_handler(hash_list: Union[None, list], hash_value: int = Non
     for hash_entry in module_hash_list.get("hashes", []):
         hash = hash_entry.get("hash", 0)
         string_object = hash_entry.get("string", {})
-        enum_list.append((string_object.get("api", string_object.get("string", "")),  # name
-                         hash ^ HASHDB_XOR_VALUE if HASHDB_USE_XOR else hash,  # hash_value
-                         True))  # is_api
-
+        enum_list.append((string_object.get("api", string_object.get("string", "")), # name
+                         hash ^ HASHDB_XOR_VALUE if HASHDB_USE_XOR else hash, # hash_value
+                         True)) # is_api
+    
     # Add hashes to enum
     enum_id = None
     add_enums_callable = functools.partial(add_enums_wrapper, generate_enum_name(ENUM_PREFIX), enum_list)
@@ -1393,12 +1393,12 @@ def hash_lookup_error(exception: Exception):
 
 
 def hash_lookup_request(api_url: str, algorithm: str,
-                        hash_value: int, xor_value: Union[None, int],
-                        timeout: Union[int, float]):
+                              hash_value: int, xor_value: Union[None, int],
+                              timeout: Union[int, float]):
     # Perform the request
+    hash_results = None
     try:
-        hash_results = get_strings_from_hash(algorithm, hash_value,
-                                             xor_value if xor_value is not None else 0, api_url, timeout)
+        hash_results = get_strings_from_hash(algorithm, hash_value, xor_value if xor_value is not None else 0, api_url, timeout)
     except requests.Timeout:
         idaapi.msg("ERROR: HashDB API lookup hash request timed out.\n")
         logging.exception("API request to {} timed out:".format(HASHDB_API_URL))
@@ -1418,7 +1418,7 @@ def hash_lookup_run(timeout: Union[int, float] = 0) -> bool:
            ENUM_PREFIX, HASHDB_USE_XOR, HASHDB_XOR_VALUE
     if HASHDB_ALGORITHM is None:
         idaapi.warning("Please select a hash algorithm before using HashDB.")
-        settings_results = hashdb_settings_t.show(api_url=HASHDB_API_URL,
+        settings_results = hashdb_settings_t.show(api_url=HASHDB_API_URL, 
                                                   enum_prefix=ENUM_PREFIX,
                                                   use_xor=HASHDB_USE_XOR,
                                                   xor_value=HASHDB_XOR_VALUE)
@@ -1431,13 +1431,13 @@ def hash_lookup_run(timeout: Union[int, float] = 0) -> bool:
                        "HASHDB_ALGORITHM_SIZE: {}\n".format(HASHDB_ALGORITHM_SIZE))
         else:
             idaapi.msg("HashDB configuration cancelled!\n")
-            return True  # Release the lock
-
+            return True # Release the lock
+    
     # Get the selected hash value
     hash_value = parse_highlighted_value()
     if hash_value is None:
         idaapi.msg("HashDB ERROR: Invalid hash value selection.\n")
-        return True  # Release the lock
+        return True # Release the lock
     else:
         idaapi.msg("HashDB: Found hash value: {}\n".format(hex(hash_value)))
 
@@ -1445,7 +1445,7 @@ def hash_lookup_run(timeout: Union[int, float] = 0) -> bool:
     worker = Worker(target=hash_lookup_request, args=(
         HASHDB_API_URL, HASHDB_ALGORITHM, hash_value, HASHDB_XOR_VALUE if HASHDB_USE_XOR else None, timeout))
     worker.start(done_callback=hash_lookup_done, error_callback=hash_lookup_error)
-    return False  # Do not release the lock
+    return False # Do not release the lock
 
 
 def hash_lookup():
@@ -1457,8 +1457,7 @@ def hash_lookup():
     """
     # Check if we're already running a request
     global HASHDB_REQUEST_LOCK, HASHDB_REQUEST_TIMEOUT
-    timeout_string = "{}".format(HASHDB_REQUEST_TIMEOUT) + " second{}".format(
-        's' if HASHDB_REQUEST_TIMEOUT != 1 else "")
+    timeout_string = "{}".format(HASHDB_REQUEST_TIMEOUT) + " second{}".format('s' if HASHDB_REQUEST_TIMEOUT != 1 else "")
     if HASHDB_REQUEST_LOCK.locked():
         logging.debug("An async operation was requested, but the response lock was locked. Aborting.")
         ida_kernwin.info("Please wait until the previous request is finished.\n" +
@@ -1479,24 +1478,23 @@ def hash_lookup():
 #--------------------------------------------------------------------------
 def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list] = None):
     global HASHDB_REQUEST_LOCK
-    logging.debug("hash_scan_done callback invoked, result: {}".format(
-        "none" if hash_list is None else "{}".format(hash_list)))
+    logging.debug("hash_scan_done callback invoked, result: {}".format("none" if hash_list is None else "{}".format(hash_list)))
 
     global ENUM_PREFIX
     def add_enums_wrapper(enum_name: str, hash_list):
         nonlocal enum_id
         enum_id = add_enums(enum_name, hash_list)
-        return 0  # execute_sync dictates an int return value
-
+        return 0 # execute_sync dictates an int return value
+    
     # Check if the `hash_scan_request` function failed (a caught exception should return `None`)
     if hash_list is not None:
         for hash_entry in hash_list:
             hashes = hash_entry["hashes"]
+            hash_string_object = {}
 
             entries_count = len(hashes)
             if not entries_count:
-                idaapi.msg("HashDB: Couldn't find any matches for hash value {} ({} bytes) at {}\n".format(
-                    hex(hash_entry["hash_value"]), hash_entry["size"], hex(hash_entry["ea"])))
+                idaapi.msg("HashDB: Couldn't find any matches for hash value {} ({} bytes) at {}\n".format(hex(hash_entry["hash_value"]), hash_entry["size"], hex(hash_entry["ea"])))
                 continue
 
             # Resolve the hash string object from the response
@@ -1511,52 +1509,49 @@ def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list] = 
                         collisions[string_object.get("api", "")] = string_object
                     else:
                         collisions[string_object.get("string", "")] = string_object
-
+                
                 # Execute the match_select_t form on the main thread
                 def match_select_show(collision_strings):
                     nonlocal selected_string
                     selected_string = match_select_t.show(collision_strings)
-                    return 0  # execute_sync dictates an int return value
+                    return 0 # execute_sync dictates an int return value
 
                 selected_string = None
                 match_select_callable = functools.partial(match_select_show, [*collisions.keys()])
                 ida_kernwin.execute_sync(match_select_callable, ida_kernwin.MFF_FAST)
                 if selected_string is None:
-                    HASHDB_REQUEST_LOCK.release()  # Release the lock
+                    HASHDB_REQUEST_LOCK.release() # Release the lock
                     return
-
+                
                 hash_string_object = collisions[selected_string]
-
+            
             # Parse the string from hash_string_object
+            hash_string_value = ""
             if hash_string_object.get("is_api", False):
                 hash_string_value = hash_string_object.get("api", "")
             else:
                 hash_string_value = hash_string_object.get("string", "")
-
+            
             # Handle empty string values
             if not len(hash_string_value):
                 hash_string_value = "empty_string"
-
+            
             # Add hash to enum
             enum_id = None
-            add_enums_callable = functools.partial(add_enums_wrapper, generate_enum_name(ENUM_PREFIX),
-                                                   [(hash_string_value, hash_entry["hash_value"],
-                                                     hash_string_object.get("is_api", False))])
+            add_enums_callable = functools.partial(add_enums_wrapper, generate_enum_name(ENUM_PREFIX), [(hash_string_value, hash_entry["hash_value"], hash_string_object.get("is_api", False))])
             ida_kernwin.execute_sync(add_enums_callable, ida_kernwin.MFF_FAST)
             if enum_id is None:
                 idaapi.msg("ERROR: Unable to create or find enum: {}\n".format(generate_enum_name(ENUM_PREFIX)))
-                HASHDB_REQUEST_LOCK.release()  # Release the lock
+                HASHDB_REQUEST_LOCK.release() # Release the lock
                 return
-
+            
             # Should we convert the values in the database?
             if convert_values:
-                # Convert to integer (this step is required due to an IDA api bug
-                # `ida_bytes.op_enum` will set the wrong size)
+                # Convert to integer (this step is required due to an IDA api bug - `ida_bytes.op_enum` will set the wrong size)
                 def convert_to_integer(ea: int, size: int):
                     convert_data_to_integer(ea, size)
 
-                convert_to_integer_callable = functools.partial(convert_to_integer,
-                                                                hash_entry["ea"], hash_entry["size"])
+                convert_to_integer_callable = functools.partial(convert_to_integer, hash_entry["ea"], hash_entry["size"])
                 ida_kernwin.execute_sync(convert_to_integer_callable, ida_kernwin.MFF_FAST)
 
                 # Convert to enum
@@ -1564,16 +1559,16 @@ def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list] = 
                     NUMBER_OF_OPERANDS = 0
                     SERIAL = 0
                     ida_bytes.op_enum(ea, NUMBER_OF_OPERANDS, enum_id, SERIAL)
-                    return 0  # execute_sync dictates an int return value
-
+                    return 0 # execute_sync dictates an int return value
+                
                 convert_to_enum_callable = functools.partial(convert_to_enum, hash_entry["ea"], enum_id)
                 ida_kernwin.execute_sync(convert_to_enum_callable, ida_kernwin.MFF_FAST)
 
                 # Add a label
                 def set_name(ea: int, name: str):
-                    if not name:  # is the name empty?
-                        return 0  # execute_sync dictates an int return value
-
+                    if not name: # is the name empty?
+                        return 0 # execute_sync dictates an int return value
+                    
                     # Does the name already exist? If so, modify it!
                     index = 1
                     suffix = ""
@@ -1582,11 +1577,11 @@ def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list] = 
                         index += 1
 
                     idc.set_name(ea, name + suffix, idc.SN_CHECK)
-                    return 0  # execute_sync dictates an int return value
-
+                    return 0 # execute_sync dictates an int return value
+                
                 set_name_callable = functools.partial(set_name, hash_entry["ea"], "ptr_" + hash_string_value)
                 ida_kernwin.execute_sync(set_name_callable, ida_kernwin.MFF_FAST)
-
+    
     # Release the lock
     HASHDB_REQUEST_LOCK.release()
 
@@ -1600,27 +1595,26 @@ def hash_scan_error(exception: Exception):
 
 
 def hash_scan_request(convert_values: bool, hash_list: list,
-                      api_url: str, algorithm: str, xor_value: int,
-                      timeout: Union[int, float]):
+                            api_url: str, algorithm: str, xor_value: int,
+                            timeout: Union[int, float]) -> Union[None, list]:
     for hash_entry in hash_list:
         try:
-            hash_results = get_strings_from_hash(algorithm, hash_entry["hash_value"],
-                                                 xor_value if xor_value is not None else 0, api_url, timeout)
+            hash_results = get_strings_from_hash(algorithm, hash_entry["hash_value"], xor_value if xor_value is not None else 0, api_url, timeout)
         except requests.Timeout:
             idaapi.msg("ERROR: HashDB API lookup scan request timed out.\n")
             logging.exception("API request to {} timed out:".format(HASHDB_API_URL))
             return None
-
+        
         hash_entry["hashes"] = hash_results.get("hashes", [])
     return convert_values, hash_list
 
 
 def hash_scan_run(convert_values: bool, timeout: Union[int, float] = 0) -> bool:
-    # Only scan for data in the disassembler
+    # Only scan for data in the dissassembler
     if ida_kernwin.get_viewer_place_type(ida_kernwin.get_current_viewer()) != ida_kernwin.TCCPT_IDAPLACE:
-        idaapi.msg("ERROR: Scan only available in disassembler.\n")
-        return True  # Release the lock
-
+        idaapi.msg("ERROR: Scan only available in dissassembler.\n")
+        return True # Release the lock
+    
     # Get the highlighted range
     start = idc.read_selection_start()
     end = idc.read_selection_end()
@@ -1628,13 +1622,13 @@ def hash_scan_run(convert_values: bool, timeout: Union[int, float] = 0) -> bool:
         ea = idc.here()
         start = idaapi.get_item_head(ea)
         end = idaapi.get_item_end(ea)
-
+    
     # If an algorithm isn't selected, give the user a chance to choose one
     global HASHDB_ALGORITHM, HASHDB_ALGORITHM_SIZE, HASHDB_API_URL, \
            ENUM_PREFIX, HASHDB_USE_XOR, HASHDB_XOR_VALUE
     if HASHDB_ALGORITHM is None:
         idaapi.warning("Please select a hash algorithm before using HashDB.")
-        settings_results = hashdb_settings_t.show(api_url=HASHDB_API_URL,
+        settings_results = hashdb_settings_t.show(api_url=HASHDB_API_URL, 
                                                   enum_prefix=ENUM_PREFIX,
                                                   use_xor=HASHDB_USE_XOR,
                                                   xor_value=HASHDB_XOR_VALUE)
@@ -1647,13 +1641,13 @@ def hash_scan_run(convert_values: bool, timeout: Union[int, float] = 0) -> bool:
                        "HASHDB_ALGORITHM_SIZE: {}\n".format(HASHDB_ALGORITHM_SIZE))
         else:
             idaapi.msg("HashDB configuration cancelled!\n")
-            return True  # Release the lock
-
+            return True # Release the lock
+    
     # Check for a valid algorithm size
     if not HASHDB_ALGORITHM_SIZE == 32 and not HASHDB_ALGORITHM_SIZE == 64:
         idaapi.msg("ERROR: Unexpected algorithm size provided: {}\n".format(HASHDB_ALGORITHM_SIZE))
-        return True  # Release the lock
-
+        return True # Release the lock
+    
     # Look through the selected range and lookup each (valid) entry
     def scan_range(start: int, end: int) -> list:
         """
@@ -1672,7 +1666,7 @@ def hash_scan_run(convert_values: bool, timeout: Union[int, float] = 0) -> bool:
             # If the type wasn't valid (undefined), convert it in the database
             #   and modify the hash value and step size accordingly:
             if convert_values and not was_type_valid:
-                [hash_value, step_size, _] = read_integer_from_db(ea, HASHDB_ALGORITHM_SIZE // 8)
+                [hash_value, step_size, was_type_valid] = read_integer_from_db(ea, HASHDB_ALGORITHM_SIZE // 8)
 
             # Insert the hash value into the list
             hash_values.append({"ea": ea, "hash_value": hash_value, "size": step_size})
@@ -1680,23 +1674,21 @@ def hash_scan_run(convert_values: bool, timeout: Union[int, float] = 0) -> bool:
             # Next hash
             ea += step_size
         return hash_values
-
+    
     hash_list = scan_range(start, end)
     for index, hash_entry in enumerate(hash_list, start=1):
-        idaapi.msg("HashDB: [{}] Found hash value {} ({} bytes) at {}\n".format(index, hex(hash_entry["hash_value"]),
-                                                                                hash_entry["size"],
-                                                                                hex(hash_entry["ea"])))
-
+        idaapi.msg("HashDB: [{}] Found hash value {} ({} bytes) at {}\n".format(index, hex(hash_entry["hash_value"]), hash_entry["size"], hex(hash_entry["ea"])))
+    
     # Hunt all hashes, and provide the `hash_scan_done` callback with the results
     worker = Worker(target=hash_scan_request, args=(convert_values, hash_list,
                                                     HASHDB_API_URL, HASHDB_ALGORITHM,
                                                     HASHDB_XOR_VALUE if HASHDB_USE_XOR else None,
                                                     timeout))
     worker.start(done_callback=hash_scan_done, error_callback=hash_scan_error)
-    return False  # Do not release the lock
+    return False # Do not release the lock
 
 
-def hash_scan(convert_values=True):
+def hash_scan(convert_values = True):
     """
     Scan for a dynamic hash table.
 
@@ -1725,8 +1717,7 @@ def hash_scan(convert_values=True):
 #--------------------------------------------------------------------------
 def hunt_algorithm_done(response: Union[None, list] = None):
     global HASHDB_REQUEST_LOCK
-    logging.debug("hunt_algorithm_done callback invoked, result: {}".format(
-        "none" if response is None else "{}".format(response)))
+    logging.debug("hunt_algorithm_done callback invoked, result: {}".format("none" if response is None else "{}".format(response)))
 
     # Display the result
     if response is not None:
@@ -1736,7 +1727,7 @@ def hunt_algorithm_done(response: Union[None, list] = None):
     else:
         logging.debug("Couldn't find any algorithms that match the provided hash.")
         idaapi.msg("HashDB: Couldn't find any algorithms that match the provided hash.")
-
+    
     # Release the lock
     HASHDB_REQUEST_LOCK.release()
 
@@ -1759,6 +1750,7 @@ def hunt_algorithm_request(hash_value: int, timeout=None) -> Union[None, list]:
     global HASHDB_REQUEST_LOCK, HASHDB_API_URL
 
     # Attempt to find matches
+    match_results = None
     try:
         # Send the hunt request
         match_results = hunt_hash(hash_value, api_url=HASHDB_API_URL, timeout=timeout)
@@ -1766,10 +1758,11 @@ def hunt_algorithm_request(hash_value: int, timeout=None) -> Union[None, list]:
         idaapi.msg("ERROR: HashDB API hunt hash request timed out.\n")
         logging.exception("API request to {} timed out.".format(HASHDB_API_URL))
         return None
-
+    
     # Fix the results (algorithm sizes)
     # TODO: At the moment we have to fetch the algorithms again to determine their sizes
     #       (the hunt_result_form_t form expects the algorithm name and size)
+    algorithms = None
     try:
         # Send the hunt request
         algorithms = get_algorithms(timeout=timeout)
@@ -1783,21 +1776,21 @@ def hunt_algorithm_request(hash_value: int, timeout=None) -> Union[None, list]:
             if match == algorithm[0]:
                 results.append(algorithm)
                 break
-
+    
     # Return the results
     return results
 
 
 def hunt_algorithm_run(timeout: Union[int, float] = 0) -> bool:
     global HASHDB_REQUEST_LOCK, HASHDB_USE_XOR, HASHDB_XOR_VALUE
-
+    
     # Get the selected hash value
     hash_value = parse_highlighted_value()
     if hash_value is None:
         idaapi.msg("HashDB ERROR: Invalid hash hash selection.\n")
-        logging.warning("Failed to parse a hash value from the highlighted text.")
-        return True  # Release the lock
-
+        logging.warn("Failed to parse a hash value from the highligted text.")
+        return True # Release the lock
+    
     # Xor option
     if HASHDB_USE_XOR:
         hash_value ^= HASHDB_XOR_VALUE
@@ -1805,7 +1798,7 @@ def hunt_algorithm_run(timeout: Union[int, float] = 0) -> bool:
     # Hunt the algorithm and show the hunt result form
     worker = Worker(target=hunt_algorithm_request, args=(hash_value, timeout))
     worker.start(done_callback=hunt_algorithm_done, error_callback=hunt_algorithm_error)
-    return False  # Do not release the lock
+    return False # Do not release the lock
 
 
 def hunt_algorithm():
@@ -1817,8 +1810,7 @@ def hunt_algorithm():
     """
     # Check if we're already running a request
     global HASHDB_REQUEST_LOCK, HASHDB_REQUEST_TIMEOUT
-    timeout_string = "{}".format(HASHDB_REQUEST_TIMEOUT) + " second{}".format(
-        's' if HASHDB_REQUEST_TIMEOUT != 1 else "")
+    timeout_string = "{}".format(HASHDB_REQUEST_TIMEOUT) + " second{}".format('s' if HASHDB_REQUEST_TIMEOUT != 1 else "")
     if HASHDB_REQUEST_LOCK.locked():
         logging.debug("An async operation was requested, but the response lock was locked. Aborting.")
         ida_kernwin.info("Please wait until the previous request is finished.\n" +
@@ -1868,7 +1860,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
             print(r"  |  _  |/ _` / __| '_ \| | | | ___ \ ")
             print(r"  | | | | (_| \__ \ | | | |/ /| |_/ /")
             print(r"  \_| |_/\__,_|___/_| |_|___/ \____/ ")
-            print("")
+            print("")                 
             print("\nHashDB v{0} by @herrcore".format(VERSION))
             print("\nHashDB search shortcut key is {0}".format(PLUGIN_HOTKEY))
             print("=" * 80)
@@ -1885,11 +1877,13 @@ class HashDB_Plugin_t(idaapi.plugin_t):
             HASHDB_PLUGIN_OBJECT = self
             return idaapi.PLUGIN_KEEP
 
+
     def run(self, arg):
         """
         This is called by IDA when the plugin is run from the plugins menu
         """
         global_settings()
+    
 
     def term(self):
         """
@@ -1898,7 +1892,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         # Already terminated?
         if self.terminated:
             return
-
+        
         # Save settings
         save_settings()
 
@@ -1915,26 +1909,29 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         self.terminated = True
         idaapi.msg("HashDB: {} terminated...\n".format(self.wanted_name))
 
+
     #--------------------------------------------------------------------------
     # IDA Actions
     #--------------------------------------------------------------------------
-    ACTION_HASH_LOOKUP = "hashdb:hash_lookup"
-    ACTION_SET_XOR     = "hashdb:set_xor"
-    ACTION_HUNT        = "hashdb:hunt"
-    ACTION_IAT_SCAN    = "hashdb:iat_scan"
+    ACTION_HASH_LOOKUP  = "hashdb:hash_lookup"
+    ACTION_SET_XOR  = "hashdb:set_xor"
+    ACTION_HUNT  = "hashdb:hunt"
+    ACTION_IAT_SCAN = "hashdb:iat_scan"
 
     def _init_action_hash_lookup(self):
         """
         Register the hash lookup action with IDA.
         """
-        action_desc = idaapi.action_desc_t(self.ACTION_HASH_LOOKUP,   # The action name.
-                                           "HashDB Lookup",           # The action text.
-                                           IDACtxEntry(hash_lookup),  # The action handler.
-                                           PLUGIN_HOTKEY,             # Optional: action shortcut
-                                           "Lookup hash",             # Optional: tooltip
-                                           HASH_ICON)
+        action_desc = idaapi.action_desc_t( self.ACTION_HASH_LOOKUP,         # The action name.
+                                            "HashDB Lookup",                     # The action text.
+                                            IDACtxEntry(hash_lookup),        # The action handler.
+                                            PLUGIN_HOTKEY,                  # Optional: action shortcut
+                                            "Lookup hash",   # Optional: tooltip
+                                            HASH_ICON
+                                            )
         # register the action with IDA
         assert idaapi.register_action(action_desc), "Action registration failed"
+
 
     def _init_action_set_xor(self):
         """
@@ -1951,6 +1948,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         # register the action with IDA
         assert idaapi.register_action(action_desc), "Action registration failed"
 
+
     def _init_action_hunt(self):
         """
         Register the hunt action with IDA.
@@ -1965,6 +1963,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         )
         # register the action with IDA
         assert idaapi.register_action(action_desc), "Action registration failed"
+
 
     def _init_action_iat_scan(self):
         """
@@ -1981,11 +1980,14 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         # register the action with IDA
         assert idaapi.register_action(action_desc), "Action registration failed"
 
+    
     def _del_action_hash_lookup(self):
         idaapi.unregister_action(self.ACTION_HASH_LOOKUP)
 
+
     def _del_action_set_xor(self):
         idaapi.unregister_action(self.ACTION_SET_XOR)
+
 
     def _del_action_hunt(self):
         idaapi.unregister_action(self.ACTION_HUNT)
@@ -1993,9 +1995,11 @@ class HashDB_Plugin_t(idaapi.plugin_t):
     def _del_action_iat_scan(self):
         idaapi.unregister_action(self.ACTION_IAT_SCAN)
 
+
     #--------------------------------------------------------------------------
     # Initialize Hooks
     #--------------------------------------------------------------------------
+
     def _init_hooks(self):
         """
         Install plugin hooks into IDA.
@@ -2003,6 +2007,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         self._hooks = Hooks()
         self._hooks.ready_to_run = self._init_hexrays_hooks
         self._hooks.hook()
+
 
     def _init_hexrays_hooks(self):
         """
@@ -2017,6 +2022,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
 # Plugin Hooks
 #------------------------------------------------------------------------------
 class Hooks(idaapi.UI_Hooks):
+
     def finish_populating_widget_popup(self, widget, popup):
         """
         A right click menu is about to be shown. (IDA 7)
@@ -2071,7 +2077,6 @@ class Hooks(idaapi.UI_Hooks):
         # done
         return 0
 
-
 #------------------------------------------------------------------------------
 # Prefix Wrappers
 #------------------------------------------------------------------------------
@@ -2123,10 +2128,10 @@ def inject_actions(form, popup, form_type):
     # done
     return 0
 
-
 #------------------------------------------------------------------------------
 # IDA ctxt
 #------------------------------------------------------------------------------
+
 class IDACtxEntry(idaapi.action_handler_t):
     """
     A basic Context Menu class to utilize IDA's action handlers.
@@ -2159,7 +2164,6 @@ p_initialized = False
 
 # Global plugin object
 HASHDB_PLUGIN_OBJECT = None
-
 
 # Register IDA plugin
 def PLUGIN_ENTRY():
