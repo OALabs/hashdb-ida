@@ -22,7 +22,7 @@ class Hash(NamedTuple):
     @classmethod
     def from_json(cls, json: dict):
         """
-        Creates a new class instance from a dictionary
+        Creates a new class instance from a json object (dict)
         @param json: a json object (dict)
         @return: a new class instance
         @raise Exceptions.InvalidHashObject: if a hash object is missing
@@ -60,7 +60,7 @@ class Hash(NamedTuple):
         if not modules or not len(modules):  # None or empty list
             raise Exceptions.InvalidHashObject("Missing modules.", hash_object=json)
 
-        # Append a Hash instance
+        # Return a Hash instance
         return cls(value=value, string=string_value, is_api=is_api,
                    permutation_type=permutation_type, api=api,
                    modules=tuple(modules))
