@@ -42,6 +42,14 @@ class Exceptions:
         algorithm_type: str
 
     @dataclass
+    class InvalidAlgorithmObject(Error):
+        """
+        Used when an algorithm object wasn't
+          formatted properly by the server.
+        """
+        message: str
+
+    @dataclass
     class InvalidHashObject(Error):
         """
         Used when a hash object wasn't
