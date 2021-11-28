@@ -83,6 +83,14 @@ class HashDBPlugin(ida_idaapi.plugin_t):
     #--------------------------------------------------------------------------
     # Development code
     #--------------------------------------------------------------------------
+    @property
+    def core(self):
+        """
+        Makes the core instance accessible from within the global plugin instance.
+        @return: the core instance
+        """
+        return self.__core
+
     # noinspection PyTypeChecker,PyShadowingNames
     def reload(self) -> None:
         """
