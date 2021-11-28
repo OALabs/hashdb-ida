@@ -31,14 +31,14 @@ def fetch(api_url: str, timeout: int,
         raise Exceptions.Json(f"Invalid response body from: {url}, body={response.text}")
 
 
-def format_response(response_data: dict) -> list[Hit]:
+def format_response(response_data: dict) -> tuple[Hit]:
     """
     Formats the raw json response into a list of hash algorithms.
     @param response_data: a json object
     @return: a list of Hit instances
     """
     # Parse the hash algorithms
-    hits = []
+    hits: list[Hit] = []
 
     hit: dict
     # Iterate the algorithms
@@ -51,4 +51,4 @@ def format_response(response_data: dict) -> list[Hit]:
         hits.append(Hit(name=name, count=count, hitrate=hitrate))
 
     # Return the list of hash algorithms
-    return hits
+    return tuple(hits)

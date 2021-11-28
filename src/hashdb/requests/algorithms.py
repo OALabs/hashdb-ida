@@ -29,7 +29,7 @@ def fetch(api_url: str, timeout: int) -> dict:
         raise Exceptions.Json(f"Invalid response body from: {url}, body={response.text}")
 
 
-def format_response(response_data: dict) -> list[Algorithm]:
+def format_response(response_data: dict) -> tuple[Algorithm]:
     """
     Formats the raw json response into friendly structures.
     @param response_data: a json object
@@ -37,7 +37,7 @@ def format_response(response_data: dict) -> list[Algorithm]:
     @raise Exceptions.UnknownAlgorithmType: if an unknown algorithm type is encountered
     """
     # Parse the algorithms
-    algorithms = []
+    algorithms: list[Algorithm] = []
 
     algorithm: dict
     # Iterate the algorithms
@@ -49,7 +49,7 @@ def format_response(response_data: dict) -> list[Algorithm]:
         algorithms.append(Algorithm(name=name, size=size))
 
     # Return the list of Algorithm instances
-    return algorithms
+    return tuple(algorithms)
 
 
 def parse_algorithm_type(algorithm_type: str) -> int:
