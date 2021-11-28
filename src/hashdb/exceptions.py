@@ -57,3 +57,11 @@ class Exceptions:
         """
         message: str
         hash_object: dict
+
+    @dataclass
+    class InvalidHit(Error):
+        """
+        Used when an algorithm object wasn't
+          formatted properly by the server.
+        """
+        message: str
