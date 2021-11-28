@@ -44,7 +44,7 @@ class Hash(NamedTuple):
             modules: list = string_object["modules"]
 
             # Check to make sure the api value and modules are valid
-            if api_value != string_value:
+            if api_value is not string_value:
                 raise Exceptions.InvalidHash("Raw string and API string mismatch.", hash_object=json)
             if not len(modules):
                 raise Exceptions.InvalidHash("Missing modules.", hash_object=json)

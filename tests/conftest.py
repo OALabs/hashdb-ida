@@ -26,4 +26,4 @@ def invalid_hash_data():
                           {'string': 'DllGetClassObject',
                            'is_api': True,
                            'permutation': 'api',
-                           'api': 'DllGetClassObject_12345'}}]}
+                           'api': 'DllGetClassObject'}}]}
