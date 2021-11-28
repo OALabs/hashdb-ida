@@ -4,11 +4,11 @@ import importlib
 from types import ModuleType
 
 
-def reload(module: ModuleType) -> None:
+def reload(module: ModuleType):
     importlib.reload(module)
 
 
-def recursive_reload(module: ModuleType) -> None:
+def recursive_reload(module: ModuleType):
     """
     Recursively reload a module and its submodules.
     @param module: a Python module

@@ -65,14 +65,14 @@ class HashDBPlugin(ida_idaapi.plugin_t):
         debug("Plugin loaded successfully.")
         return ida_idaapi.PLUGIN_KEEP
 
-    def run(self, arg: int) -> None:
+    def run(self, arg: int):
         """
         Invoked when the plugin is called as a script file.
         @param arg: unknown size_t type
         """
         warning("Cannot execute this plugin as a script.")
 
-    def term(self) -> None:
+    def term(self):
         """
         Invoked when IDA is unloading the plugin.
         """
@@ -88,7 +88,7 @@ class HashDBPlugin(ida_idaapi.plugin_t):
         return self.__core
 
     # noinspection PyTypeChecker,PyShadowingNames
-    def reload(self) -> None:
+    def reload(self):
         """
         Hot-reload the plugin.
         """
@@ -107,7 +107,7 @@ class HashDBPlugin(ida_idaapi.plugin_t):
         from hashdb.core import HashDBCore as Core
         self.__core = Core(initial_setup=False)
 
-    def run_tests(self, perform_reload: bool = False) -> None:
+    def run_tests(self, perform_reload: bool = False):
         """
         Perform automated bug testing.
         """

@@ -16,7 +16,7 @@ logging_prefix: str = f"[{PLUGIN_NAME}]"
 # --------------------------------------------------------------------------
 # Functions
 # --------------------------------------------------------------------------
-def info(message: str = None) -> None:
+def info(message: str = None):
     """
     Informs the user that a warning occurred.
     @param message: the message to be displayed
@@ -27,7 +27,7 @@ def info(message: str = None) -> None:
         ida_kernwin.msg(f"{logging_prefix}: {message}\n")
 
 
-def warning(message: str = None, display_messagebox=False) -> None:
+def warning(message: str = None, display_messagebox=False):
     """
     Informs the user that a warning occurred.
     @param message: the message to be displayed
@@ -42,7 +42,7 @@ def warning(message: str = None, display_messagebox=False) -> None:
             ida_kernwin.warning(f"{logging_prefix}: {message}")
 
 
-def debug(message: str = None) -> None:
+def debug(message: str = None):
     """
     Logs a debug message.
     @param message: the message to be logged

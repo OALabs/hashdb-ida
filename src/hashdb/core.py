@@ -40,7 +40,7 @@ class HashDBCore:
         if not initial_setup:
             self.load()
 
-    def load(self) -> None:
+    def load(self):
         """
         Registers the UI hooks (UI, Hex-Rays)
           and handles the setup.
@@ -62,7 +62,7 @@ class HashDBCore:
         # Tell the user that we loaded successfully
         info(f"Plugin version v{VERSION_STRING} by {AUTHOR} loaded successfully.")
 
-    def unload(self) -> None:
+    def unload(self):
         """
         Unhooks the UI hooks, and cleans up
           any relevant code (e.g. actions)
@@ -92,13 +92,13 @@ class HashDBCore:
     # --------------------------------------------------------------------------
     # UI hooks
     # --------------------------------------------------------------------------
-    def __register_ui_hooks(self) -> None:
+    def __register_ui_hooks(self):
         """
         Register the UI hooks.
         """
         self.__ui_hooks.populating_widget_popup = self.__on_ui_populating_widget_popup
 
-    def __remove_ui_hooks(self) -> None:
+    def __remove_ui_hooks(self):
         """
         Remove all UI hooks.
         """
@@ -118,14 +118,14 @@ class HashDBCore:
 
     # Hex-Rays hooks
     # ida_hexrays.html#ida_hexrays.Hexrays_Hooks.populating_popup
-    def __register_hexrays_hooks(self) -> None:
+    def __register_hexrays_hooks(self):
         """
         Register the Hex-Rays hooks.
         """
         self.__hexrays_hooks.populating_popup = self.__on_hexrays_populating_popup
         self.__hexrays_hooks.hook()
 
-    def __remove_hexrays_hooks(self) -> None:
+    def __remove_hexrays_hooks(self):
         """
         Remove all Hex-Rays hooks.
         """
@@ -145,8 +145,8 @@ class HashDBCore:
         return 0
 
     # Unit testing
-    def run_tests_cli(self) -> None:
+    def run_tests_cli(self):
         pass
 
-    def run_tests_ida(self) -> None:
+    def run_tests_ida(self):
         pass

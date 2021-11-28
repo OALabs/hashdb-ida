@@ -55,7 +55,7 @@ class Action:
         """
         return ida_kernwin.unregister_action(self.name)
 
-    def free_icon(self) -> None:
+    def free_icon(self):
         """
         Free an icon instance, if it exists
         """

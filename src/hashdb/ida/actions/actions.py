@@ -70,7 +70,7 @@ class Actions:
     """
     action_items: list[Action]
 
-    def setup(self) -> None:
+    def setup(self):
         """
         Register all actions.
         """
@@ -86,7 +86,7 @@ class Actions:
             if type(action) is not Separator and not action.register():
                 warning(f"Failed to register action: {action.name}")
 
-    def attach_to_popup(self, widget, popup_handle) -> None:
+    def attach_to_popup(self, widget, popup_handle):
         """
         Attaches all the action instances to the widget.
         @param widget: TWidget*
@@ -100,7 +100,7 @@ class Actions:
                 ida_kernwin.SETMENU_APP          # append
             )
 
-    def cleanup(self) -> None:
+    def cleanup(self):
         """
         Cleanup all actions (unregister and free their icons)
         """
