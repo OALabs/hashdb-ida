@@ -116,10 +116,8 @@ class HashDBCore:
         self.__actions.attach_to_popup(widget, popup_handle)
         return 0
 
-    #--------------------------------------------------------------------------
     # Hex-Rays hooks
     # ida_hexrays.html#ida_hexrays.Hexrays_Hooks.populating_popup
-    #--------------------------------------------------------------------------
     def __register_hexrays_hooks(self) -> None:
         """
         Register the Hex-Rays hooks.
@@ -146,9 +144,7 @@ class HashDBCore:
         self.__actions.attach_to_popup(widget, popup_handle)
         return 0
 
-    #--------------------------------------------------------------------------
     # Unit testing
-    #--------------------------------------------------------------------------
     def run_tests_cli(self) -> None:
         pass
 

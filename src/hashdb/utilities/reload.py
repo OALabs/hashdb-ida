@@ -15,6 +15,7 @@ def recursive_reload(module: ModuleType) -> None:
     """
     # Filter modules that aren't associated with this module
     module_name = module.__name__
+
     def comparator(name: str):
         return name.startswith(module_name)
 

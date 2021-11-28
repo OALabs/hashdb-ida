@@ -41,9 +41,7 @@ class HashDBPlugin(ida_idaapi.plugin_t):
     # Core instance variable
     __core: Core
 
-    #--------------------------------------------------------------------------
     # Plugin function overloads
-    #--------------------------------------------------------------------------
     def init(self) -> int:
         """
         Invoked when IDA is loading the plugin.
@@ -80,9 +78,7 @@ class HashDBPlugin(ida_idaapi.plugin_t):
         """
         self.__core.unload()
 
-    #--------------------------------------------------------------------------
     # Development code
-    #--------------------------------------------------------------------------
     @property
     def core(self):
         """
