@@ -38,8 +38,7 @@ def format_response(response_data: dict) -> tuple[Hash]:
     Formats the raw json response into a list of Hash instances.
     @param response_data: a json object
     @return: a list of Hash instances
-    @raise Exceptions.InvalidHashObject: if a hash object is missing
-                                         the "string" object
+    @raise Exceptions.InvalidHash: if a hash object is invalid
     """
     # Parse the hashes
     hashes: list[Hash] = []

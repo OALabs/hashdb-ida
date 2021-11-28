@@ -25,8 +25,7 @@ class Hash(NamedTuple):
         Creates a new class instance from a json object (dict)
         @param json: a json object (dict)
         @return: a new class instance
-        @raise Exceptions.InvalidHash: if a hash object is missing
-                                       the "string" object
+        @raise Exceptions.InvalidHash: if a hash object is invalid
         """
         # Parse the data
         value: int = json.get("hash")
