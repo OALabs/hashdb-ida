@@ -4,7 +4,7 @@ import json
 # HashDB
 from ..utilities.requests import get as get_request
 from ..exceptions import Exceptions
-from ..types.hash import Hash, parse_hash
+from ..types.hash import Hash
 
 
 def fetch(api_url: str, timeout: int,
@@ -44,11 +44,11 @@ def format_response(response_data: dict) -> list[Hash]:
     # Parse the hashes
     hashes = []
 
-    hash: dict
+    hash_json: dict
     # Iterate the algorithms
-    for hash in response_data.get("hashes", []):
+    for hash_json in response_data.get("hashes", []):
         # Append a Hash instance
-        hashes.append(parse_hash(hash))
+        hashes.append(Hash.from_json(hash_json))
 
     # Return the list of hashes
     return hashes
