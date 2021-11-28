@@ -10,8 +10,9 @@ class Algorithm:
     """
     Interface for a hash algorithm.
     """
-    name: str  # algorithm name
-    size: int  # algorithm size
+    name: str         # name
+    description: str  # description
+    size: int         # size (in bits)
 
     @classmethod
     def from_json(cls, json: dict):
@@ -24,12 +25,13 @@ class Algorithm:
         """
         try:
             name: str = json["algorithm"]
+            description: str = json["description"]
             size: int = parse_algorithm_type(json["type"])
         except KeyError as exception:
             raise Exceptions.InvalidAlgorithm(f"Missing key: {exception.args[0]}")
 
         # Return an Algorithm instance
-        return cls(name=name, size=size)
+        return cls(name=name, description=description, size=size)
 
 
 def parse_algorithm_type(algorithm_type: str) -> int:
