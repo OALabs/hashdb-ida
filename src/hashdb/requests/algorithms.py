@@ -34,6 +34,7 @@ def format_response(response_data: dict) -> tuple[Algorithm]:
     Formats the raw json response into friendly structures.
     @param response_data: a json object
     @return: a list of Algorithm instances
+    @raise Exceptions.InvalidAlgorithm: if any of the required keys are missing
     @raise Exceptions.UnknownAlgorithmType: if an unknown algorithm type is encountered
     """
     # Parse the algorithms
@@ -42,33 +43,8 @@ def format_response(response_data: dict) -> tuple[Algorithm]:
     algorithm: dict
     # Iterate the algorithms
     for algorithm in response_data.get("algorithms", []):
-        name: str = algorithm.get("algorithm")
-        size: int = parse_algorithm_type(algorithm.get("type"))
-
         # Append an Algorithm instance
-        algorithms.append(Algorithm(name=name, size=size))
+        algorithms.append(Algorithm.from_json(algorithm))
 
     # Return the list of Algorithm instances
     return tuple(algorithms)
-
-
-def parse_algorithm_type(algorithm_type: str) -> int:
-    """
-    Converts an algorithm type into its equivalent
-      size in bits.
-    @param algorithm_type: type of the algorithm
-    @return: size of the algorithm in bits
-    @raise Exceptions.UnknownAlgorithmType: if the algorithm type is unknown
-    """
-    predetermined_sizes = {
-        "unsigned_int":  32,
-        "unsigned_long": 64
-    }
-
-    # Check if the algorithm type is a valid type
-    if algorithm_type not in predetermined_sizes.keys():
-        raise Exceptions.UnknownAlgorithmType(f"Unknown algorithm type encountered: {algorithm_type}",
-                                              algorithm_type=algorithm_type)
-
-    # Return the size of the algorithm
-    return predetermined_sizes[algorithm_type]
