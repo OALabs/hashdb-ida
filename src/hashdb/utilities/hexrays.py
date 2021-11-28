@@ -5,7 +5,7 @@ def is_hexrays_module_available() -> bool:
              False otherwise.
     """
     try:
-        import ida_hexrays  # noqa: F401
+        import ida_hexrays
         return True
     except ImportError:
         return False
