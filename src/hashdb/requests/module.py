@@ -34,7 +34,7 @@ def fetch(api_url: str, timeout: int,
     pass
 
 
-def format_response(response_data: dict) -> tuple[Hash]:
+def format_response(response_data: dict) -> tuple[Hash, ...]:
     """
     Formats the raw json response into a list of Hash instances.
     @param response_data: a json object

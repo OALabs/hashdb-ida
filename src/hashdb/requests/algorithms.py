@@ -29,7 +29,7 @@ def fetch(api_url: str, timeout: int) -> dict:
         raise Exceptions.Json(f"Invalid response body from: {url}, body={response.text}")
 
 
-def format_response(response_data: dict) -> tuple[Algorithm]:
+def format_response(response_data: dict) -> tuple[Algorithm, ...]:
     """
     Formats the raw json response into friendly structures.
     @param response_data: a json object
