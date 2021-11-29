@@ -61,3 +61,12 @@ class Exceptions:
           formatted properly by the server.
         """
         message: str
+
+    @dataclass
+    class InvalidSettings(Error):
+        """
+        Used when a settings object wasn't
+          formatted properly by the server.
+        """
+        message: str
+        settings_object: dict
