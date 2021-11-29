@@ -1,10 +1,9 @@
-PLUGIN_SETTINGS = {
-    "API_URL":         "https://hashdb.openanalysis.net",  # local, global
-    "ENUM_PREFIX":     "hashdb_strings",                   # local, global
-    "REQUEST_TIMEOUT": 15,    # in seconds                 # local, global
-    "ALGORITHM":       None,  # algorithm name             # local
-    "ALGORITHM_SIZE":  0,     # algorithm size             # local
-}
+# HashDB
+from ..types.settings import Settings
+
+
+PLUGIN_SETTINGS: Settings = Settings.defaults()
+
 # Note: hotkeys are bound to actions!
 PLUGIN_HOTKEYS = {
     "lookup_hash":    "Alt+`",
