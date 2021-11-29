@@ -5,6 +5,15 @@ from typing import NamedTuple
 from ..exceptions import Exceptions
 
 
+# Used for resolving algorithm types from strings and ints
+algorithm_types: dict = {
+    "unsigned_int": 32,
+    "unsigned_long": 64,
+    32: "unsigned_int",
+    64: "unsigned_long"
+}
+
+
 class Algorithm(NamedTuple):
     """Interface for a hash algorithm."""
     name: str         # name
@@ -27,28 +36,44 @@ class Algorithm(NamedTuple):
         except KeyError as exception:
             raise Exceptions.InvalidAlgorithm(f"Missing key: {exception.args[0]}")
         except Exceptions.UnknownAlgorithmType as exception:
-            raise Exceptions.InvalidAlgorithm(f"Invalid algorithm type: {exception.algorithm_type}")
+            raise Exceptions.InvalidAlgorithm(f"Invalid algorithm type: {exception=}")
 
         # Return an Algorithm instance
         return cls(name=name, description=description, size=size)
 
+    def to_json(self) -> dict:
+        """
+        Transform the instance to a json object.
+        @return: a json object of the instance
+        """
+        return {
+            "algorithm": self.name,
+            "description": self.description,
+            "type": transform_algorithm_type(self.size)
+        }
+
 
 def parse_algorithm_type(algorithm_type: str) -> int:
     """
-    Converts an algorithm type into its equivalent
-      size in bits.
+    Converts an algorithm type into its equivalent size in bits.
     @param algorithm_type: type of the algorithm
     @return: size of the algorithm in bits
     @raise Exceptions.UnknownAlgorithmType: if the algorithm type is unknown
     """
-    predetermined_sizes = {
-        "unsigned_int":  32,
-        "unsigned_long": 64
-    }
+    try:
+        return algorithm_types[algorithm_type]
+    except KeyError:
+        raise Exceptions.UnknownAlgorithmType(f"Unknown algorithm type from string: {algorithm_type}")
 
-    # Check if the algorithm type is a valid type
-    if algorithm_type not in predetermined_sizes.keys():
-        raise Exceptions.UnknownAlgorithmType("Unknown algorithm type.", algorithm_type=algorithm_type)
 
-    # Return the size of the algorithm
-    return predetermined_sizes[algorithm_type]
+def transform_algorithm_type(algorithm_size: int) -> str:
+    """
+    Converts an algorithm size (in bits) into its equivalent string.
+    @param algorithm_size: size of the algorithm
+    @return: a string of the algorithm type
+    @raise Exceptions.UnknownAlgorithmType: if the algorithm type is unknown
+    """
+    try:
+        return algorithm_types[algorithm_size]
+    except KeyError:
+        raise Exceptions.UnknownAlgorithmType(f"Unknown algorithm type from integer: {algorithm_size}")

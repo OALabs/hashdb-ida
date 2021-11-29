@@ -35,7 +35,6 @@ class Exceptions:
           invalid size.
         """
         message: str
-        algorithm_type: str
 
     @dataclass
     class InvalidAlgorithm(Error):
