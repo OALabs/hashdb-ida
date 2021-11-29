@@ -1,4 +1,5 @@
 # System packages/modules
+import inspect
 from typing import Callable
 from dataclasses import dataclass
 from threading import Thread
@@ -9,7 +10,7 @@ class Worker(Thread):
     """The worker implementation for multi-threading support."""
     target: Callable
     done_callback: Callable = None
-    error_callback: Callable[[Exception], None] = None
+    error_callback: Callable = None
 
     def __post_init__(self):
         """Required to initialize the base class (Thread)."""
@@ -27,16 +28,28 @@ class Worker(Thread):
 
             # Execute the done callback, if it exists
             if self.done_callback is not None:
-                # Check if there are multiple return values
-                if isinstance(results, tuple):
+                # Call the function based on the amount of arguments it expects
+                argument_spec = inspect.getfullargspec(self.done_callback)
+                argument_count = len(argument_spec.args)
+
+                if argument_count > 1:
                     self.done_callback(*results)
-                else:
+                elif argument_count == 1 and results is not None:
                     self.done_callback(results)
+                else:
+                    self.done_callback()
         except Exception as exception:
             # Execute the error callback, if it exits;
             #  otherwise raise the exception (unhandled)
             if self.error_callback is not None:
-                self.error_callback(exception)
+                # Call the function based on the amount of arguments it expects
+                argument_spec = inspect.getfullargspec(self.error_callback)
+                argument_count = len(argument_spec.args)
+
+                if argument_count == 1:
+                    self.error_callback(exception)
+                else:
+                    self.error_callback()
             else:
                 raise exception
         finally:
