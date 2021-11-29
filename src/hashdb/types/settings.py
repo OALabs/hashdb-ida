@@ -26,12 +26,26 @@ class Settings:
             api_url: str = json["api_url"]
             enum_prefix: str = json["enum_prefix"]
             request_timeout: int = json["request_timeout"]
-            algorithm: Algorithm = Algorithm.from_json(json["algorithm"])
+
+            algorithm_object: dict = json["algorithm"]
+            algorithm: Algorithm = None if not algorithm_object else Algorithm.from_json(algorithm_object)
         except KeyError as exception:
             raise Exceptions.InvalidSettings(f"Missing key: {exception.args[0]}", settings_object=json)
 
         return cls(api_url=api_url, enum_prefix=enum_prefix,
                    request_timeout=request_timeout, algorithm=algorithm)
+
+    def to_json(self) -> dict:
+        """
+        Transform the instance to a json object.
+        @return: a json object of the instance
+        """
+        return {
+            "api_url": self.api_url,
+            "enum_prefix": self.enum_prefix,
+            "request_timeout": self.request_timeout,
+            "algorithm": None if self.algorithm is None else self.algorithm.to_json()
+        }
 
     @classmethod
     def defaults(cls):
