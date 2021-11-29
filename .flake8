@@ -1,0 +1,5 @@
+[flake8]
+max-line-length = 120
+per-file-ignores =
+    # imported but not used
+    src/hashdb/utilities/hexrays.py: F401
