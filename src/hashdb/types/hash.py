@@ -6,9 +6,7 @@ from ..exceptions import Exceptions
 
 
 class Hash(NamedTuple):
-    """
-    Interface for a hash object.
-    """
+    """Interface for a hash object."""
     value: int                    # hash value
     string: str                   # hashed string
     is_api: bool                  # True if the hash is an API

@@ -6,9 +6,7 @@ from ..exceptions import Exceptions
 
 
 class Hit(NamedTuple):
-    """
-    Interface for a hash hits.
-    """
+    """Interface for a hash hits."""
     algorithm: str  # algorithm name
     count: int      # number of hits
     hitrate: float  # hit rate

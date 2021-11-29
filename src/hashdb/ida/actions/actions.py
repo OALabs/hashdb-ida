@@ -71,9 +71,7 @@ class Actions:
     action_items: list[Action]
 
     def setup(self):
-        """
-        Register all actions.
-        """
+        """Register all actions."""
         # Setup the actions
         self.action_items = []
         self.action_items.append(LookupHash(callback=self.__on_lookup_hash))
@@ -101,9 +99,7 @@ class Actions:
             )
 
     def cleanup(self):
-        """
-        Cleanup all actions (unregister and free their icons)
-        """
+        """Cleanup all actions (unregister and free their icons)."""
         action: Action
         for action in self.action_items:
             if type(action) is not Separator and not action.unregister():  # Do not unregister separators

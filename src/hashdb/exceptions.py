@@ -8,9 +8,7 @@ class Exceptions:
       exception objects.
     """
     class Error(Exception):
-        """
-        Used for general/non-specific errors.
-        """
+        """ Used for general/non-specific errors."""
 
     class Json(Error):
         """
@@ -28,9 +26,7 @@ class Exceptions:
         response_code: int
 
     class Timeout(Error):
-        """
-        Used when a timeout is reached.
-        """
+        """Used when a timeout is reached."""
 
     @dataclass
     class UnknownAlgorithmType(Error):

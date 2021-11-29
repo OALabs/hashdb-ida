@@ -26,9 +26,7 @@ def PLUGIN_ENTRY():
 # https://hex-rays.com/products/ida/support/sdkdoc/classplugin__t.html
 # noinspection PyMethodMayBeStatic,PyUnusedLocal
 class HashDBPlugin(ida_idaapi.plugin_t):
-    """
-    IDAPython plugin structure
-    """
+    """IDAPython plugin structure."""
     # https://hex-rays.com/products/ida/support/idapython_docs/ida_idp.html#ida_idp.IDP_INTERFACE_VERSION
     version: int = IDP_INTERFACE_VERSION
     # https://hex-rays.com/products/ida/support/sdkdoc/group___p_l_u_g_i_n___i_n_i_t.html
@@ -73,9 +71,7 @@ class HashDBPlugin(ida_idaapi.plugin_t):
         warning("Cannot execute this plugin as a script.")
 
     def term(self):
-        """
-        Invoked when IDA is unloading the plugin.
-        """
+        """Invoked when IDA is unloading the plugin."""
         self.__core.unload()
 
     # Development code
@@ -89,9 +85,7 @@ class HashDBPlugin(ida_idaapi.plugin_t):
 
     # noinspection PyTypeChecker,PyShadowingNames
     def reload(self):
-        """
-        Hot-reload the plugin.
-        """
+        """Hot-reload the plugin."""
         debug("Attempting to reload.")
 
         # Unload the plugin
@@ -108,9 +102,7 @@ class HashDBPlugin(ida_idaapi.plugin_t):
         self.__core = Core(initial_setup=False)
 
     def run_tests(self, perform_reload: bool = False):
-        """
-        Perform automated bug testing.
-        """
+        """Perform automated bug testing."""
         if perform_reload:  # Should we perform a reload?
             self.reload()
         # Run the unit tests

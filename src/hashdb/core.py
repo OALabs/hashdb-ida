@@ -93,15 +93,11 @@ class HashDBCore:
     # UI hooks
     # --------------------------------------------------------------------------
     def __register_ui_hooks(self):
-        """
-        Register the UI hooks.
-        """
+        """Register the UI hooks."""
         self.__ui_hooks.populating_widget_popup = self.__on_ui_populating_widget_popup
 
     def __remove_ui_hooks(self):
-        """
-        Remove all UI hooks.
-        """
+        """Remove all UI hooks."""
         self.__ui_hooks.unhook()
 
     # noinspection PyUnusedLocal
@@ -119,16 +115,12 @@ class HashDBCore:
     # Hex-Rays hooks
     # ida_hexrays.html#ida_hexrays.Hexrays_Hooks.populating_popup
     def __register_hexrays_hooks(self):
-        """
-        Register the Hex-Rays hooks.
-        """
+        """Register the Hex-Rays hooks."""
         self.__hexrays_hooks.populating_popup = self.__on_hexrays_populating_popup
         self.__hexrays_hooks.hook()
 
     def __remove_hexrays_hooks(self):
-        """
-        Remove all Hex-Rays hooks.
-        """
+        """Remove all Hex-Rays hooks."""
         self.__hexrays_hooks.unhook()
 
     # noinspection PyUnusedLocal,PyMethodMayBeStatic

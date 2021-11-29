@@ -3,9 +3,7 @@ import ida_kernwin
 
 
 class Handler(ida_kernwin.action_handler_t):
-    """
-    A basic Context Menu class to utilize IDA's action handlers.
-    """
+    """A basic Context Menu class to utilize IDA's action handlers."""
     def __init__(self, callback):
         ida_kernwin.action_handler_t.__init__(self)
         self.callback = callback

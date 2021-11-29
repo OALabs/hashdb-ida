@@ -7,9 +7,7 @@ from ..exceptions import Exceptions
 
 @dataclass
 class Algorithm:
-    """
-    Interface for a hash algorithm.
-    """
+    """Interface for a hash algorithm."""
     name: str         # name
     description: str  # description
     size: int         # size (in bits)
