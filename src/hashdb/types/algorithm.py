@@ -17,7 +17,8 @@ class Algorithm(NamedTuple):
         Created a new class instance from a json object (dict)
         @param json: a json object (dict)
         @return: a new class instance
-        @raise Exceptions.InvalidAlgorithm: if any of the required keys are missing
+        @raise Exceptions.InvalidAlgorithm: if any of the required keys are missing, or
+                                            if an invalid algorithm type is encountered (parse_algorithm_type)
         """
         try:
             name: str = json["algorithm"]
