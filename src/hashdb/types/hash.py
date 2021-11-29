@@ -46,7 +46,7 @@ class Hash(NamedTuple):
             # Check to make sure the api value and modules are valid
             if api_value is not string_value:
                 raise Exceptions.InvalidHash("Raw string and API string mismatch.", hash_object=json)
-            if not len(modules):
+            if not modules:
                 raise Exceptions.InvalidHash("Missing modules.", hash_object=json)
         except KeyError as exception:
             raise Exceptions.InvalidHash(f"Missing key: {exception.args[0]}", hash_object=json)
