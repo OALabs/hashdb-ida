@@ -32,3 +32,15 @@ class Settings:
 
         return cls(api_url=api_url, enum_prefix=enum_prefix,
                    request_timeout=request_timeout, algorithm=algorithm)
+
+    @classmethod
+    def defaults(cls):
+        """
+        Constructs the default settings.
+        @return: a Settings instance with default parameters
+        """
+        # noinspection PyTypeChecker
+        return cls(api_url="https://hashdb.openanalysis.net",
+                   enum_prefix="hashdb_strings",
+                   request_timeout=15,
+                   algorithm=None)
