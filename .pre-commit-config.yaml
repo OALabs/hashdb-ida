@@ -4,7 +4,14 @@ repos:
       - id: flake8
         name: flake8
         entry: flake8 src tests
-        language: system
+        language: python
+        types: [python]
+        stages:
+          - commit
+      - id: pytest
+        name: pytest
+        entry: pytest
+        language: python
         types: [python]
         stages:
           - commit
