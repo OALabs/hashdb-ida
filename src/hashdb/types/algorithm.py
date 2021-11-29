@@ -1,12 +1,11 @@
 # System packages/modules
-from dataclasses import dataclass
+from typing import NamedTuple
 
 # HashDB
 from ..exceptions import Exceptions
 
 
-@dataclass
-class Algorithm:
+class Algorithm(NamedTuple):
     """Interface for a hash algorithm."""
     name: str         # name
     description: str  # description
