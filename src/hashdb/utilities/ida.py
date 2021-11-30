@@ -62,6 +62,18 @@ def convert_to_dword(effective_address: int, count: int = 1, force: bool = False
     return ida_bytes.create_dword(effective_address, count * 4, force)
 
 
+def convert_to_float(effective_address: int, count: int = 1, force: bool = False) -> bool:
+    """
+        Converts the bytes at an effective address to a float.
+        @param effective_address: the location of the bytes
+        @param count: the amount of elements to transform to
+        @param force: should the conversion be forced
+        @return: True if the bytes at the address were converted,
+                 False if the call failed
+        """
+    return ida_bytes.create_float(effective_address, count * 4, force)
+
+
 def convert_to_word(effective_address: int, count: int = 1, force: bool = False) -> bool:
     """
     Converts the bytes at an effective address to a WORD.
