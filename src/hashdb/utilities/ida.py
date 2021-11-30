@@ -152,10 +152,10 @@ def read_dword(effective_address: int) -> int:
 
 def read_float(effective_address: int) -> float:
     """
-    Read a 32-bit single-precision floating point number
+    Read a single-precision floating point number
       from the bytes at the effective address.
     @param effective_address: the location of the bytes
-    @return: a 32-bit integer
+    @return: a single-precision floating point number
     """
     value = ida_bytes.get_dword(effective_address)
     [float_value] = struct.unpack("f", struct.pack("I", value))
