@@ -1,7 +1,7 @@
 # System packages/modules
 import re
-import enum
-from enum import IntEnum
+from enum import IntEnum, auto as enum_auto
+import struct
 
 # IDAPython
 import ida_bytes
@@ -14,13 +14,13 @@ from ..exceptions import Exceptions
 
 class DataType(IntEnum):
     """Used for type-safe conversions between IDA types."""
-    QWORD = enum.auto()
-    DWORD = enum.auto()
-    FLOAT = enum.auto()
-    WORD = enum.auto()
-    BYTE = enum.auto()
-    ARRAY = enum.auto()
-    UNKNOWN = enum.auto()
+    QWORD = enum_auto()
+    DWORD = enum_auto()
+    FLOAT = enum_auto()
+    WORD = enum_auto()
+    BYTE = enum_auto()
+    ARRAY = enum_auto()
+    UNKNOWN = enum_auto()
 
 
 ida_type_conversion_list: dict = {
@@ -150,6 +150,18 @@ def read_dword(effective_address: int) -> int:
     return ida_bytes.get_dword(effective_address)
 
 
+def read_float(effective_address: int) -> float:
+    """
+    Read a 32-bit single-precision floating point number
+      from the bytes at the effective address.
+    @param effective_address: the location of the bytes
+    @return: a 32-bit integer
+    """
+    value = ida_bytes.get_dword(effective_address)
+    [float_value] = struct.unpack("f", struct.pack("I", value))
+    return float_value
+
+
 def read_word(effective_address: int) -> int:
     """
     Read a WORD from the bytes at the effective address.
@@ -166,6 +178,30 @@ def read_byte(effective_address: int) -> int:
     @return: an 8-bit integer
     """
     return ida_bytes.get_byte(effective_address)
+
+
+def read(effective_address: int, data_type: DataType):
+    """
+    Read a data type from the bytes at an effective address.
+    @param effective_address: the location of the bytes
+    @param data_type: the data type to read
+    @return: an integer or a float based on the data type
+    @raise: Exceptions.UnsupportedDataType: if the data type is unsupported
+    """
+    if data_type is DataType.QWORD:
+        return read_qword(effective_address)
+    if data_type is DataType.DWORD:
+        return read_dword(effective_address)
+    if data_type is DataType.FLOAT:
+        return read_float(effective_address)
+    if data_type is DataType.WORD:
+        return read_word(effective_address)
+    if data_type is DataType.BYTE:
+        return read_byte(effective_address)
+
+    # Unhandled/unknown data types.
+    raise Exceptions.UnsupportedDataType(
+        f"Unsupported data type reading a value: {data_type}")
 
 
 # Guess a data type from the database
