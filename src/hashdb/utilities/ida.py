@@ -157,7 +157,7 @@ def read_float(effective_address: int) -> float:
     @param effective_address: the location of the bytes
     @return: a single-precision floating point number
     """
-    value = ida_bytes.get_dword(effective_address)
+    value = read_dword(effective_address)
     [float_value] = struct.unpack("f", struct.pack("I", value))
     return float_value
 
