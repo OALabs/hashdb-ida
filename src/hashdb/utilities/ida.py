@@ -1,6 +1,30 @@
+# System packages/modules
+import enum
+from enum import IntEnum
+
 # IDAPython
 import ida_bytes
 import ida_diskio
+import ida_typeinf
+
+
+class DataType(IntEnum):
+    """Used for type-safe conversions for integers"""
+    QWORD = enum.auto()
+    DWORD = enum.auto()
+    FLOAT = enum.auto()
+    WORD = enum.auto()
+    BYTE = enum.auto()
+    UNKNOWN = enum.auto()
+
+
+ida_type_conversion_list: dict = {
+    "__int64": DataType.QWORD,
+    "int": DataType.DWORD,
+    "float": DataType.FLOAT,
+    "__int16": DataType.WORD,
+    "char": DataType.BYTE
+}
 
 
 def get_user_directory_path() -> str:
@@ -97,3 +121,14 @@ def read_byte(effective_address: int) -> int:
     @return: an 8-bit integer
     """
     return ida_bytes.get_byte(effective_address)
+
+
+# Guess a data type from the database
+def guess_type(effective_address: int) -> DataType:
+    """
+    Guesses the type of an effective address.
+    @param effective_address: the location of the bytes
+    @return: a DataType enum based on the guessed type
+    @raise: KeyError: if an unsupported data type is encountered
+    """
+    return ida_type_conversion_list[ida_typeinf.idc_guess_type(effective_address)]
