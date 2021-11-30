@@ -60,3 +60,40 @@ def convert_to_byte(effective_address: int, count: int = 1, force: bool = False)
              False if the call failed
     """
     return ida_bytes.create_byte(effective_address, count * 1, force)
+
+
+# Read commonly used data types
+def read_qword(effective_address: int) -> int:
+    """
+    Read a QWORD from the bytes at the effective address.
+    @param effective_address: the location of the bytes
+    @return: a 64-bit integer
+    """
+    return ida_bytes.get_qword(effective_address)
+
+
+def read_dword(effective_address: int) -> int:
+    """
+    Read a DWORD from the bytes at the effective address.
+    @param effective_address: the location of the bytes
+    @return: a 32-bit integer
+    """
+    return ida_bytes.get_dword(effective_address)
+
+
+def read_word(effective_address: int) -> int:
+    """
+    Read a WORD from the bytes at the effective address.
+    @param effective_address: the location of the bytes
+    @return: a 16-bit integer
+    """
+    return ida_bytes.get_word(effective_address)
+
+
+def read_byte(effective_address: int) -> int:
+    """
+    Read a BYTE from the bytes at the effective address.
+    @param effective_address: the location of the bytes
+    @return: an 8-bit integer
+    """
+    return ida_bytes.get_byte(effective_address)
