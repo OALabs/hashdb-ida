@@ -1,4 +1,5 @@
 # IDAPython
+import ida_bytes
 import ida_diskio
 
 
@@ -10,3 +11,52 @@ def get_user_directory_path() -> str:
     @return: the user directory path
     """
     return ida_diskio.get_user_idadir()
+
+
+# Data type conversion for the commonly used types
+def convert_to_qword(effective_address: int, count: int = 1, force: bool = False) -> bool:
+    """
+    Converts the bytes at an effective address to a QWORD.
+    @param effective_address: the location of the bytes
+    @param count: the amount of elements to transform to
+    @param force: should the conversion be forced
+    @return: True if the bytes at the address were converted,
+             False if the call failed
+    """
+    return ida_bytes.create_qword(effective_address, count * 8, force)
+
+
+def convert_to_dword(effective_address: int, count: int = 1, force: bool = False) -> bool:
+    """
+    Converts the bytes at an effective address to a DWORD.
+    @param effective_address: the location of the bytes
+    @param count: the amount of elements to transform to
+    @param force: should the conversion be forced
+    @return: True if the bytes at the address were converted,
+             False if the call failed
+    """
+    return ida_bytes.create_dword(effective_address, count * 4, force)
+
+
+def convert_to_word(effective_address: int, count: int = 1, force: bool = False) -> bool:
+    """
+    Converts the bytes at an effective address to a WORD.
+    @param effective_address: the location of the bytes
+    @param count: the amount of elements to transform to
+    @param force: should the conversion be forced
+    @return: True if the bytes at the address were converted,
+             False if the call failed
+    """
+    return ida_bytes.create_word(effective_address, count * 2, force)
+
+
+def convert_to_byte(effective_address: int, count: int = 1, force: bool = False) -> bool:
+    """
+    Converts the bytes at an effective address to a BYTE.
+    @param effective_address: the location of the bytes
+    @param count: the amount of elements to transform to
+    @param force: should the conversion be forced
+    @return: True if the bytes at the address were converted,
+             False if the call failed
+    """
+    return ida_bytes.create_byte(effective_address, count * 1, force)
