@@ -1,4 +1,5 @@
 # System packages/modules
+import re
 import enum
 from enum import IntEnum
 
@@ -6,6 +7,9 @@ from enum import IntEnum
 import ida_bytes
 import ida_diskio
 import ida_typeinf
+
+# HashDB
+from ..exceptions import Exceptions
 
 
 class DataType(IntEnum):
@@ -15,6 +19,7 @@ class DataType(IntEnum):
     FLOAT = enum.auto()
     WORD = enum.auto()
     BYTE = enum.auto()
+    ARRAY = enum.auto()
     UNKNOWN = enum.auto()
 
 
@@ -105,8 +110,10 @@ def convert_to(effective_address: int, data_type: DataType, count: int = 1, forc
     @param data_type: the data type to convert to
     @param count: the amount of elements to transform
     @param force: should the conversion be forced
-    @@return: True if the bytes at the address were converted,
-              False if the conversion failed
+    @return: True if the bytes at the address were converted,
+             False if the conversion failed
+    @raise: Exceptions.UnsupportedDataType: if the data type conversion is
+                                            unsupported
     """
     if data_type is DataType.QWORD:
         return convert_to_qword(effective_address, count, force)
@@ -120,7 +127,8 @@ def convert_to(effective_address: int, data_type: DataType, count: int = 1, forc
         return convert_to_byte(effective_address, count, force)
 
     # Unhandled/unknown data types.
-    return False
+    raise Exceptions.UnsupportedDataType(
+        f"Unsupported data type encountered when converting to a type: {data_type}")
 
 
 # Read commonly used data types
@@ -165,7 +173,17 @@ def guess_type(effective_address: int) -> DataType:
     """
     Guesses the type of an effective address.
     @param effective_address: the location of the bytes
-    @return: a DataType enum based on the guessed type
-    @raise: KeyError: if an unsupported data type is encountered
+    @return: a DataType enum constant based on the guessed type
+    @raise: Exceptions.UnsupportedDataType: if the data type is unsupported
     """
-    return ida_type_conversion_list[ida_typeinf.idc_guess_type(effective_address)]
+    guessed_type: str = ida_typeinf.idc_guess_type(effective_address)
+
+    # Check if the guessed type is an array
+    if re.match(r"\w+\[(\d+)?]", guessed_type):
+        return DataType.ARRAY
+
+    try:
+        return ida_type_conversion_list[guessed_type]
+    except KeyError:
+        raise Exceptions.UnsupportedDataType(
+            f"Unsupported data type encountered when guessing a type: {guessed_type}")

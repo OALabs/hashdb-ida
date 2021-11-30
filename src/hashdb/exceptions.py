@@ -28,21 +28,14 @@ class Exceptions:
     class Timeout(Error):
         """Used when a timeout is reached."""
 
-    @dataclass
     class UnknownAlgorithmType(Error):
-        """
-        Used when an algorithm has an
-          invalid size.
-        """
-        message: str
+        """Used when an algorithm has an invalid size."""
 
-    @dataclass
     class InvalidAlgorithm(Error):
         """
         Used when an algorithm object wasn't
           formatted properly by the server.
         """
-        message: str
 
     @dataclass
     class InvalidHash(Error):
@@ -53,13 +46,11 @@ class Exceptions:
         message: str
         hash_object: dict
 
-    @dataclass
     class InvalidHit(Error):
         """
         Used when an algorithm object wasn't
           formatted properly by the server.
         """
-        message: str
 
     @dataclass
     class InvalidSettings(Error):
@@ -69,3 +60,6 @@ class Exceptions:
         """
         message: str
         settings_object: dict
+
+    class UnsupportedDataType(Error):
+        """Used when converting to an unsupported data type."""
