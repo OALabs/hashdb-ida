@@ -9,7 +9,7 @@ import ida_typeinf
 
 
 class DataType(IntEnum):
-    """Used for type-safe conversions for integers"""
+    """Used for type-safe conversions between IDA types."""
     QWORD = enum.auto()
     DWORD = enum.auto()
     FLOAT = enum.auto()
@@ -42,10 +42,10 @@ def convert_to_qword(effective_address: int, count: int = 1, force: bool = False
     """
     Converts the bytes at an effective address to a QWORD.
     @param effective_address: the location of the bytes
-    @param count: the amount of elements to transform to
+    @param count: the amount of elements to transform
     @param force: should the conversion be forced
     @return: True if the bytes at the address were converted,
-             False if the call failed
+             False if the conversion failed
     """
     return ida_bytes.create_qword(effective_address, count * 8, force)
 
@@ -54,10 +54,10 @@ def convert_to_dword(effective_address: int, count: int = 1, force: bool = False
     """
     Converts the bytes at an effective address to a DWORD.
     @param effective_address: the location of the bytes
-    @param count: the amount of elements to transform to
+    @param count: the amount of elements to transform
     @param force: should the conversion be forced
     @return: True if the bytes at the address were converted,
-             False if the call failed
+             False if the conversion failed
     """
     return ida_bytes.create_dword(effective_address, count * 4, force)
 
@@ -66,10 +66,10 @@ def convert_to_float(effective_address: int, count: int = 1, force: bool = False
     """
         Converts the bytes at an effective address to a float.
         @param effective_address: the location of the bytes
-        @param count: the amount of elements to transform to
+        @param count: the amount of elements to transform
         @param force: should the conversion be forced
         @return: True if the bytes at the address were converted,
-                 False if the call failed
+                 False if the conversion failed
         """
     return ida_bytes.create_float(effective_address, count * 4, force)
 
@@ -78,10 +78,10 @@ def convert_to_word(effective_address: int, count: int = 1, force: bool = False)
     """
     Converts the bytes at an effective address to a WORD.
     @param effective_address: the location of the bytes
-    @param count: the amount of elements to transform to
+    @param count: the amount of elements to transform
     @param force: should the conversion be forced
     @return: True if the bytes at the address were converted,
-             False if the call failed
+             False if the conversion failed
     """
     return ida_bytes.create_word(effective_address, count * 2, force)
 
@@ -90,12 +90,37 @@ def convert_to_byte(effective_address: int, count: int = 1, force: bool = False)
     """
     Converts the bytes at an effective address to a BYTE.
     @param effective_address: the location of the bytes
-    @param count: the amount of elements to transform to
+    @param count: the amount of elements to transform
     @param force: should the conversion be forced
     @return: True if the bytes at the address were converted,
-             False if the call failed
+             False if the conversion failed
     """
     return ida_bytes.create_byte(effective_address, count * 1, force)
+
+
+def convert_to(effective_address: int, data_type: DataType, count: int = 1, force: bool = False) -> bool:
+    """
+    Convert the bytes at an effective address based on the data type provided.
+    @param effective_address: the location of the bytes
+    @param data_type: the data type to convert to
+    @param count: the amount of elements to transform
+    @param force: should the conversion be forced
+    @@return: True if the bytes at the address were converted,
+              False if the conversion failed
+    """
+    if data_type is DataType.QWORD:
+        return convert_to_qword(effective_address, count, force)
+    if data_type is DataType.DWORD:
+        return convert_to_dword(effective_address, count, force)
+    if data_type is DataType.FLOAT:
+        return convert_to_float(effective_address, count, force)
+    if data_type is DataType.WORD:
+        return convert_to_word(effective_address, count, force)
+    if data_type is DataType.BYTE:
+        return convert_to_byte(effective_address, count, force)
+
+    # Unhandled/unknown data types.
+    return False
 
 
 # Read commonly used data types
