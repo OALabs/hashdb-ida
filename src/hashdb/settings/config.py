@@ -172,6 +172,9 @@ def save_settings_to_disk(file_path: str = get_settings_file_path()):
         "settings": PLUGIN_SETTINGS.to_json()
     }
 
+    # Prevent accidentally saving the algorithm to global settings
+    settings_dict["settings"]["algorithm"] = None
+
     # Open/create the file for writing:
     with open(file_path, "w") as file:
         json.dump(settings_dict, file, indent=2)
