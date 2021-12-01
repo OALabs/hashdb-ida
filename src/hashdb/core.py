@@ -1,15 +1,20 @@
 # HashDB
 from .settings.plugin import AUTHOR, VERSION_STRING
+from .types.settings import Settings
+from .settings.config import load_settings, save_settings
 from .ida.hooks.ui import UiHooks
 from .utilities.hexrays import is_hexrays_module_available, is_hexrays_decompiler_available
 if is_hexrays_module_available():  # Conditionally import, if the Hex-Rays decompiler is available
     from .ida.hooks.hexrays import HexRaysHooks
 from .ida.actions.actions import Actions
-from .utilities.logging import info
+from .utilities.logging import info, warning
+from .exceptions import Exceptions
 
 
 class HashDBCore:
     loaded: bool = False  # has the `ready_to_run` event been called?
+    settings: Settings = Settings.defaults()  # plugin settings
+
     __ui_hooks: UiHooks
     if is_hexrays_module_available():
         __hexrays_hooks: HexRaysHooks
@@ -42,9 +47,13 @@ class HashDBCore:
 
     def load(self):
         """
-        Registers the UI hooks (UI, Hex-Rays)
-          and handles the setup.
+        Loads the configuration/settings,
+          registers the UI hooks (UI, Hex-Rays) and
+          handles the setup.
         """
+        # Attempt to load the settings
+        self.load_settings()
+
         # Initialize the actions and their icons
         self.__actions.setup()
 
@@ -89,9 +98,24 @@ class HashDBCore:
         # Mark the Core as unloaded
         self.loaded = False
 
-    # --------------------------------------------------------------------------
+    # Configuration/settings file
+    def save_settings(self, local: bool):
+        """Save settings from to the database or to a file."""
+        try:
+            self.settings = save_settings(self.settings, local=local)
+        except Exceptions.SaveSettingsFailure as exception:
+            warning(f"Failed to save plugin settings: {exception=}")
+
+    def load_settings(self):
+        """Load settings from the database or from a file."""
+        try:
+            self.settings = load_settings()
+        except Exceptions.LoadSettingsFailure as exception:
+            # Only warn the user if an actual error occurred
+            if not isinstance(exception, Exceptions.InvalidPath):
+                warning(f"Failed to load plugin settings: {exception=}")
+
     # UI hooks
-    # --------------------------------------------------------------------------
     def __register_ui_hooks(self):
         """Register the UI hooks."""
         self.__ui_hooks.populating_widget_popup = self.__on_ui_populating_widget_popup
