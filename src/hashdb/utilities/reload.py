@@ -20,5 +20,5 @@ def recursive_reload(module: ModuleType):
         return name.startswith(module_name)
 
     modules = filter(comparator, tuple(sys.modules))
-    for mod in sorted(modules, key=lambda name: name.count("."), reverse=True):
+    for mod in modules:
         reload(sys.modules[mod])
