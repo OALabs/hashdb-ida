@@ -35,8 +35,8 @@ def get_settings_file_path() -> str:
 
 def read_settings_from_disk(file_path: str) -> Settings:
     """
-    Reads settings from a file path.
-    @param file_path: the file path
+    Reads settings from a file on disk.
+    @param file_path: the path of the file to read from
     @return: a new Settings instance
     @raise OSError: if opening the file failed
     @raise Exceptions.Json: if the data in the file isn't valid JSON
@@ -146,6 +146,35 @@ def load_settings():
     except (OSError, Exceptions.Json, Exceptions.InvalidSettings) as exception:
         raise Exceptions.LoadSettingsFailure(
             f"Failed to load settings from the netnode and disk: {exception=}")
+
+
+def save_settings_to_disk(file_path: str = get_settings_file_path()):
+    """
+    Saves settings to a file on disk.
+    @param file_path: the path of the file to save to
+    @raise Exceptions.InvalidPath: if the path is a directory
+    @raise OSError: if creating/opening the file/directories failed
+    """
+    # Check if the path provided is a directory
+    if os.path.isdir(file_path):
+        raise Exceptions.InvalidPath("The path provided must be a file path.", path=file_path)
+
+    # Check if the directories exist
+    parent_directories = os.path.dirname(file_path)
+    if not os.path.exists(parent_directories):
+        # Attempt to create the directories,
+        #  this will throw an OSError if it fails
+        os.makedirs(parent_directories)
+
+    # Format the settings
+    global PLUGIN_SETTINGS
+    settings_dict: dict = {
+        "settings": PLUGIN_SETTINGS.to_json()
+    }
+
+    # Open/create the file for writing:
+    with open(file_path, "w") as file:
+        json.dump(settings_dict, file, indent=2)
 
 
 def save_settings_to_database(netnode_id: str = PLUGIN_NETNODE_ID):
