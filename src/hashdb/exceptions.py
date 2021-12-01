@@ -63,3 +63,12 @@ class Exceptions:
 
     class UnsupportedDataType(Error):
         """Used when converting to an unsupported data type."""
+
+    class NetnodeNotFound(Error):
+        """Used when a netnode doesn't exist."""
+
+    class InvalidNetnode(Error):
+        """Used when the settings netnode isn't valid."""
+
+    class LoadSettingsFailure(Error):
+        """Used when all options to load the settings failed."""
