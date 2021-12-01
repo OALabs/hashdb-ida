@@ -85,15 +85,12 @@ class HashDBCore:
         #  specific hooks:
         if is_hexrays_decompiler_available():
             self.__remove_hexrays_hooks()
-            del self.__hexrays_hooks
 
         # Unhook and dereference the UI hooks
         self.__remove_ui_hooks()
-        del self.__ui_hooks
 
         # Cleanup and dereference the Actions instance
         self.__actions.cleanup()
-        del self.__actions
 
         # Mark the Core as unloaded
         self.loaded = False
