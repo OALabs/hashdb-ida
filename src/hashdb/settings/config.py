@@ -61,11 +61,11 @@ def read_settings_from_database(netnode_id: str = PLUGIN_NETNODE_ID) -> Settings
                                       formatted properly, don't exist, or if
                                       the settings failed to parse
     """
-    # Check if the netnode exists
-    if not ida_netnode.exist(netnode_id):
-        raise Exceptions.NetnodeNotFound(f"Netnode doesn't exist: {netnode_id=}")
-
     netnode = ida_netnode.netnode(netnode_id)
+
+    # Check if the netnode exists
+    if not ida_netnode.exist(netnode):
+        raise Exceptions.NetnodeNotFound(f"Netnode doesn't exist: {netnode_id=}")
 
     # Get the required netnode values
     api_url: str = netnode.hashstr("api_url")
@@ -187,7 +187,7 @@ def save_settings_to_database(settings: Settings, netnode_id: str = PLUGIN_NETNO
     netnode = ida_netnode.netnode(netnode_id)
 
     # Create a new netnode (overwrite)
-    if ida_netnode.exist(netnode_id):
+    if ida_netnode.exist(netnode):
         # Kill/delete the netnode
         netnode.kill()
 
