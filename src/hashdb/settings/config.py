@@ -53,7 +53,7 @@ def read_settings_from_disk(file_path: str) -> Settings:
         raise Exceptions.Json(f"Invalid JSON data in file: {file_path=}")
 
 
-def read_settings_from_database(netnode_id: str) -> Settings:
+def read_settings_from_database(netnode_id: str = PLUGIN_NETNODE_ID) -> Settings:
     """
     Reads settings from the database.
     @param netnode_id: the netnode id attempt to parse
@@ -128,7 +128,7 @@ def load_settings():
 
     # Attempt to load the settings from the database first
     try:
-        PLUGIN_SETTINGS = read_settings_from_database(PLUGIN_NETNODE_ID)
+        PLUGIN_SETTINGS = read_settings_from_database()
     except (Exceptions.NetnodeNotFound, Exceptions.InvalidNetnode):
         pass
 
@@ -146,3 +146,39 @@ def load_settings():
     except (OSError, Exceptions.Json, Exceptions.InvalidSettings) as exception:
         raise Exceptions.LoadSettingsFailure(
             f"Failed to load settings from the netnode and disk: {exception=}")
+
+
+def save_settings_to_database(netnode_id: str = PLUGIN_NETNODE_ID):
+    """
+    Saves the current settings to the local database.
+    @param netnode_id: the netnode id to save to
+    @raise Exceptions.IDAPython: if the netnode id couldn't be created
+    @raise SystemError: if netnode.hashset_buf failed
+    """
+    netnode = ida_netnode.netnode(netnode_id)
+
+    # Create a new netnode (overwrite)
+    if ida_netnode.exist(netnode_id):
+        # Kill/delete the netnode
+        netnode.kill()
+
+        # Create the netnode
+        if not netnode.create(netnode_id):
+            raise Exceptions.IDAPython(f"Failed to create netnode by id: {netnode_id=}")
+
+    # Insert the required values into the netnode
+    global PLUGIN_SETTINGS
+    netnode.hashset_buf("api_url", PLUGIN_SETTINGS.api_url)
+    netnode.hashset_buf("enum_prefix", PLUGIN_SETTINGS.enum_prefix)
+    netnode.hashset_buf("request_timeout", str(PLUGIN_SETTINGS.request_timeout))
+
+    # Check if the settings instance uses an algorithm,
+    #  otherwise return
+    if not PLUGIN_SETTINGS.algorithm:
+        return
+
+    # Insert the remaining algorithm settings
+    algorithm = PLUGIN_SETTINGS.algorithm.to_json()
+    netnode.hashset_buf("algorithm_algorithm", algorithm["name"])
+    netnode.hashset_buf("algorithm_description", algorithm["description"])
+    netnode.hashset_buf("algorithm_type", algorithm["type"])
