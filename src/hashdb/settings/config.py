@@ -12,8 +12,6 @@ from ..utilities.ida import get_user_directory_path
 from ..exceptions import Exceptions
 
 
-PLUGIN_SETTINGS: Settings = Settings.defaults()
-
 # Note: hotkeys are bound to actions!
 PLUGIN_HOTKEYS = {
     "lookup_hash":    "Alt+`",
@@ -119,16 +117,14 @@ def read_settings_from_database(netnode_id: str = PLUGIN_NETNODE_ID) -> Settings
             f"Invalid netnode settings when parsing: {exception.settings_object=}")
 
 
-def load_settings():
+def load_settings() -> Settings:
     """
     Loads settings from the database, or from the config file path.
     @raise Exceptions.LoadSettingsFailure: if any of the operations failed
     """
-    global PLUGIN_SETTINGS
-
     # Attempt to load the settings from the database first
     try:
-        PLUGIN_SETTINGS = read_settings_from_database()
+        return read_settings_from_database()
     except (Exceptions.NetnodeNotFound, Exceptions.InvalidNetnode):
         pass
 
@@ -139,7 +135,7 @@ def load_settings():
         if not os.path.exists(settings_file_path):
             raise Exceptions.InvalidPath("Path doesn't exist.", path=settings_file_path)
 
-        PLUGIN_SETTINGS = read_settings_from_disk(settings_file_path)
+        return read_settings_from_disk(settings_file_path)
     except Exceptions.InvalidPath as exception:
         raise Exceptions.LoadSettingsFailure(
             f"Failed to find settings file on disk: {exception=}")
@@ -148,9 +144,10 @@ def load_settings():
             f"Failed to load settings from the netnode and disk: {exception=}")
 
 
-def save_settings_to_disk(file_path: str = get_settings_file_path()):
+def save_settings_to_disk(settings: Settings, file_path: str = get_settings_file_path()):
     """
     Saves settings to a file on disk.
+    @param settings: settings to save
     @param file_path: the path of the file to save to
     @raise Exceptions.InvalidPath: if the path is a directory
     @raise OSError: if creating/opening the file/directories failed
@@ -167,9 +164,8 @@ def save_settings_to_disk(file_path: str = get_settings_file_path()):
         os.makedirs(parent_directories)
 
     # Format the settings
-    global PLUGIN_SETTINGS
     settings_dict: dict = {
-        "settings": PLUGIN_SETTINGS.to_json()
+        "settings": settings.to_json()
     }
 
     # Prevent accidentally saving the algorithm to global settings
@@ -180,9 +176,10 @@ def save_settings_to_disk(file_path: str = get_settings_file_path()):
         json.dump(settings_dict, file, indent=2)
 
 
-def save_settings_to_database(netnode_id: str = PLUGIN_NETNODE_ID):
+def save_settings_to_database(settings: Settings, netnode_id: str = PLUGIN_NETNODE_ID):
     """
     Saves the current settings to the local database.
+    @param settings: settings to save
     @param netnode_id: the netnode id to save to
     @raise Exceptions.IDAPython: if the netnode id couldn't be created
     @raise SystemError: if netnode.hashset_buf failed
@@ -199,18 +196,41 @@ def save_settings_to_database(netnode_id: str = PLUGIN_NETNODE_ID):
             raise Exceptions.IDAPython(f"Failed to create netnode by id: {netnode_id=}")
 
     # Insert the required values into the netnode
-    global PLUGIN_SETTINGS
-    netnode.hashset_buf("api_url", PLUGIN_SETTINGS.api_url)
-    netnode.hashset_buf("enum_prefix", PLUGIN_SETTINGS.enum_prefix)
-    netnode.hashset_buf("request_timeout", str(PLUGIN_SETTINGS.request_timeout))
+    netnode.hashset_buf("api_url", settings.api_url)
+    netnode.hashset_buf("enum_prefix", settings.enum_prefix)
+    netnode.hashset_buf("request_timeout", str(settings.request_timeout))
 
     # Check if the settings instance uses an algorithm,
     #  otherwise return
-    if not PLUGIN_SETTINGS.algorithm:
+    if not settings.algorithm:
         return
 
     # Insert the remaining algorithm settings
-    algorithm = PLUGIN_SETTINGS.algorithm.to_json()
+    algorithm = settings.algorithm.to_json()
     netnode.hashset_buf("algorithm_algorithm", algorithm["name"])
     netnode.hashset_buf("algorithm_description", algorithm["description"])
     netnode.hashset_buf("algorithm_type", algorithm["type"])
+
+
+def save_settings(settings: Settings, local: bool):
+    """
+    Saves settings to the database or to the settings file path.
+    @param settings: settings to save
+    @param local: should the settings be saved locally (in the database)
+                  or globally (in the file)
+    @raise Exceptions.SaveSettingsFailure: if we failed to save the settings
+    """
+    if local:
+        try:
+            # Try to save the settings to the database
+            save_settings_to_database(settings)
+        except (Exceptions.IDAPython, SystemError) as exception:
+            raise Exceptions.SaveSettingsFailure(
+                f"Failed to save the settings to the database: {exception=}")
+    else:
+        try:
+            # Try to save the settings to a file
+            save_settings_to_disk(settings)
+        except (Exceptions.InvalidPath, OSError) as exception:
+            raise Exceptions.SaveSettingsFailure(
+                f"Failed to save the settings to a file: {exception=}")
