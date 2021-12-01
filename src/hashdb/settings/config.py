@@ -138,10 +138,10 @@ def load_settings() -> Settings:
         return read_settings_from_disk(settings_file_path)
     except Exceptions.InvalidPath as exception:
         raise Exceptions.LoadSettingsFailure(
-            f"Failed to find settings file on disk: {exception=}")
+            "Failed to find settings file on disk.", base_error=exception)
     except (OSError, Exceptions.Json, Exceptions.InvalidSettings) as exception:
         raise Exceptions.LoadSettingsFailure(
-            f"Failed to load settings from the netnode and disk: {exception=}")
+            "Failed to load settings from the database and disk.", base_error=exception)
 
 
 def save_settings_to_disk(settings: Settings, file_path: str = get_settings_file_path()):
@@ -226,11 +226,11 @@ def save_settings(settings: Settings, local: bool):
             save_settings_to_database(settings)
         except (Exceptions.IDAPython, SystemError) as exception:
             raise Exceptions.SaveSettingsFailure(
-                f"Failed to save the settings to the database: {exception=}")
+                "Failed to save the settings to the database.", base_error=exception)
     else:
         try:
             # Try to save the settings to a file
             save_settings_to_disk(settings)
         except (Exceptions.InvalidPath, OSError) as exception:
             raise Exceptions.SaveSettingsFailure(
-                f"Failed to save the settings to a file: {exception=}")
+                "Failed to save the settings to a file.", base_error=exception)

@@ -76,11 +76,17 @@ class Exceptions:
     class InvalidNetnode(Error):
         """Used when the settings netnode isn't valid."""
 
+    @dataclass
     class LoadSettingsFailure(Error):
         """Used when all options to load the settings failed."""
+        message: str
+        base_error: Exception
 
+    @dataclass
     class SaveSettingsFailure(Error):
         """Used when we failed to save the settings."""
+        message: str
+        base_error: Exception
 
     class IDAPython(Error):
         """Used for general IDA API errors or unexpected results."""
