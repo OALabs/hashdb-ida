@@ -112,7 +112,7 @@ class HashDBCore:
             self.settings = load_settings()
         except Exceptions.LoadSettingsFailure as exception:
             # Only warn the user if an actual error occurred
-            if not isinstance(exception, Exceptions.InvalidPath):
+            if not isinstance(exception.base_error, Exceptions.InvalidPath):
                 warning(f"Failed to load plugin settings: {exception=}")
 
     # UI hooks
