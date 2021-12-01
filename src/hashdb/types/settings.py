@@ -19,8 +19,8 @@ class Settings:
         Creates a new class instance from a json object (dict)
         @param json: a json object (dict)
         @return: a new class instance
-        @raise Exceptions.InvalidSettings: if any of the required keys are missing
-        @raise Exceptions.InvalidAlgorithm: if any of the required keys are missing (Algorithm.from_json)
+        @raise Exceptions.InvalidSettings: if any of the required keys are missing,
+                                           if we failed to parse the algorithm (InvalidAlgorithm)
         """
         try:
             api_url: str = json["api_url"]
@@ -31,6 +31,8 @@ class Settings:
             algorithm: Algorithm = None if not algorithm_object else Algorithm.from_json(algorithm_object)
         except KeyError as exception:
             raise Exceptions.InvalidSettings(f"Missing key: {exception.args[0]}", settings_object=json)
+        except Exceptions.InvalidAlgorithm as exception:
+            raise Exceptions.InvalidSettings(f"Invalid algorithm type: {exception=}", settings_object=json)
 
         return cls(api_url=api_url, enum_prefix=enum_prefix,
                    request_timeout=request_timeout, algorithm=algorithm)
