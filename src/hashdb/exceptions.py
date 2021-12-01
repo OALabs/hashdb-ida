@@ -78,3 +78,6 @@ class Exceptions:
 
     class LoadSettingsFailure(Error):
         """Used when all options to load the settings failed."""
+
+    class IDAPython(Error):
+        """Used for general IDA API errors or unexpected results."""
