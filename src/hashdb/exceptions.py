@@ -16,6 +16,9 @@ class Exceptions:
           has an invalid json format.
         """
 
+    class InvalidPath(Error):
+        """Used when a path on disk isn't accessible, or doesn't exist."""
+
     @dataclass
     class ResponseCode(Error):
         """
