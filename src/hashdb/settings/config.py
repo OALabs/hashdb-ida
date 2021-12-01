@@ -6,7 +6,7 @@ import json
 import ida_netnode
 
 # HashDB
-from .plugin import PLUGIN_NETNODE_ID
+from .plugin import PLUGIN_NAME, PLUGIN_NETNODE_ID
 from ..types.settings import Settings
 from ..utilities.ida import get_user_directory_path
 from ..exceptions import Exceptions
@@ -27,7 +27,7 @@ def get_settings_file_path() -> str:
     Fetches the path of the settings/config file.
     @return: a path on disk
     """
-    settings_file_path = os.path.join(get_user_directory_path(), "plugins", "HashDB", "settings.json")
+    settings_file_path = os.path.join(get_user_directory_path(), "plugins", PLUGIN_NAME, "settings.json")
 
     # Return the file path
     return settings_file_path
