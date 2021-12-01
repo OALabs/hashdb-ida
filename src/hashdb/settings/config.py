@@ -26,13 +26,8 @@ def get_settings_file_path() -> str:
     """
     Fetches the path of the settings/config file.
     @return: a path on disk
-    @raise Exceptions.InvalidPath: if the file doesn't exist
     """
     settings_file_path = os.path.join(get_user_directory_path(), "plugins", "HashDB", "settings.json")
-
-    # Check if the file exists
-    if not os.path.exists(settings_file_path):
-        raise Exceptions.InvalidPath("Path doesn't exist.", path=settings_file_path)
 
     # Return the file path
     return settings_file_path
@@ -139,8 +134,12 @@ def load_settings():
 
     # Attempt to load the settings from the disk
     try:
-        settings_path = get_settings_file_path()
-        PLUGIN_SETTINGS = read_settings_from_disk(settings_path)
+        settings_file_path = get_settings_file_path()
+        # Check if the file exists
+        if not os.path.exists(settings_file_path):
+            raise Exceptions.InvalidPath("Path doesn't exist.", path=settings_file_path)
+
+        PLUGIN_SETTINGS = read_settings_from_disk(settings_file_path)
     except Exceptions.InvalidPath as exception:
         raise Exceptions.LoadSettingsFailure(
             f"Failed to find settings file on disk: {exception=}")
