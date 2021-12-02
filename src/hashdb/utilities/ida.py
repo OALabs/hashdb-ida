@@ -4,11 +4,14 @@ from enum import IntEnum, auto as enum_auto
 import struct
 
 # IDAPython
+import ida_enum
 import ida_bytes
 import ida_diskio
+import ida_idaapi
 import ida_typeinf
 
 # HashDB
+from ..types.enum_value import EnumValue
 from ..exceptions import Exceptions
 
 
@@ -207,7 +210,7 @@ def read(effective_address: int, data_type: DataType):
 # Guess a data type from the database
 def guess_type(effective_address: int) -> DataType:
     """
-    Guesses the type of an effective address.
+    Guesses the type of bytes at an effective address.
     @param effective_address: the location of the bytes
     @return: a DataType enum constant based on the guessed type
     @raise: Exceptions.UnsupportedDataType: if the data type is unsupported
@@ -223,3 +226,111 @@ def guess_type(effective_address: int) -> DataType:
     except KeyError:
         raise Exceptions.UnsupportedDataType(
             f"Unsupported data type encountered when guessing a type: {guessed_type}")
+
+
+# Enum helpers
+def create_enum(name: str, flags: int = ida_bytes.hex_flag(), width: int = 0) -> int:
+    """
+    Creates a new enum in the database from a name.
+    @param name: the desired name of the enum
+    @param flags: enum flags (flags_t; see ida_bytes for more info)
+    @param width: the width/size in bytes of the underlying enum values
+    @return: an enum id (enum_t)
+    @raise Exceptions.IDAPython: if creating the enum failed, or
+                                 if setting the enum width failed
+    """
+    enum_id: int = ida_enum.add_enum(ida_idaapi.BADADDR, name, flags)
+
+    # Check if the enum was created successfully
+    if enum_id == ida_idaapi.BADADDR:
+        raise Exceptions.IDAPython(f"Failed to create an enum: {enum_id=}")
+
+    # Set the enum width
+    if width:
+        set_enum_width(enum_id, width)
+
+    # Return the enum id
+    return enum_id
+
+
+def find_enum(name: str) -> int:
+    """
+    Finds an enum by name.
+    @param name: name of the enum
+    @return: an enum id (enum_t)
+    """
+    enum_id: int = ida_enum.get_enum(name)
+
+    # Check if the enum exists
+    if enum_id == ida_idaapi.BADADDR:
+        raise Exceptions.IDAPython(f"Failed to find an enum by name: {name=}")
+
+    # Return the enum id
+    return enum_id
+
+
+def find_or_create_enum(name: str, flags: int = ida_bytes.hex_flag(), width: int = 0) -> int:
+    """
+    Finds or creates an enum by name.
+    @param name: (desired) name of the enum
+    @param flags: enum flags (flags_t; see ida_bytes for more info)
+    @param width: the width/size in bytes of the underlying enum values
+    @return: an enum id (enum_t)
+    @raise Exceptions.IDAPython: if creating the enum failed, or
+                                 if setting the enum width failed
+                                 (create_enum)
+    """
+    try:
+        # Check if the enum exists
+        return find_enum(name)
+    except Exceptions.IDAPython:
+        pass
+
+    # Attempt to create the enum
+    return create_enum(name, flags, width)
+
+
+def set_enum_width(enum_id: int, width: int):
+    """
+    Sets an enum's width/size.
+    @param enum_id: enum_t provided by IDA API
+    @param width: the width/size in bytes of the underlying enum values
+    @raise Exceptions.IDAPython: if setting the width failed
+    """
+    if not ida_enum.set_enum_width(enum_id, width):
+        raise Exceptions.IDAPython(f"Failed to set enum width: {enum_id=}, {width=}")
+
+
+def add_values_to_enum(enum_id: int, values: tuple):
+    """
+    Inserts a tuple of values into an enum
+    @param enum_id: enum_t provided by IDA API
+    @param values: a tuple of EnumValue instances
+    @raise Exceptions.IDAPython: if inserting an enum value failed
+    """
+    enum_value: EnumValue
+
+    # Iterate the enum values
+    for enum_value in values:
+        error_code = ida_enum.add_enum_member(enum_id, enum_value.name, enum_value.value)
+
+        # Check if an error occurred
+        if not error_code:
+            continue
+
+        if error_code == ida_enum.ENUM_MEMBER_ERROR_NAME:
+            raise Exceptions.IDAPython("Invalid or already taken enum name: "
+                                       f"{enum_id=}, "
+                                       f"{enum_value=}")
+        if error_code == ida_enum.ENUM_MEMBER_ERROR_VALUE:
+            raise Exceptions.IDAPython("Invalid enum value, already has 256 entries: "
+                                       f"{enum_id=}, "
+                                       f"{enum_value=}")
+        if error_code == ida_enum.ENUM_MEMBER_ERROR_ENUM:
+            raise Exceptions.IDAPython(f"Invalid enum id: {enum_id=}")
+
+        # Unknown error code
+        raise Exceptions.IDAPython("Unknown error code from add_enum_member: "
+                                   f"{error_code=}, "
+                                   f"{enum_id=}, "
+                                   f"{enum_value=}")
