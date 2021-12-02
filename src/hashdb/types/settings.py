@@ -10,7 +10,7 @@ from ..exceptions import Exceptions
 class Settings:
     api_url: str          # The API URL to create requests to;                    saved: local, global
     enum_prefix: str      # The enum prefix to use when creating new enums;       saved: local, global
-    request_timeout: int  # The per request timeout to use when sending requests; saved: local, global
+    request_timeout: int  # The per-request timeout to use when sending requests; saved: local, global
     algorithm: Algorithm  # An algorithm instance to know which algorithm to use; saved: local
 
     @classmethod

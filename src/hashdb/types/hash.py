@@ -15,7 +15,7 @@ class Hash(NamedTuple):
     #  (strings that aren't APIs)
     permutation_type: str = ""     # type of permutation
     api: str = ""                  # hashed API string
-    modules: tuple = ()  # a tuple of module strings associated to the hash
+    modules: tuple = ()            # a tuple of module strings associated to the hash
 
     @classmethod
     def from_json(cls, json: dict):
