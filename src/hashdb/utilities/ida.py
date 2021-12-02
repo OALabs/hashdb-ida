@@ -4,6 +4,7 @@ from enum import IntEnum, auto as enum_auto
 import struct
 
 # IDAPython
+import ida_name
 import ida_enum
 import ida_bytes
 import ida_diskio
@@ -43,6 +44,44 @@ def get_user_directory_path() -> str:
     @return: the user directory path
     """
     return ida_diskio.get_user_idadir()
+
+
+# Name checks
+def has_invalid_characters(name: str) -> bool:
+    """
+    Checks if a name contains invalid characters.
+    @param name: a string
+    @return: True if all the characters in the name are valid,
+             False if one of the characters is invalid
+    """
+    return ida_name.is_ident(name)
+
+
+def get_invalid_characters(name: str):
+    """
+    Finds the position of all invalid characters in a given name.
+    @param name: a string
+    @return: a tuple of invalid character indices
+    """
+    # Check if the name is empty
+    if not name:
+        return ()  # return an empty tuple
+
+    invalid_character_indices: list = []
+
+    # Check if the first character is a digit;
+    #  names cannot begin with a digit
+    if name[0].isdigit():
+        invalid_character_indices.append(0)
+
+    # Check all the characters to see if they're valid
+    for index, character in enumerate(name):
+        if not ida_name.is_ident_cp(ord(character)):
+            # Append the index of the character to the list
+            invalid_character_indices.append(index)
+
+    # Return a tuple of the invalid characters indices
+    return tuple(invalid_character_indices)
 
 
 # Data type conversion for the commonly used types
