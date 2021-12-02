@@ -90,6 +90,11 @@ class Actions:
         @param widget: TWidget*
         @param popup_handle: TPopupMenu*
         """
+        # Check for the correct widget type
+        widget_type = ida_kernwin.get_widget_type(widget)
+        if widget_type is not ida_kernwin.BWN_DISASM and widget_type is not ida_kernwin.BWN_PSEUDOCODE:
+            return
+
         action: Action
         for action in self.action_items:
             ida_kernwin.attach_action_to_popup(
