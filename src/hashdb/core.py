@@ -107,6 +107,9 @@ class HashDBCore:
         """Load settings from the database or from a file."""
         try:
             self.settings = load_settings()
+            info(f"Loaded settings: api_url={self.settings.api_url!r}, "
+                 f"enum_prefix={self.settings.enum_prefix!r}, "
+                 f"request_timeout={self.settings.request_timeout}s")
         except Exceptions.LoadSettingsFailure as exception:
             # Only warn the user if an actual error occurred
             if not isinstance(exception.base_error, Exceptions.InvalidPath):
