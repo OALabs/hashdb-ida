@@ -52,7 +52,8 @@ def try_check_wrapper(enum_value: EnumValue, error_type: ErrorType,
     @param error_type: the error type to use when invoking the error handler
     @param error_handler: the error handler to use
     @param check: the function which performs the check
-    @return:
+    @return: True if the EnumValue instance should be preserved
+             False if the EnumValue instance should be discarded
     """
     retry_count: int = 0
     while True:
@@ -87,17 +88,17 @@ def default_enum_values_filter(enum_value: EnumValue, error_handler: Callable) -
                              lambda value: has_invalid_characters(value.name)):
         return False
 
-    # Check if the name is taken
-    if not try_check_wrapper(enum_value, ErrorType.NAME_TAKEN, error_handler,
-                             lambda value: enum_name_exists(value.name)):
-        return False
-
     # If the enum value is associated to an API,
     #  check if its formatted properly
     if enum_value.is_api:
         if not try_check_wrapper(enum_value, ErrorType.NAME_MISSING_SUFFIX, error_handler,
                                  lambda value: not re.search(r"_(\d+)$", enum_value.name)):
             return False
+
+    # Check if the name is taken
+    if not try_check_wrapper(enum_value, ErrorType.NAME_TAKEN, error_handler,
+                             lambda value: enum_name_exists(value.name)):
+        return False
 
     # Preserve the EnumValue instance
     return True
