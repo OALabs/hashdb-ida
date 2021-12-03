@@ -41,6 +41,7 @@ class ErrorType(IntEnum):
     """Used by the prepare_enum_values function to signal the type of error."""
     NAME_CONTAINS_INVALID_CHARS = enum_auto()  # a name has invalid characters
     NAME_TAKEN = enum_auto()                   # the name is already taken
+    NAME_MISSING_SUFFIX = enum_auto()          # the name is missing a suffix (in the case of APIs)
 
 
 def try_check_wrapper(enum_value: EnumValue, error_type: ErrorType,
@@ -91,6 +92,13 @@ def default_enum_values_filter(enum_value: EnumValue, error_handler: Callable) -
                              lambda value: enum_name_exists(value.name)):
         return False
 
+    # If the enum value is associated to an API,
+    #  check if its formatted properly
+    if enum_value.is_api:
+        if not try_check_wrapper(enum_value, ErrorType.NAME_MISSING_SUFFIX, error_handler,
+                                 lambda value: not re.search(r"_(\d+)$", enum_value.name)):
+            return False
+
     # Preserve the EnumValue instance
     return True
 
@@ -130,6 +138,14 @@ def default_enum_values_error_handler(enum_value: EnumValue, error_type: ErrorTy
         else:
             # Append an integer suffix to the name
             enum_value.name += f"_{retry_count}"
+
+        # Signal to retry
+        return True
+
+    # Handle API names
+    if error_type == ErrorType.NAME_MISSING_SUFFIX:
+        # Append a suffix to the name
+        enum_value.name += f"_{retry_count}"
 
         # Signal to retry
         return True
@@ -485,11 +501,11 @@ def add_values_to_enum(enum_id: int, values):
         if error_code == ida_enum.ENUM_MEMBER_ERROR_NAME:
             raise Exceptions.IDAPython("Invalid or already taken enum name: "
                                        f"{enum_id=:0x}, "
-                                       f"{enum_value=:0x}")
+                                       f"{enum_value=}")
         if error_code == ida_enum.ENUM_MEMBER_ERROR_VALUE:
             raise Exceptions.IDAPython("Invalid enum value, already has 256 entries: "
                                        f"{enum_id=:0x}, "
-                                       f"{enum_value=:0x}")
+                                       f"{enum_value=}")
         if error_code == ida_enum.ENUM_MEMBER_ERROR_ENUM:
             raise Exceptions.IDAPython(f"Invalid enum id: {enum_id=:0x}")
 
@@ -497,7 +513,7 @@ def add_values_to_enum(enum_id: int, values):
         raise Exceptions.IDAPython("Unknown error code from add_enum_member: "
                                    f"{error_code=}, "
                                    f"{enum_id=:0x}, "
-                                   f"{enum_value=:0x}")
+                                   f"{enum_value=}")
 
 
 def enum_name_exists(name: str) -> bool:
