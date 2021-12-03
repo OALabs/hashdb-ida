@@ -1,7 +1,8 @@
 # System packages/modules
 import re
-from enum import IntEnum, auto as enum_auto
 import struct
+from typing import Callable
+from enum import IntEnum, auto as enum_auto
 
 # IDAPython
 import ida_name
@@ -36,6 +37,105 @@ ida_type_conversion_list: dict = {
 }
 
 
+class ErrorType(IntEnum):
+    """Used by the prepare_enum_values function to signal the type of error."""
+    NAME_CONTAINS_INVALID_CHARS = enum_auto()  # a name has invalid characters
+    NAME_TAKEN = enum_auto()                   # the name is already taken
+
+
+def try_check_wrapper(enum_value: EnumValue, error_type: ErrorType,
+                      error_handler: Callable, check: Callable) -> bool:
+    """
+    A simple wrapper to prevent duplicate code within the enum values filter.
+    @param enum_value: an EnumValue instance
+    @param error_type: the error type to use when invoking the error handler
+    @param error_handler: the error handler to use
+    @param check: the function which performs the check
+    @return:
+    """
+    retry_count: int = 0
+    while True:
+        error: bool = check(enum_value)
+        if error:
+            retry: bool = error_handler(enum_value, error_type, retry_count)
+
+            # Signal to skip this entry
+            if not retry:
+                return False
+
+            # Increase the retry count
+            retry_count += 1
+        else:
+            # Exit this check's loop
+            break
+
+    # Signal to preserve this entry
+    return True
+
+
+def default_enum_values_filter(enum_value: EnumValue, error_handler: Callable) -> bool:
+    """
+    Signals to filter the EnumValue instance based on if all the checks passed.
+    @param enum_value: an EnumValue instance
+    @param error_handler: the error handler
+    @return: True if the EnumValue instance should be preserved
+             False if the EnumValue instance should be discarded
+    """
+    # Check for invalid characters
+    if not try_check_wrapper(enum_value, ErrorType.NAME_CONTAINS_INVALID_CHARS, error_handler,
+                             lambda value: has_invalid_characters(value.name)):
+        return False
+
+    # Check if the name is taken
+    if not try_check_wrapper(enum_value, ErrorType.NAME_TAKEN, error_handler,
+                             lambda value: enum_name_exists(value.name)):
+        return False
+
+    # Preserve the EnumValue instance
+    return True
+
+
+def default_enum_values_error_handler(enum_value: EnumValue, error_type: ErrorType, retry_count: int) -> bool:
+    """
+    Handles any errors that occur when preparing for insertion of enum values into the database.
+    @param enum_value: the EnumValue instance that caused the error
+    @param error_type: the type of error that occurred
+    @param retry_count: the amount of retries
+    @return: True if the callee should retry
+             False if the EnumValue instance should be discarded
+    """
+    # If the retry count reaches a high number, skip the entry
+    if retry_count >= 128:
+        return False
+
+    # Replace invalid characters with underscores
+    if error_type == ErrorType.NAME_CONTAINS_INVALID_CHARS:
+        # Get a tuple of invalid characters
+        invalid_character_indices = get_invalid_characters(enum_value.name)
+
+        # Replace the characters
+        for index in invalid_character_indices:
+            enum_value.name = enum_value.name[:index] + '_' + enum_value.name[index + 1:]
+
+        # Signal to retry
+        return True
+
+    # Handle taken names
+    if error_type == ErrorType.NAME_TAKEN:
+        # Check if the name already has an integer suffix
+        match = re.search(r"_(\d+)$", enum_value.name)
+        if match:
+            # Replace the match
+            enum_value.name = enum_value.name[:match.start() + 1] + f"{retry_count}"
+        else:
+            # Append an integer suffix to the name
+            enum_value.name += f"_{retry_count}"
+
+        # Signal to retry
+        return True
+
+
+# Filesystem helpers
 def get_user_directory_path() -> str:
     """
     Returns the IDA user directory path usually located at:
@@ -54,7 +154,7 @@ def has_invalid_characters(name: str) -> bool:
     @return: True if all the characters in the name are valid,
              False if one of the characters is invalid
     """
-    return ida_name.is_ident(name)
+    return not ida_name.is_ident(name)
 
 
 def get_invalid_characters(name: str):
@@ -82,6 +182,31 @@ def get_invalid_characters(name: str):
 
     # Return a tuple of the invalid characters indices
     return tuple(invalid_character_indices)
+
+
+def name_exists(name: str) -> bool:
+    """
+    Checks if a name exists in the database.
+    @param name: a string
+    @return: True if the name exists,
+             False if the name doesn't exist
+    """
+    return ida_name.get_name_ea(ida_idaapi.BADADDR, name) != ida_idaapi.BADADDR
+
+
+def set_name(effective_address: int, name: str, ignore_invalid_characters: bool = True):
+    """
+    Sets the name in the database at an effective address.
+    @param effective_address: the location of the data
+    @param name: the desired name
+    @param ignore_invalid_characters: True if IDA should ignore/replace invalid characters
+    @raise Exceptions.IDAPython: if setting the name failed
+    """
+    flags: int = ida_name.SN_CHECK if not ignore_invalid_characters else ida_name.SN_NOCHECK
+    if not ida_name.set_name(effective_address, name, flags):
+        raise Exceptions.IDAPython("Failed to apply a name: "
+                                   f"{effective_address=}, "
+                                   f"{name=!r}")
 
 
 # Data type conversion for the commonly used types
@@ -282,7 +407,7 @@ def create_enum(name: str, flags: int = ida_bytes.hex_flag(), width: int = 0) ->
 
     # Check if the enum was created successfully
     if enum_id == ida_idaapi.BADADDR:
-        raise Exceptions.IDAPython(f"Failed to create an enum: {enum_id=}")
+        raise Exceptions.IDAPython(f"Failed to create an enum: {enum_id=:0x}")
 
     # Set the enum width
     if width:
@@ -337,10 +462,10 @@ def set_enum_width(enum_id: int, width: int):
     @raise Exceptions.IDAPython: if setting the width failed
     """
     if not ida_enum.set_enum_width(enum_id, width):
-        raise Exceptions.IDAPython(f"Failed to set enum width: {enum_id=}, {width=}")
+        raise Exceptions.IDAPython(f"Failed to set enum width: {enum_id=:0x}, {width=}")
 
 
-def add_values_to_enum(enum_id: int, values: tuple):
+def add_values_to_enum(enum_id: int, values):
     """
     Inserts a tuple of values into an enum
     @param enum_id: enum_t provided by IDA API
@@ -359,17 +484,73 @@ def add_values_to_enum(enum_id: int, values: tuple):
 
         if error_code == ida_enum.ENUM_MEMBER_ERROR_NAME:
             raise Exceptions.IDAPython("Invalid or already taken enum name: "
-                                       f"{enum_id=}, "
-                                       f"{enum_value=}")
+                                       f"{enum_id=:0x}, "
+                                       f"{enum_value=:0x}")
         if error_code == ida_enum.ENUM_MEMBER_ERROR_VALUE:
             raise Exceptions.IDAPython("Invalid enum value, already has 256 entries: "
-                                       f"{enum_id=}, "
-                                       f"{enum_value=}")
+                                       f"{enum_id=:0x}, "
+                                       f"{enum_value=:0x}")
         if error_code == ida_enum.ENUM_MEMBER_ERROR_ENUM:
-            raise Exceptions.IDAPython(f"Invalid enum id: {enum_id=}")
+            raise Exceptions.IDAPython(f"Invalid enum id: {enum_id=:0x}")
 
         # Unknown error code
         raise Exceptions.IDAPython("Unknown error code from add_enum_member: "
                                    f"{error_code=}, "
-                                   f"{enum_id=}, "
-                                   f"{enum_value=}")
+                                   f"{enum_id=:0x}, "
+                                   f"{enum_value=:0x}")
+
+
+def enum_name_exists(name: str) -> bool:
+    """
+    Check if an enum name is already taken.
+    @param name: the name of the enum member
+    @return: True if the name exists,
+             False if it's free
+    """
+    return ida_enum.get_enum_member_by_name(name) != ida_idaapi.BADADDR
+
+
+def convert_to_enum(effective_address: int, enum_id: int, number_of_operand: int = 0, serial: int = 0):
+    """
+    Converts the bytes at an effective address into an enum.
+    @param effective_address: the location of the data
+    @param enum_id: enum_t provided by IDA API
+    @param number_of_operand: operand number
+    @param serial: the serial number of the constant in the enum
+    @raise Exceptions.IDAPython: if the operation failed
+    """
+    if not ida_bytes.op_enum(effective_address, number_of_operand, enum_id, serial):
+        raise Exceptions.IDAPython("Failed to convert to enum: "
+                                   f"{effective_address=:0x} "
+                                   f"{enum_id=:0x} "
+                                   f"{number_of_operand=}"
+                                   f"{serial=}")
+
+
+def prepare_enum_values(values,
+                        filter_callback: Callable = default_enum_values_filter,
+                        error_handler: Callable = default_enum_values_error_handler):
+    """
+    Prepares all the enum values for insertion into the database.
+     The error handler will modify the enum values if required.
+    @param values: a tuple of EnumValue instances
+    @param filter_callback: a callback that will filter the enum values based on the error callback
+                            the callback should accept the following parameters:
+                             - enum_value: the EnumValue instance
+                             - error_handler: the error handler
+                            the callback should return a bool value:
+                             - True: if the EnumValue instance should be preserved
+                             - False: if the EnumValue instance should be discarded
+                            the filter callback should not raise an exception
+    @param error_handler: a callback that's invoked when unexpected error occurs
+                          the callback should accept the following parameters:
+                           - enum_value: the EnumValue instance that caused the error
+                           - error_type: the type of error that occurred
+                           - retry_count: the amount of retries
+                          the callback should return a bool value:
+                           - True: retry all the checks
+                           - False: discard the EnumValue instance from the final tuple
+                          the error callback should not raise an exception
+    @return: a tuple of valid EnumValue instances
+    """
+    return tuple(enum_value for enum_value in values if filter_callback(enum_value, error_handler))
