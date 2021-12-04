@@ -16,3 +16,10 @@ repos:
         pass_filenames: false
         stages:
           - commit
+      - id: tox
+        name: tox
+        entry: tox
+        language: system
+        types: [python]
+        stages:
+          - push
