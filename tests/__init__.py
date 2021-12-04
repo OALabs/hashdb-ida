@@ -117,6 +117,14 @@ def setup_ida_typeinf() -> MagicMock:
     return MagicMock()
 
 
+def setup_ida_kernwin() -> MagicMock:
+    """
+    Setup the ida_kernwin module.
+    @return: the ida_kernwin mock module
+    """
+    return MagicMock()
+
+
 def modules() -> dict:
     return {
         "ida_name": setup_ida_name(),
@@ -124,7 +132,8 @@ def modules() -> dict:
         "ida_bytes": setup_ida_bytes(),
         "ida_diskio": setup_ida_diskio(),
         "ida_idaapi": setup_ida_idaapi(),
-        "ida_typeinf": setup_ida_typeinf()
+        "ida_typeinf": setup_ida_typeinf(),
+        "ida_kernwin": setup_ida_kernwin()
     }
 
 
