@@ -11,6 +11,7 @@ import ida_bytes
 import ida_diskio
 import ida_idaapi
 import ida_typeinf
+import ida_kernwin
 
 # HashDB
 from ..types.enum_value import EnumValue
@@ -571,3 +572,39 @@ def prepare_enum_values(values,
     @return: a tuple of valid EnumValue instances
     """
     return tuple(enum_value for enum_value in values if filter_callback(enum_value, error_handler))
+
+
+# Multi-threading helpers
+def execute_on_main(function: Callable, *args, **kwargs):
+    """
+    Executes a function on the main thread, and waits for it to return.
+    @param function: the function to execute
+    @param args: arguments
+    @param kwargs: keyword arguments
+    @return: the result of the function
+    @raise Exceptions.IDAPython: if execution failed
+    @raise Exception: if the provided function raised an exception
+    """
+    result = None
+    occurred_exception = None
+
+    # Setup the wrapper
+    def wrapper() -> int:
+        try:
+            nonlocal result
+            result = function(*args, **kwargs)
+        except Exception as exception:
+            nonlocal occurred_exception
+            occurred_exception = exception
+        return 0
+
+    # Execute the wrapper on the main thread
+    if ida_kernwin.execute_sync(wrapper, ida_kernwin.MFF_FAST) == -1:
+        raise Exceptions.IDAPython("Execution failed.")
+
+    # If an exception occurred, raise it
+    if occurred_exception is not None:
+        raise occurred_exception
+
+    # Return the result from the function
+    return result
