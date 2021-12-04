@@ -77,3 +77,11 @@ def enum_values():
         EnumValue(name="invalid name", value=12345, is_api=False),
         EnumValue(name="taken_name", value=12345, is_api=False),
         EnumValue(name="missing_suffix", value=12345, is_api=True))
+
+
+@pytest.fixture
+def expected_enum_values():
+    yield (
+        EnumValue(name="invalid_name", value=12345, is_api=False),
+        EnumValue(name="taken_name_5", value=12345, is_api=False),
+        EnumValue(name="missing_suffix_2", value=12345, is_api=True))
