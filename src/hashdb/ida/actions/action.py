@@ -1,4 +1,6 @@
 # System packages/modules
+import zlib
+import base64
 from typing import Callable
 
 # IDAPython
@@ -98,3 +100,14 @@ class Action:
     @property
     def flags(self) -> str:
         return self.descriptor.flags
+
+
+def load_custom_icon(compressed_data: bytes, image_format: str = "png") -> int:
+    """
+    Load custom icons from embedded data (bytes).
+    @param compressed_data: compressed data to load
+    @param image_format: image format
+    @return: a unique icon id (int)
+    """
+    data = zlib.decompress(base64.standard_b64decode(compressed_data))
+    return ida_kernwin.load_custom_icon(data=data, format=image_format)
