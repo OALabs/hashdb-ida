@@ -1,4 +1,5 @@
 import pytest
+from hashdb.types.enum_value import EnumValue
 
 
 @pytest.fixture
@@ -68,3 +69,11 @@ def invalid_hits_data():
         # missing hitrate
         {'algorithm': 'crc32', 'count': 1}
     ]}
+
+
+@pytest.fixture
+def enum_values():
+    yield (
+        EnumValue(name="invalid name", value=12345, is_api=False),
+        EnumValue(name="taken_name", value=12345, is_api=False),
+        EnumValue(name="missing_suffix", value=12345, is_api=True))
