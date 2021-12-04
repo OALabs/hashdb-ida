@@ -18,6 +18,7 @@ from ..types.enum_value import EnumValue
 from ..exceptions import Exceptions
 
 
+# Data types used by convert_to and read
 class DataType(IntEnum):
     """Used for type-safe conversions between IDA types."""
     QWORD = enum_auto()
@@ -29,7 +30,8 @@ class DataType(IntEnum):
     UNKNOWN = enum_auto()
 
 
-ida_type_conversion_list: dict = {
+# List of supported type conversions
+ida_type_conversions: dict = {
     "__int64": DataType.QWORD,
     "int": DataType.DWORD,
     "float": DataType.FLOAT,
@@ -38,6 +40,7 @@ ida_type_conversion_list: dict = {
 }
 
 
+# Error types for prepare_enum_values
 class ErrorType(IntEnum):
     """Used by the prepare_enum_values function to signal the type of error."""
     NAME_CONTAINS_INVALID_CHARS = enum_auto()  # a name has invalid characters
@@ -45,6 +48,7 @@ class ErrorType(IntEnum):
     NAME_MISSING_SUFFIX = enum_auto()          # the name is missing a suffix (in the case of APIs)
 
 
+# prepare_enum_values defaults
 def try_check_wrapper(enum_value: EnumValue, error_type: ErrorType,
                       error_handler: Callable, check: Callable) -> bool:
     """
@@ -404,7 +408,7 @@ def guess_type(effective_address: int) -> DataType:
         return DataType.ARRAY
 
     try:
-        return ida_type_conversion_list[guessed_type]
+        return ida_type_conversions[guessed_type]
     except KeyError:
         raise Exceptions.UnsupportedDataType(
             f"Unsupported data type encountered when guessing a type: {guessed_type}")
