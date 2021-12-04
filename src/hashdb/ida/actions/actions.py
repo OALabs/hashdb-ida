@@ -2,7 +2,7 @@
 import ida_kernwin
 
 # HashDB
-from ...utilities.logging import info, warning
+from ...utilities.logging import warning
 from .action import Action
 from .separator import Separator
 from .lookup_hash import LookupHash
@@ -62,11 +62,3 @@ class Actions:
             if not action.unregister():
                 warning(f"Failed to unregister action: {action.name}")
             action.free_icon()
-
-    # noinspection PyUnusedLocal,PyMethodMayBeStatic
-    def __on_hunt_hash_algo(self, context=None):
-        info("__on_hunt_hash_algo")
-
-    # noinspection PyUnusedLocal,PyMethodMayBeStatic
-    def __on_scan_hashes(self, context=None):
-        info("__on_scan_hashes")
