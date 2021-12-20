@@ -1418,8 +1418,9 @@ def hash_lookup_run(timeout: Union[int, float] = 0) -> bool:
 
     # Lookup the hash and show a match select form
     worker = Worker(target=hash_lookup_request, args=(
-        HASHDB_API_URL, HASHDB_ALGORITHM, hash_value, HASHDB_XOR_VALUE if HASHDB_USE_XOR else None, timeout))
-    worker.start(done_callback=hash_lookup_done, error_callback=hash_lookup_error)
+        HASHDB_API_URL, HASHDB_ALGORITHM, hash_value, HASHDB_XOR_VALUE if HASHDB_USE_XOR else None, timeout),
+        done_callback=hash_lookup_done, error_callback=hash_lookup_error)
+    worker.start()
     return False # Do not release the lock
 
 
@@ -1658,8 +1659,9 @@ def hash_scan_run(convert_values: bool, timeout: Union[int, float] = 0) -> bool:
     worker = Worker(target=hash_scan_request, args=(convert_values, hash_list,
                                                     HASHDB_API_URL, HASHDB_ALGORITHM,
                                                     HASHDB_XOR_VALUE if HASHDB_USE_XOR else None,
-                                                    timeout))
-    worker.start(done_callback=hash_scan_done, error_callback=hash_scan_error)
+                                                    timeout),
+                                                    done_callback=hash_scan_done, error_callback=hash_scan_error)
+    worker.start()
     return False # Do not release the lock
 
 
@@ -1771,8 +1773,9 @@ def hunt_algorithm_run(timeout: Union[int, float] = 0) -> bool:
         hash_value ^= HASHDB_XOR_VALUE
 
     # Hunt the algorithm and show the hunt result form
-    worker = Worker(target=hunt_algorithm_request, args=(hash_value, timeout))
-    worker.start(done_callback=hunt_algorithm_done, error_callback=hunt_algorithm_error)
+    worker = Worker(target=hunt_algorithm_request, args=(hash_value, timeout),
+                    done_callback=hunt_algorithm_done, error_callback=hunt_algorithm_error)
+    worker.start()
     return False # Do not release the lock
 
 
