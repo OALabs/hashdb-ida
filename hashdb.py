@@ -307,12 +307,13 @@ class HashDBError(Exception):
 class Worker(Thread):
     """The worker implementation for multi-threading support."""
     target: Callable
+    args: tuple = ()
     done_callback: Callable = None
     error_callback: Callable = None
 
     def __post_init__(self):
         """Required to initialize the base class (Thread)."""
-        super().__init__(target=self.__wrapped_target, daemon=True)
+        super().__init__(target=self.__wrapped_target, args=self.args, daemon=True)
 
     def __wrapped_target(self, *args, **kwargs):
         """
