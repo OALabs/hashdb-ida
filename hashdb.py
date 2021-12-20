@@ -182,7 +182,7 @@ import inspect
 import logging
 import threading
 from threading import Thread
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
 
 #--------------------------------------------------------------------------
@@ -307,7 +307,7 @@ class HashDBError(Exception):
 class Worker(Thread):
     """The worker implementation for multi-threading support."""
     target: Callable
-    args: tuple = ()
+    args: tuple = field(default_factory=tuple, compare=False)
     done_callback: Callable = None
     error_callback: Callable = None
 
@@ -942,6 +942,7 @@ def add_enums(enum_name, hash_list, enum_size = 0):
         global HASHDB_ALGORITHM_SIZE
         enum_size = HASHDB_ALGORITHM_SIZE // 8
 
+    
     # Create enum
     enum_id = idc.add_enum(-1, enum_name, ida_bytes.hex_flag())
     if enum_id == idaapi.BADNODE:
@@ -963,7 +964,7 @@ def add_enums(enum_name, hash_list, enum_size = 0):
         # First, we have to check if this name and value already exist in the enum
         if ida_enum.get_enum_member(enum_id, value, 0, 0) != idaapi.BADNODE:
             continue # Skip if the value already exists in the enum
-
+        
         # Replace spaces with underscores
         for index, character in enumerate(member_name):
             if character.isspace():
@@ -1368,8 +1369,8 @@ def hash_lookup_error(exception: Exception):
 
 
 def hash_lookup_request(api_url: str, algorithm: str,
-                              hash_value: int, xor_value: Union[None, int],
-                              timeout: Union[int, float]):
+                        hash_value: int, xor_value: Union[None, int],
+                        timeout: Union[int, float]):
     # Perform the request
     hash_results = None
     try:
@@ -1377,13 +1378,13 @@ def hash_lookup_request(api_url: str, algorithm: str,
     except requests.Timeout:
         idaapi.msg("ERROR: HashDB API lookup hash request timed out.\n")
         logging.exception("API request to {} timed out:".format(HASHDB_API_URL))
-        return None
+        return None, None
 
     hash_list = hash_results.get("hashes", [])
     # Did `hashes` exist, was the array empty?
     if not hash_list:
         idaapi.msg("HashDB: No hash found for {}\n".format(hex(hash_value)))
-        return None
+        return None, None
     return hash_list, hash_value
 
 
@@ -1579,7 +1580,7 @@ def hash_scan_request(convert_values: bool, hash_list: list,
         except requests.Timeout:
             idaapi.msg("ERROR: HashDB API lookup scan request timed out.\n")
             logging.exception("API request to {} timed out:".format(HASHDB_API_URL))
-            return None
+            return None, None
         
         hash_entry["hashes"] = hash_results.get("hashes", [])
     return convert_values, hash_list
@@ -1699,7 +1700,7 @@ def hunt_algorithm_done(response: Union[None, list] = None):
     # Display the result
     if response is not None:
         logging.debug("Displaying hash_result_form_t.")
-        hunt_result_form_callable = functools.partial(hunt_result_form_t.show, [response])
+        hunt_result_form_callable = functools.partial(hunt_result_form_t.show, response)
         ida_kernwin.execute_sync(hunt_result_form_callable, ida_kernwin.MFF_FAST)
     else:
         logging.debug("Couldn't find any algorithms that match the provided hash.")
