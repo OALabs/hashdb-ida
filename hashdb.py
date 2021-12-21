@@ -178,10 +178,11 @@ import string
 from typing import Union
 
 # These imports are specific to the Worker implementation
+import inspect
 import logging
 import threading
 from threading import Thread
-from collections.abc import Iterable
+from dataclasses import dataclass, field
 from typing import Callable
 
 #--------------------------------------------------------------------------
@@ -302,88 +303,62 @@ class HashDBError(Exception):
 #--------------------------------------------------------------------------
 # Worker implementation
 #--------------------------------------------------------------------------
+@dataclass(unsafe_hash=True)
 class Worker(Thread):
-    """
-    The `Worker` class represents a custom `Thread` object.
-    """
-    # Private variables:
-    __done_callback = None
-    __error_callback = None
-    __target = None
+    """The worker implementation for multi-threading support."""
+    target: Callable
+    args: tuple = field(default_factory=tuple, compare=False)
+    done_callback: Callable = None
+    error_callback: Callable = None
 
-    def __wrapper(self, *args, **kwargs):
+    def __post_init__(self):
+        """Required to initialize the base class (Thread)."""
+        super().__init__(target=self.__wrapped_target, args=self.args, daemon=True)
+
+    def __wrapped_target(self, *args, **kwargs):
         """
-        The `__wrapper` method serves as an exception handling wrapper for functions.
-         When a `Worker` is sent a `Signal` it handles it.
-
-        If a done callback is provided it will be invoked when the target routine is finished.
-
-        If an unexpected exception is thrown from the target/callback, it's raised.
+        Wraps the target function to allow callbacks and error handling.
+        @raise Exception: if an unhandled exception is encountered it will
+                          be raised
         """
-        # Run
         try:
-            result = self.__target(*args, **kwargs)
+            # Execute the target
+            results = self.target(*args, **kwargs)
 
-            # Support for multiple return values
-            if not isinstance(result, Iterable):
-                result = [result]
-            
-            # If we have a done callback, invoke it
-            if self.__done_callback is not None:
-                self.__done_callback(*result)
+            # Execute the done callback, if it exists
+            if self.done_callback is not None:
+                # Call the function based on the amount of arguments it expects
+                argument_spec = inspect.getfullargspec(self.done_callback)
+                argument_count = len(argument_spec.args)
+
+                if argument_count > 1:
+                    self.done_callback(*results)
+                elif argument_count == 1 and results is not None:
+                    self.done_callback(results)
+                else:
+                    self.done_callback()
         except Exception as exception:
-            # Execute the error callback
-            if self.__error_callback is not None:
-                self.__error_callback(exception)
+            # Execute the error callback, if it exits;
+            #  otherwise raise the exception (unhandled)
+            if self.error_callback is not None:
+                # Call the function based on the amount of arguments it expects
+                argument_spec = inspect.getfullargspec(self.error_callback)
+                argument_count = len(argument_spec.args)
 
-            exception_type = type(exception)
-            if exception_type == SystemExit:
-                logging.debug("Caught an expected exception: {}".format(exception_type.__name__))
+                if argument_count == 1:
+                    self.error_callback(exception)
+                else:
+                    self.error_callback()
             else:
-                logging.exception("Caught an unexpected exception: {}, raising.".format(exception_type.__name__))
                 raise exception
         finally:
-            # Decrement the reference count, no longer required
-            if self.__done_callback is not None:
-                del self.__done_callback
-            if self.__error_callback is not None:
-                del self.__error_callback
-            del self.__target
+            # Cleanup the callbacks (decrease reference counts)
+            if self.done_callback is not None:
+                del self.done_callback
+            if self.error_callback is not None:
+                del self.error_callback
 
-    def start(self, done_callback:  Callable = None,
-                    error_callback: Callable = None):
-        """
-        The `start` method is invoked when we attempt to start a new thread.
-        
-        If a done callback is provided, it's invoked after the target is gracefully finished.
-
-        If an error callback is provided, it's invoked if the target throws an expected exception.
-        """
-
-        # Set the done callback
-        if done_callback is not None:
-            self.__done_callback = done_callback
-
-        # Set the error callback
-        if error_callback is not None:
-            self.__error_callback = error_callback
-
-        # Call Thread.start()
-        super().start()
-
-    def run(self):
-        """
-        The `run` method is invoked after the thread is started.
-
-        This is where we setup the wrappers, and call the `Thread.run`.
-        """
-        # Wrap the target to enable catching exceptions for signals
-        self.__target = self._target
-        self._target = self.__wrapper
-
-        # Call Thread.run()
-        super().run()
-
+                
 #--------------------------------------------------------------------------
 # HashDB API 
 #--------------------------------------------------------------------------
@@ -967,6 +942,7 @@ def add_enums(enum_name, hash_list, enum_size = 0):
         global HASHDB_ALGORITHM_SIZE
         enum_size = HASHDB_ALGORITHM_SIZE // 8
 
+    
     # Create enum
     enum_id = idc.add_enum(-1, enum_name, ida_bytes.hex_flag())
     if enum_id == idaapi.BADNODE:
@@ -988,7 +964,7 @@ def add_enums(enum_name, hash_list, enum_size = 0):
         # First, we have to check if this name and value already exist in the enum
         if ida_enum.get_enum_member(enum_id, value, 0, 0) != idaapi.BADNODE:
             continue # Skip if the value already exists in the enum
-
+        
         # Replace spaces with underscores
         for index, character in enumerate(member_name):
             if character.isspace():
@@ -1393,8 +1369,8 @@ def hash_lookup_error(exception: Exception):
 
 
 def hash_lookup_request(api_url: str, algorithm: str,
-                              hash_value: int, xor_value: Union[None, int],
-                              timeout: Union[int, float]):
+                        hash_value: int, xor_value: Union[None, int],
+                        timeout: Union[int, float]):
     # Perform the request
     hash_results = None
     try:
@@ -1402,13 +1378,13 @@ def hash_lookup_request(api_url: str, algorithm: str,
     except requests.Timeout:
         idaapi.msg("ERROR: HashDB API lookup hash request timed out.\n")
         logging.exception("API request to {} timed out:".format(HASHDB_API_URL))
-        return None
+        return None, None
 
     hash_list = hash_results.get("hashes", [])
     # Did `hashes` exist, was the array empty?
     if not hash_list:
         idaapi.msg("HashDB: No hash found for {}\n".format(hex(hash_value)))
-        return None
+        return None, None
     return hash_list, hash_value
 
 
@@ -1443,8 +1419,9 @@ def hash_lookup_run(timeout: Union[int, float] = 0) -> bool:
 
     # Lookup the hash and show a match select form
     worker = Worker(target=hash_lookup_request, args=(
-        HASHDB_API_URL, HASHDB_ALGORITHM, hash_value, HASHDB_XOR_VALUE if HASHDB_USE_XOR else None, timeout))
-    worker.start(done_callback=hash_lookup_done, error_callback=hash_lookup_error)
+        HASHDB_API_URL, HASHDB_ALGORITHM, hash_value, HASHDB_XOR_VALUE if HASHDB_USE_XOR else None, timeout),
+        done_callback=hash_lookup_done, error_callback=hash_lookup_error)
+    worker.start()
     return False # Do not release the lock
 
 
@@ -1603,7 +1580,7 @@ def hash_scan_request(convert_values: bool, hash_list: list,
         except requests.Timeout:
             idaapi.msg("ERROR: HashDB API lookup scan request timed out.\n")
             logging.exception("API request to {} timed out:".format(HASHDB_API_URL))
-            return None
+            return None, None
         
         hash_entry["hashes"] = hash_results.get("hashes", [])
     return convert_values, hash_list
@@ -1683,8 +1660,9 @@ def hash_scan_run(convert_values: bool, timeout: Union[int, float] = 0) -> bool:
     worker = Worker(target=hash_scan_request, args=(convert_values, hash_list,
                                                     HASHDB_API_URL, HASHDB_ALGORITHM,
                                                     HASHDB_XOR_VALUE if HASHDB_USE_XOR else None,
-                                                    timeout))
-    worker.start(done_callback=hash_scan_done, error_callback=hash_scan_error)
+                                                    timeout),
+                                                    done_callback=hash_scan_done, error_callback=hash_scan_error)
+    worker.start()
     return False # Do not release the lock
 
 
@@ -1722,7 +1700,7 @@ def hunt_algorithm_done(response: Union[None, list] = None):
     # Display the result
     if response is not None:
         logging.debug("Displaying hash_result_form_t.")
-        hunt_result_form_callable = functools.partial(hunt_result_form_t.show, [response])
+        hunt_result_form_callable = functools.partial(hunt_result_form_t.show, response)
         ida_kernwin.execute_sync(hunt_result_form_callable, ida_kernwin.MFF_FAST)
     else:
         logging.debug("Couldn't find any algorithms that match the provided hash.")
@@ -1796,8 +1774,9 @@ def hunt_algorithm_run(timeout: Union[int, float] = 0) -> bool:
         hash_value ^= HASHDB_XOR_VALUE
 
     # Hunt the algorithm and show the hunt result form
-    worker = Worker(target=hunt_algorithm_request, args=(hash_value, timeout))
-    worker.start(done_callback=hunt_algorithm_done, error_callback=hunt_algorithm_error)
+    worker = Worker(target=hunt_algorithm_request, args=(hash_value, timeout),
+                    done_callback=hunt_algorithm_done, error_callback=hunt_algorithm_error)
+    worker.start()
     return False # Do not release the lock
 
 
