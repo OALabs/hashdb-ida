@@ -559,6 +559,7 @@ HashDB Settings
 
     def OnBtnRefresh(self, code=0):
         api_url = self.GetControlValue(self.iServer)
+        algorithms = []
         try:
             ida_kernwin.show_wait_box("HIDECANCEL\nPlease wait...")
             algorithms = get_algorithms(api_url=api_url)
