@@ -49,6 +49,7 @@ import ida_name
 import ida_enum
 import ida_bytes
 import ida_netnode
+import ida_typeinf
 
 # Imports for the exception handler
 import traceback
@@ -930,7 +931,37 @@ def html_format_invalid_characters(string: str, invalid_characters: list, color:
     return formatted_string
 
 
-def add_enums(enum_name, hash_list, enum_size = 0):
+def get_existing_enum_values(enum_name):
+    # Check if the enum exists
+    if ida_enum.get_enum(enum_name) == idaapi.BADNODE:
+        return {}
+
+    # Fetch the type definition
+    values = ida_typeinf.get_named_type(ida_typeinf.get_idati(), enum_name, ida_typeinf.NTF_TYPE)
+    if values is None:
+        return {}
+
+    _, type_str, fields_str, _, _, _, _ = values
+    type_definition = ida_typeinf.idc_print_type(type_str, fields_str, enum_name, 0)
+
+    # Parse the type definition
+    opening_bracket_position = type_definition.find("{")
+    closing_bracket_position = type_definition.rfind("}")
+    if opening_bracket_position == -1 or closing_bracket_position == -1:  # failed to find the brackets
+        return {}
+
+    # Split and parse the entries
+    hash_values = {}
+
+    split_entries = type_definition[opening_bracket_position+1:closing_bracket_position-1].split(",")
+    for enum_value_name, enum_value_str in (entry.split(" = ") for entry in split_entries):
+        base = 16 if enum_value_str.startswith("0x") or enum_value_str.startswith("-0x") else 10
+        hash_values[enum_value_name] = int(enum_value_str, base)
+
+    return hash_values
+
+
+def add_enums(enum_name, hash_list):
     """
     Adds a hash list to an enum by name.
      IMPORTANT: This function should always be executed on the main thread.
@@ -938,74 +969,76 @@ def add_enums(enum_name, hash_list, enum_size = 0):
     The hash list should be a list of tuples with three values:
      name: str, value: int, is_api: bool
     """
-    # Resolve the enum size
-    if not enum_size:
-        global HASHDB_ALGORITHM_SIZE
-        enum_size = HASHDB_ALGORITHM_SIZE // 8
-
-    
-    # Create enum
-    enum_id = idc.add_enum(-1, enum_name, ida_bytes.hex_flag())
-    if enum_id == idaapi.BADNODE:
-        # Enum already exists attempt to find it
-        enum_id = ida_enum.get_enum(enum_name)
-    if enum_id == idaapi.BADNODE:
-        # Can't create or find enum
-        return None
-    # Set the enum size/width (expected to return True for valid sizes)
-    if not ida_enum.set_enum_width(enum_id, enum_size):
-        return None
-    
-    # IDA API defines (https://hex-rays.com/products/ida/support/idapython_docs/ida_enum.html)
-    ENUM_MEMBER_ERROR_SUCCESS = 0 # successfully added
-    ENUM_MEMBER_ERROR_NAME    = 1 # a member with this name already exists
-
-    MAXIMUM_ATTEMPTS = 256 # ENUM_MEMBER_ERROR_VALUE -> only allows 256 members with this value
-    for member_name, value, is_api in hash_list:
-        # First, we have to check if this name and value already exist in the enum
-        if ida_enum.get_enum_member(enum_id, value, 0, 0) != idaapi.BADNODE:
-            continue # Skip if the value already exists in the enum
-        
-        # Replace spaces with underscores
-        for index, character in enumerate(member_name):
-            if character.isspace():
+    fixed_hash_values = get_existing_enum_values(enum_name)  # dict[str, int]
+    for enum_value_name, enum_value, is_api in hash_list:
+        # Fixup the name before appending it to the list
+        for index, character in enumerate(enum_value_name):
+            if character.isspace() or character == ".":
                 # Count not specified to replace all occurrences at once
-                member_name = member_name.replace(character, '_')
+                enum_value_name = enum_value_name.replace(character, '_')
 
-        # Check if a member name is valid
+        # Check if the name is valid and ask the user to replace invalid characters
         skip = False
-        invalid_characters = get_invalid_characters(member_name)
+        invalid_characters = get_invalid_characters(enum_value_name)
         while invalid_characters:
             # Open the unqualified name form
-            new_member_name = unqualified_name_replace_t.show(member_name, invalid_characters)
+            new_member_name = unqualified_name_replace_t.show(enum_value_name, invalid_characters)
 
             # Did the user skip, or provide an empty string?
             if not new_member_name:
                 skip = True
                 break
-            
-            member_name = new_member_name
+
+            enum_value_name = new_member_name
             # Check if the user provided an invalid name
-            invalid_characters = get_invalid_characters(member_name)
+            invalid_characters = get_invalid_characters(enum_value_name)
         if skip:
-            idaapi.msg("HashDB: Skipping hash result \"{}\" with value: {}\n".format(member_name, hex(value)))
+            idaapi.msg("HashDB: Skipping hash result \"{}\" with value: {}\n".format(enum_value_name, hex(enum_value)))
             continue
 
-        # Attempt to generate a name, and insert the value
-        for index in range(MAXIMUM_ATTEMPTS):
+        # Check if the name already exists in the database
+        maximum_attempts = 256  # ENUM_MEMBER_ERROR_VALUE -> only allows 256 members with this value
+        original_enum_value_name = enum_value_name
+        for i in range(maximum_attempts):
+            # Handle name suffixes
             if is_api:
-                enum_name = member_name + '_' + str(index)
-            else:
-                enum_name = member_name if not index else member_name + '_' + str(index - 1) # -1 to begin at 0 as opposed to `string_1`
+                enum_value_name = f"{original_enum_value_name}_{i}"
+            elif i:  # non API names that do not conflict with other names should not have a number suffix
+                enum_value_name = f"{original_enum_value_name}_{i - 1}"  # begin indices with 0
 
-            result = ida_enum.add_enum_member(enum_id, enum_name, value)
-            # Successfully added to the list
-            if result == ENUM_MEMBER_ERROR_SUCCESS:
+            # Check if the enum name and value already exist (prevent duplicates)
+            if (enum_value_name, enum_value) in fixed_hash_values.items():
                 break
 
-            # Unhandled error (TODO: add logging)
-            if result != ENUM_MEMBER_ERROR_NAME:
-                return None
+            # Check if the enum name already exists in the database
+            if ida_name.get_name_ea(idaapi.BADADDR, enum_value_name) != idaapi.BADADDR:
+                continue
+
+            # Add the values to the fixed hash list
+            fixed_hash_values[enum_value_name] = enum_value
+            break
+
+    # Generate the enum definition
+    enum_values = ",".join(f"{enum_value_name} = {enum_value:#x}"
+                           for enum_value_name, enum_value in fixed_hash_values.items())
+
+    # Support for 64-bit enums
+    global HASHDB_ALGORITHM_SIZE
+    is_64_bit_enum = idaapi.get_inf_structure().is_64bit() or HASHDB_ALGORITHM_SIZE == 64
+    suffix = ": unsigned __int64" if is_64_bit_enum else ""  # handle 64-bit IDBs
+    enum_definition = f"enum {enum_name + suffix} {{ {enum_values} }};"
+
+    # Parse and import the enum into the database
+    if ida_typeinf.idc_parse_types(enum_definition, 0):
+        idaapi.msg(f"HashDB: Failed to parse {enum_name} into the database, please contact the developers.\n")
+        return None
+
+    enum_id = ida_typeinf.import_type(ida_typeinf.get_idati(), -1, enum_name, 0)
+    if enum_id == idaapi.BADNODE:
+        idaapi.msg(f"HashDB: Failed to import {enum_name} into the database, please contact the developers.\n")
+        return None
+
+    # Return the enum id
     return enum_id
 
 
