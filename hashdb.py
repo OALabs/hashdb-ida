@@ -1011,7 +1011,8 @@ def add_enums(enum_name, hash_list):
                 break
 
             # Check if the enum name already exists in the database
-            if ida_name.get_name_ea(idaapi.BADADDR, enum_value_name) != idaapi.BADADDR:
+            if ida_name.get_name_ea(idaapi.BADADDR, enum_value_name) != idaapi.BADADDR or \
+               ida_enum.get_enum_member_by_name(enum_value_name) != idaapi.BADADDR:
                 continue
 
             # Add the values to the fixed hash list
