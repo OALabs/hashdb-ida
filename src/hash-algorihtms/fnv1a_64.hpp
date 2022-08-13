@@ -36,4 +36,12 @@ namespace hash_algorithms::fnv1a_64 {
     template<utilities::IsCharacter T, T... Characters>
     consteval auto operator""_fnv1a_64() noexcept { return calculate<T, Characters...>(); }
     #pragma clang diagnostic pop
+
+    // Compile-time tests
+    constexpr auto expected_test_result = 0xDAF6DADFB5E5528D;
+    static_assert("dummy_string"_fnv1a_64 == expected_test_result);
+    static_assert(L"dummy_string"_fnv1a_64 == expected_test_result);
+    static_assert(u8"dummy_string"_fnv1a_64 == expected_test_result);
+    static_assert(u"dummy_string"_fnv1a_64 == expected_test_result);
+    static_assert(U"dummy_string"_fnv1a_64 == expected_test_result);
 }
