@@ -2,6 +2,13 @@
 
 project("HashDB Test Suite" VERSION 0.0.1)
 
+# Compiler options
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(-Wall -Wextra -Wshadow-all -Wpedantic -Wconversion -Werror -mavx2)
+else()
+    message(FATAL_ERROR "Project error: unsupported compiler toolchain (check CMakeLists.txt).")
+endif()
+
 # Add source to this project's executable.
 set(HASHDB_TARGET_NAME "hashdb-tests-${TARGET_NAME}")
 file(GLOB SOURCE_FILES CONFIGURE_DEPENDS "*/*.hpp" "*/*.cpp")
