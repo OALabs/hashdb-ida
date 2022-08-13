@@ -7,6 +7,8 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(-Wall -Wextra -Wshadow-all -Wpedantic -Wconversion -Werror -mavx2)
     # Supress language compatibility warnings
     add_compile_options(-Wno-c++98-compat -Wno-c++20-compat)
+    # Hash algorithms
+    add_compile_options(-Wno-gnu-string-literal-operator-template)
 else()
     message(FATAL_ERROR "Project error: unsupported compiler toolchain (check CMakeLists.txt).")
 endif()
