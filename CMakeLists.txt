@@ -3,8 +3,10 @@
 project("HashDB Test Suite" VERSION 0.0.1)
 
 # Add source to this project's executable.
-add_executable (CMakeTarget "src/main.cpp")
+set(HASHDB_TARGET_NAME "hashdb-tests-${TARGET_NAME}")
+add_executable(${HASHDB_TARGET_NAME} "src/main.cpp")
 
-set_property(TARGET CMakeTarget PROPERTY CXX_STANDARD 23)
+# C++ Language Standard
+set_property(TARGET ${HASHDB_TARGET_NAME} PROPERTY CXX_STANDARD 23)
 
 # TODO: Add tests and install targets if needed.
