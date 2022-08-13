@@ -57,7 +57,6 @@ namespace hash_algorithms::crc32 {
     consteval auto operator""_crc32() noexcept { return calculate<T, Characters...>(); }
 
     // Compile-time tests
-    // Compile-time tests
     constexpr auto expected_test_result = 0x1F3F8675;
     static_assert("dummy_string"_crc32 == expected_test_result);
     static_assert(L"dummy_string"_crc32 == expected_test_result);
