@@ -1,6 +1,8 @@
+// ReSharper disable CppUnusedIncludeDirective
 #pragma once
 
 #include <type_traits>
+#include <string_view>
 
 namespace utilities {
 	template<class T>
