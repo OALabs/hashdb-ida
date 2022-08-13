@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+# Vistual Studio files
+.vs/
+
+# Output files (binaries)
+out/
