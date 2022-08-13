@@ -1,3 +1,4 @@
+// ReSharper disable CppClangTidyClangDiagnosticGnuStringLiteralOperatorTemplate
 #pragma once
 
 #include "../utilities/strings.hpp"
@@ -30,12 +31,9 @@ namespace hash_algorithms::fnv1a_64 {
         }
         return hash;
     }
-
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wgnu-string-literal-operator-template"
+    
     template<utilities::IsCharacter T, T... Characters>
     consteval auto operator""_fnv1a_64() noexcept { return calculate<T, Characters...>(); }
-    #pragma clang diagnostic pop
 
     // Compile-time tests
     constexpr auto expected_test_result = 0xDAF6DADFB5E5528D;
