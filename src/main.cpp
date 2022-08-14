@@ -58,6 +58,8 @@ namespace tests {
 		std::printf(R"(crc32("ntdll.dll"): %#x)""\n", "ntdll.dll"_crc32);
 		// expected behavior: No hash found for 0xCACA8209
 		std::printf(R"(crc32("UnKnOwN_StRiNg"): %#x)""\n", "UnKnOwN_StRiNg"_crc32);
+		// expected behavior: Hash match found: -path, the user is asked to provide a correct enum name
+		std::printf(R"(crc32("-path"): %#x)""\n", "-path"_crc32);
 
 		// Note: make sure the hashes were inserted into the `hashdb_strings_crc32` struct
 		puts("");
@@ -70,6 +72,8 @@ namespace tests {
 		std::printf(R"(fnv1a_64("ntdll.dll"): %#llx)""\n", "ntdll.dll"_fnv1a_64);
 		// expected behavior: No hash found for 0xD2D7ACA1A764A7EB
 		std::printf(R"(fnv1a_64("UnKnOwN_StRiNg"): %#llx)""\n", "UnKnOwN_StRiNg"_fnv1a_64);
+		// expected behavior: Hash match found: -path, the user is asked to provide a correct enum name
+		std::printf(R"(fnv1a_64("-path"): %#llx)""\n", "-path"_fnv1a_64);
 
 		// Note: make sure the hashes were inserted into the `hashdb_strings_fnv1a_64` struct
 		puts("");
@@ -82,6 +86,8 @@ namespace tests {
 		std::printf(R"(revil_010F("ntdll.dll"): %#x)""\n", "ntdll.dll"_revil_010F);
 		// expected behavior: Hash collisions, the user chooses the correct hash
 		std::printf(R"(revil_010F("UnKnOwN_StRiNg"): %#x)""\n", "UnKnOwN_StRiNg"_revil_010F);
+		// expected behavior: Hash match found: -path, the user is asked to provide a correct enum name
+		std::printf(R"(revil_010F("-path"): %#x)""\n", "-path"_revil_010F);
 
 		// Note: make sure the hashes were inserted into the `hashdb_strings_revil_010F` struct
 		puts("");
