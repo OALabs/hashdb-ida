@@ -46,9 +46,9 @@ namespace tests {
 	IMPORT_ARRAYS(_revil_010F, xor_key_64)
 
 	struct [[gnu::packed]] MixedHashesPacked { MIXED_HASH_TYPES };
-	constinit const MixedHashesPacked mixed_hashes_packed {};
+	constexpr MixedHashesPacked mixed_hashes_packed {};
 	struct MixedHashesAligned { MIXED_HASH_TYPES };
-	constinit const MixedHashesAligned mixed_hashes_aligned {};
+	constexpr MixedHashesAligned mixed_hashes_aligned {};
 
 	[[gnu::noinline]] static void print_crc32_hashes() noexcept {
 		puts(__PRETTY_FUNCTION__);
