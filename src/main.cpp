@@ -111,11 +111,11 @@ namespace tests {
 		std::printf("hashed_imports_unknown_string_revil_010F: %p\n", static_cast<const void*>(hashed_imports_unknown_string_revil_010F.data()));
 
 		// IAT scanning + xor transformation
-		std::printf("hashed_imports_xor_crc32: %p, xor_value_32: 0x%X\n",
+		std::printf("hashed_imports_xor_crc32: %p, xor_value_32: %#x\n",
 					static_cast<const void*>(hashed_imports_xor_crc32.data()), xor_key_32);
-		std::printf("hashed_imports_xor_fnv1a_64: %p, xor_value_64: 0x%llX\n",
+		std::printf("hashed_imports_xor_fnv1a_64: %p, xor_value_64: %#llx\n",
 					static_cast<const void*>(hashed_imports_xor_fnv1a_64.data()), xor_key_64);
-		std::printf("hashed_imports_xor_revil_010F: %p, xor_value_32: 0x%X\n",
+		std::printf("hashed_imports_xor_revil_010F: %p, xor_value_32: %#x\n",
 					static_cast<const void*>(hashed_imports_xor_revil_010F.data()), xor_key_32);
 
 		// Mixed IAT hashes (packed)
