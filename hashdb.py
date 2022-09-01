@@ -1052,7 +1052,7 @@ def parse_highlighted_value():
         raise HashDBError("Invalid selection; did you manually range-select a value, or double-click a value?")
 
     # Handle various number formats
-    match = re.match(r"^(?P<sign>[-+])?(?P<prefix>0|0x)?(?P<number>[0-9A-F]+)(?P<suffix>b|h|u|i64|ui64)?$",
+    match = re.match(r"^(?P<sign>[-+])?(?P<prefix>0|0x)?(?P<number>[0-9A-F]+)(?P<suffix>b|o|h|u|i64|ui64)?$",
                      identifier)
     if match is None:
         raise HashDBError(f"Failed to parse the value {identifier!r}, please submit a bug report.")
@@ -1065,7 +1065,7 @@ def parse_highlighted_value():
     radix = 10
     if suffix == "b":
         radix = 2  # binary
-    elif prefix == "0" and not suffix == "h":
+    elif suffix == "o" or prefix == "0" and not suffix == "h":
         radix = 8  # octal
     elif prefix == "0x" or suffix == "h":
         radix = 16  # hexadecimal
