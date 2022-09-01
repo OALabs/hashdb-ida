@@ -1036,7 +1036,6 @@ def make_const_enum(enum_id, hash_value):
         ida_bytes.op_enum(start, 0, enum_id, 0)
 
 
-# TODO: add exception handling around this call
 def parse_highlighted_value():
     current_viewer = ida_kernwin.get_current_viewer()
     is_range_selected, _, _ = ida_kernwin.read_range_selection(current_viewer)
@@ -1211,12 +1210,12 @@ def set_xor_key():
     """
     global HASHDB_USE_XOR
     global HASHDB_XOR_VALUE
-    xor_value = parse_highlighted_value()
-    if xor_value is None:
-        idaapi.msg("HashDB ERROR: Invalid xor value selection.\n")
+    try:
+        xor_value = parse_highlighted_value()
+        ida_kernwin.msg(f"HashDB: Set xor value to {xor_value:#x}\n")
+    except HashDBError as exception:
+        ida_kernwin.msg(f"HashDB ERROR: {exception}\n")
         return False
-    else:
-        idaapi.msg("HashDB: Set xor value to: {}\n".format(hex(xor_value)))
     HASHDB_XOR_VALUE = xor_value
     HASHDB_USE_XOR = True
     idaapi.msg("XOR key set: {}\n".format(hex(xor_value)))
@@ -1402,12 +1401,12 @@ def hash_lookup_run(timeout: Union[int, float] = 0) -> bool:
             return True # Release the lock
     
     # Get the selected hash value
-    hash_value = parse_highlighted_value()
-    if hash_value is None:
-        idaapi.msg("HashDB ERROR: Invalid hash value selection.\n")
-        return True # Release the lock
-    else:
-        idaapi.msg("HashDB: Found hash value: {}\n".format(hex(hash_value)))
+    try:
+        hash_value = parse_highlighted_value()
+        ida_kernwin.msg(f"HashDB: Found hash value: {hash_value:#x}\n")
+    except HashDBError as exception:
+        ida_kernwin.msg(f"HashDB ERROR: {exception}\n")
+        return True  # release the lock
 
     # Lookup the hash and show a match select form
     worker = Worker(target=hash_lookup_request, args=(
@@ -1755,11 +1754,12 @@ def hunt_algorithm_run(timeout: Union[int, float] = 0) -> bool:
     global HASHDB_REQUEST_LOCK, HASHDB_USE_XOR, HASHDB_XOR_VALUE
     
     # Get the selected hash value
-    hash_value = parse_highlighted_value()
-    if hash_value is None:
-        idaapi.msg("HashDB ERROR: Invalid hash hash selection.\n")
-        logging.warn("Failed to parse a hash value from the highligted text.")
-        return True # Release the lock
+    try:
+        hash_value = parse_highlighted_value()
+    except HashDBError as exception:
+        ida_kernwin.msg(f"HashDB ERROR: {exception}\n")
+        logging.warning("Failed to parse a hash value from the highlighted text.")
+        return True  # Release the lock
     
     # Xor option
     if HASHDB_USE_XOR:
