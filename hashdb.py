@@ -173,9 +173,9 @@ def hashdb_exception_hook(exception_type, value, traceback_object):
 sys.excepthook = hashdb_exception_hook
 
 # Rest of the imports
+import re
 import functools
 import requests
-import string
 from typing import Union
 
 # These imports are specific to the Worker implementation
@@ -1071,53 +1071,43 @@ def make_const_enum(enum_id, hash_value):
 
 
 def parse_highlighted_value():
-    identifier = None
+    current_viewer = ida_kernwin.get_current_viewer()
+    is_range_selected, _, _ = ida_kernwin.read_range_selection(current_viewer)
+    if is_range_selected:
+        raise HashDBError("Ranged selections are not supported when parsing highlighted values. "
+                          "Were multiple lines selected?")
 
-    v = ida_kernwin.get_current_viewer()
-    thing = ida_kernwin.get_highlight(v)
-    if thing and thing[1]:
-        identifier = thing[0]
-    if identifier is None:
-        return None
+    highlight_result = ida_kernwin.get_highlight(current_viewer)
+    if highlight_result is None:
+        raise HashDBError("Invalid selection; nothing was selected.")
 
-    # Represents the type of the value
-    type = "decimal"
-    if identifier.endswith('h'):
-        # IDA View
-        identifier = identifier[:-1]
-        type = "hex"
-    elif identifier.startswith("0x"):
-        # Pseudocode
-        identifier = identifier[2:]
-        type = "hex"
-    elif identifier.endswith('o'):
-        identifier = identifier[:-1]
-        type = "octal"
-    elif identifier.endswith('b'):
-        identifier = identifier[:-1]
-        type = "binary"
-    
-    character_set = {
-        "binary": "01",
-        "octal": string.octdigits,
-        "decimal": string.digits,
-        "hex": string.hexdigits
-    }
-    # Find the first invalid character and trim the string accordingly
-    for index, character in enumerate(identifier):
-        if character not in character_set[type]:
-            identifier = identifier[:index]
-            break
-    if not identifier: # The first character was bad
-        return None
+    identifier, flags = highlight_result
+    if not flags:
+        raise HashDBError("Invalid selection; did you manually range-select a value, or double-click a value?")
 
-    types = {
-        "binary": 2,
-        "octal": 8,
-        "decimal": 10,
-        "hex": 16
-    }
-    return int(identifier, types[type])
+    # Handle various number formats
+    match = re.match(r"^(?P<sign>[-+])?(?P<prefix>0|0x)?(?P<number>[0-9A-F]+)(?P<suffix>b|o|h|u|i64|ui64)?$",
+                     identifier)
+    if match is None:
+        raise HashDBError(f"Failed to parse the value {identifier!r}, please submit a bug report.")
+
+    # Determine the radix and number value
+    sign, prefix, number, suffix = match.groups()
+    if sign is None:
+        sign = "+"
+
+    radix = 10
+    if suffix == "b":
+        radix = 2  # binary
+    elif suffix == "o" or prefix == "0" and not suffix == "h":
+        radix = 8  # octal
+    elif prefix == "0x" or suffix == "h":
+        radix = 16  # hexadecimal
+
+    try:
+        return int(f"{sign}{number}", radix)
+    except ValueError:
+        raise HashDBError(f"Failed to parse the value {identifier!r} with a radix of {radix}.")
 
 
 def determine_highlighted_type_size(ea: int) -> int:
@@ -1254,12 +1244,12 @@ def set_xor_key():
     """
     global HASHDB_USE_XOR
     global HASHDB_XOR_VALUE
-    xor_value = parse_highlighted_value()
-    if xor_value is None:
-        idaapi.msg("HashDB ERROR: Invalid xor value selection.\n")
+    try:
+        xor_value = parse_highlighted_value()
+        ida_kernwin.msg(f"HashDB: Set xor value to {xor_value:#x}\n")
+    except HashDBError as exception:
+        ida_kernwin.msg(f"HashDB ERROR: {exception}\n")
         return False
-    else:
-        idaapi.msg("HashDB: Set xor value to: {}\n".format(hex(xor_value)))
     HASHDB_XOR_VALUE = xor_value
     HASHDB_USE_XOR = True
     idaapi.msg("XOR key set: {}\n".format(hex(xor_value)))
@@ -1445,12 +1435,12 @@ def hash_lookup_run(timeout: Union[int, float] = 0) -> bool:
             return True # Release the lock
     
     # Get the selected hash value
-    hash_value = parse_highlighted_value()
-    if hash_value is None:
-        idaapi.msg("HashDB ERROR: Invalid hash value selection.\n")
-        return True # Release the lock
-    else:
-        idaapi.msg("HashDB: Found hash value: {}\n".format(hex(hash_value)))
+    try:
+        hash_value = parse_highlighted_value()
+        ida_kernwin.msg(f"HashDB: Found hash value: {hash_value:#x}\n")
+    except HashDBError as exception:
+        ida_kernwin.msg(f"HashDB ERROR: {exception}\n")
+        return True  # release the lock
 
     # Lookup the hash and show a match select form
     worker = Worker(target=hash_lookup_request, args=(
@@ -1798,11 +1788,12 @@ def hunt_algorithm_run(timeout: Union[int, float] = 0) -> bool:
     global HASHDB_REQUEST_LOCK, HASHDB_USE_XOR, HASHDB_XOR_VALUE
     
     # Get the selected hash value
-    hash_value = parse_highlighted_value()
-    if hash_value is None:
-        idaapi.msg("HashDB ERROR: Invalid hash hash selection.\n")
-        logging.warn("Failed to parse a hash value from the highligted text.")
-        return True # Release the lock
+    try:
+        hash_value = parse_highlighted_value()
+    except HashDBError as exception:
+        ida_kernwin.msg(f"HashDB ERROR: {exception}\n")
+        logging.warning("Failed to parse a hash value from the highlighted text.")
+        return True  # Release the lock
     
     # Xor option
     if HASHDB_USE_XOR:
