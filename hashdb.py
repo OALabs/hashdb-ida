@@ -1768,7 +1768,7 @@ def hunt_algorithm_request(hash_value: int, timeout=None) -> Union[None, list]:
     algorithms = None
     try:
         # Send the hunt request
-        algorithms = get_algorithms(timeout=timeout)
+        algorithms = get_algorithms(api_url=HASHDB_API_URL, timeout=timeout)
     except (requests.exceptions.Timeout, requests.exceptions.ReadTimeout):
         idaapi.msg("ERROR: HashDB API algorithms request timed out.\n")
         logging.exception("API request to {} timed out.".format(HASHDB_API_URL))
