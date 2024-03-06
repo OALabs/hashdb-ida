@@ -956,6 +956,7 @@ def get_existing_enum_values(enum_name):
     split_entries = type_definition[opening_bracket_position+1:closing_bracket_position-1].split(",")
     for enum_value_name, enum_value_str in (entry.split(" = ") for entry in split_entries):
         base = 16 if enum_value_str.startswith("0x") or enum_value_str.startswith("-0x") else 10
+        enum_value_str = enum_value_str.replace("LL", "")
         hash_values[enum_value_name] = int(enum_value_str, base)
 
     return hash_values
