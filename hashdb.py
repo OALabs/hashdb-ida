@@ -41,6 +41,7 @@ PLUGIN_HOTKEY = 'Alt+`'
 VERSION = '1.8.0'
 
 import sys
+import time
 
 import idaapi
 import idc
@@ -1589,6 +1590,15 @@ def hash_scan_done(convert_values: bool = False, hash_list: Union[None, list] = 
     HASHDB_REQUEST_LOCK.release()
 
 
+def rate_limit_hit(seconds):
+    spinner_chars = "|/-\\"
+    for _ in range(seconds):
+        for char in spinner_chars:
+            sys.stdout.write(f'\r{char} Waiting 65 seconds to respect the HashDB API limit...')
+            sys.stdout.flush()
+            time.sleep(.25)
+
+
 def hash_scan_error(exception: Exception):
     global HASHDB_REQUEST_LOCK
     exception_string = traceback.format_exc()
@@ -1600,7 +1610,14 @@ def hash_scan_error(exception: Exception):
 def hash_scan_request(convert_values: bool, hash_list: list,
                             api_url: str, algorithm: str, xor_value: int,
                             timeout: Union[int, float]) -> Union[None, list]:
+    api_calls = 0
     for hash_entry in hash_list:
+        if api_calls == 99:
+            print('\n')
+            rate_limit_hit(65) # Wait 65 seconds to respect the API limit
+            print('\n')
+            api_calls = 0
+        api_calls += 1
         try:
             hash_results = get_strings_from_hash(algorithm, hash_entry["hash_value"], xor_value if xor_value is not None else 0, api_url, timeout)
         except requests.Timeout:
