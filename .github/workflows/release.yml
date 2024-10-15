@@ -4,6 +4,11 @@ on:
   push:
     tags:
     - '*'
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release version'
+        required: true
 
 jobs:
 
