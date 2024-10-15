@@ -38,7 +38,7 @@ __AUTHOR__ = '@herrcore'
 
 PLUGIN_NAME = "HashDB"
 PLUGIN_HOTKEY = 'Alt+`'
-VERSION = '1.9.0'
+VERSION = '1.10.0'
 
 import sys
 import time
