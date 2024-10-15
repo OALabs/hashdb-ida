@@ -11,13 +11,19 @@ on:
         required: true
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - uses: ncipollo/release-action@v1
+
+    - name: Determine Tag
+      id: get_tag
+      run: echo "::set-output name=tag::${{ github.ref_name || github.event.inputs.release_version }}"
+
+    - name: Create Release
+      uses: ncipollo/release-action@v1
       with:
         artifacts: "hashdb.py"
         omitBody: true
+        tag: ${{ steps.get_tag.outputs.tag }}
         token: ${{ secrets.GITHUB_TOKEN }}
