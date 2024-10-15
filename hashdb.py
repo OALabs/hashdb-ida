@@ -38,16 +38,32 @@ __AUTHOR__ = '@herrcore'
 
 PLUGIN_NAME = "HashDB"
 PLUGIN_HOTKEY = 'Alt+`'
-VERSION = '1.8.0'
+VERSION = '1.9.0'
 
 import sys
 import time
 
 import idaapi
+
+#--------------------------------------------------------------------------
+# IDA Python version madness
+#--------------------------------------------------------------------------
+
+major, minor = map(int, idaapi.get_kernel_version().split("."))
+assert (major > 6),"ERROR: HashDB plugin requires IDA v7+"
+assert (sys.version_info >= (3, 5)), "ERROR: HashDB plugin requires Python 3.5"
+# We need to make some adjustments for IDA 9
+IDA_9 = major >= 9
+
+if IDA_9:
+    import ida_ida
+else:
+    import ida_enum
+
+
 import idc
 import ida_kernwin
 import ida_name
-import ida_enum
 import ida_bytes
 import ida_netnode
 import ida_typeinf
@@ -58,13 +74,49 @@ import json
 import webbrowser
 import urllib.parse
 
-#--------------------------------------------------------------------------
-# IDA Python version madness
-#--------------------------------------------------------------------------
 
-major, minor = map(int, idaapi.get_kernel_version().split("."))
-assert (major > 6),"ERROR: HashDB plugin requires IDA v7+"
-assert (sys.version_info >= (3, 5)), "ERROR: HashDB plugin requires Python 3.5"
+#--------------------------------------------------------------------------
+# Setup IDA 9 globals 
+#--------------------------------------------------------------------------
+if IDA_9:
+    BITS =  32 if not ida_ida.inf_is_64bit() else 64
+    BWN_DISASM = ida_kernwin.BWN_DISASM
+    BWN_PSEUDOCODE = ida_kernwin.BWN_PSEUDOCODE
+    SETMENU_APP = ida_kernwin.SETMENU_APP
+else:
+    BITS = 32 if not idaapi.get_inf_structure().is_64bit() else 64
+    BWN_DISASM = idaapi.BWN_DISASMS
+    BWN_PSEUDOCODE = idaapi.BWN_PSEUDOCODE
+    SETMENU_APP = idaapi.SETMENU_APP
+
+
+def get_enum(enum_name: str):
+    if IDA_9:
+        return idc.get_enum(enum_name)
+    else:
+        return ida_enum.get_enum(enum_name)
+
+
+def import_type(idx: int, enum_name: str):
+    if IDA_9:
+        return idc.import_type(idx, enum_name)
+    else:
+        return ida_typeinf.import_type(ida_typeinf.get_idati(), idx, enum_name, 0)
+    
+
+def attach_action_to_popup(widget, popup_handle, name, popuppath=None, flags=0):
+    if IDA_9:
+        return ida_kernwin.attach_action_to_popup(widget, popup_handle, name, popuppath, flags)
+    else:
+        return idaapi.attach_action_to_popup(widget, popup_handle, name, popuppath, flags)
+
+
+def get_enum_member_by_name(enum_value_name: str):
+    if IDA_9:
+        return idc.get_enum_member_by_name(enum_value_name)
+    else:
+        return ida_enum.get_enum_member_by_name(enum_value_name)
+
 
 #--------------------------------------------------------------------------
 # Global exception hook to detect plugin exceptions until
@@ -82,7 +134,7 @@ def hashdb_exception_hook(exception_type, value, traceback_object):
             "plugin_version": VERSION,
             "ida": {
                 "kernel_version": ida_kernwin.get_kernel_version(),
-                "bits": 32 if not idaapi.get_inf_structure().is_64bit() else 64
+                "bits": BITS
             }
         },
         "exception_data": {
@@ -934,7 +986,7 @@ def html_format_invalid_characters(string: str, invalid_characters: list, color:
 
 def get_existing_enum_values(enum_name):
     # Check if the enum exists
-    if ida_enum.get_enum(enum_name) == idaapi.BADNODE:
+    if get_enum(enum_name) == idaapi.BADNODE:
         return {}
 
     # Fetch the type definition
@@ -1014,7 +1066,7 @@ def add_enums(enum_name, hash_list):
 
             # Check if the enum name already exists in the database
             if ida_name.get_name_ea(idaapi.BADADDR, enum_value_name) != idaapi.BADADDR or \
-               ida_enum.get_enum_member_by_name(enum_value_name) != idaapi.BADADDR:
+               get_enum_member_by_name(enum_value_name) != idaapi.BADADDR:
                 continue
 
             # Add the values to the fixed hash list
@@ -1027,7 +1079,7 @@ def add_enums(enum_name, hash_list):
 
     # Support for 64-bit enums
     global HASHDB_ALGORITHM_SIZE
-    is_64_bit_enum = idaapi.get_inf_structure().is_64bit() or HASHDB_ALGORITHM_SIZE == 64
+    is_64_bit_enum = BITS == 64 or HASHDB_ALGORITHM_SIZE == 64
     suffix = ": unsigned __int64" if is_64_bit_enum else ""  # handle 64-bit IDBs
     enum_definition = f"enum {enum_name + suffix} {{ {enum_values} }};"
 
@@ -1036,7 +1088,7 @@ def add_enums(enum_name, hash_list):
         idaapi.msg(f"HashDB: Failed to parse {enum_name} into the database, please contact the developers.\n")
         return None
 
-    enum_id = ida_typeinf.import_type(ida_typeinf.get_idati(), -1, enum_name, 0)
+    enum_id = import_type(-1, enum_name)
     if enum_id == idaapi.BADNODE:
         idaapi.msg(f"HashDB: Failed to import {enum_name} into the database, please contact the developers.\n")
         return None
@@ -2068,33 +2120,33 @@ class Hooks(idaapi.UI_Hooks):
         if event == idaapi.hxe_populating_popup:
             form, popup, vu = args
 
-            idaapi.attach_action_to_popup(
+            attach_action_to_popup(
                 form,
                 popup,
                 HashDB_Plugin_t.ACTION_HASH_LOOKUP,
                 "HashDB Lookup",
-                idaapi.SETMENU_APP,
+                SETMENU_APP,
             )
-            idaapi.attach_action_to_popup(
+            attach_action_to_popup(
                 form,
                 popup,
                 HashDB_Plugin_t.ACTION_SET_XOR,
                 "HashDB set XOR key",
-                idaapi.SETMENU_APP,
+                SETMENU_APP,
             )
-            idaapi.attach_action_to_popup(
+            attach_action_to_popup(
                 form,
                 popup,
                 HashDB_Plugin_t.ACTION_HUNT,
                 "HashDB Hunt Algorithm",
-                idaapi.SETMENU_APP,
+                SETMENU_APP,
             )
-            idaapi.attach_action_to_popup(
+            attach_action_to_popup(
                 form,
                 popup,
                 HashDB_Plugin_t.ACTION_IAT_SCAN,
                 "HashDB Scan IAT",
-                idaapi.SETMENU_APP,
+                SETMENU_APP,
             )
 
         # done
@@ -2112,40 +2164,40 @@ def inject_actions(form, popup, form_type):
     # disassembly window
     #
 
-    if (form_type == idaapi.BWN_DISASMS) or (form_type == idaapi.BWN_PSEUDOCODE):
+    if (form_type == BWN_DISASM) or (form_type == BWN_PSEUDOCODE):
         # insert the action entry into the menu
         #
 
-        idaapi.attach_action_to_popup(
+        attach_action_to_popup(
             form,
             popup,
             HashDB_Plugin_t.ACTION_HASH_LOOKUP,
             "HashDB Lookup",
-            idaapi.SETMENU_APP
+            SETMENU_APP
         )
 
-        idaapi.attach_action_to_popup(
+        attach_action_to_popup(
             form,
             popup,
             HashDB_Plugin_t.ACTION_SET_XOR,
             "HashDB set XOR key",
-            idaapi.SETMENU_APP
+            SETMENU_APP
         )
 
-        idaapi.attach_action_to_popup(
+        attach_action_to_popup(
             form,
             popup,
             HashDB_Plugin_t.ACTION_HUNT,
             "HashDB Hunt Algorithm",
-            idaapi.SETMENU_APP
+            SETMENU_APP
         )
-        if form_type != idaapi.BWN_PSEUDOCODE:
-            idaapi.attach_action_to_popup(
+        if form_type != BWN_PSEUDOCODE:
+            attach_action_to_popup(
                 form,
                 popup,
                 HashDB_Plugin_t.ACTION_IAT_SCAN,
                 "HashDB Scan IAT",
-                idaapi.SETMENU_APP
+                SETMENU_APP
             )
 
     # done
