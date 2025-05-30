@@ -4,7 +4,7 @@
     "name": "HashDB",
     "entryPoint": "hashdb.py",
     "categories": ["malware-analysis", "deobfuscation"],
-    "logoPath": "function_analyzer_logo.png",
+    "logoPath": "hashi.png",
     "idaVersions": ">=7.5",
     "description": "Malware string hash lookup plugin for IDA Pro. This plugin connects to the OALABS HashDB Lookup Service.",
     "version": "1.10.0"
