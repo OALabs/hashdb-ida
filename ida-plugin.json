@@ -1,0 +1,12 @@
+{
+  "IDAMetadataDescriptorVersion": 1,
+  "plugin": {
+    "name": "HashDB",
+    "entryPoint": "hashdb.py",
+    "categories": ["malware", "hash", "hashdb"],
+    "logoPath": "function_analyzer_logo.png",
+    "idaVersions": ">=7.5",
+    "description": "Malware string hash lookup plugin for IDA Pro. This plugin connects to the OALABS HashDB Lookup Service.",
+    "version": "1.10.0"
+  }
+}
