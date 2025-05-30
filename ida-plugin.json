@@ -3,7 +3,7 @@
   "plugin": {
     "name": "HashDB",
     "entryPoint": "hashdb.py",
-    "categories": ["malware", "hash", "hashdb"],
+    "categories": ["malware-analysis", "deobfuscation"],
     "logoPath": "function_analyzer_logo.png",
     "idaVersions": ">=7.5",
     "description": "Malware string hash lookup plugin for IDA Pro. This plugin connects to the OALABS HashDB Lookup Service.",
