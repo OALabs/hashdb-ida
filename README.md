@@ -33,7 +33,7 @@ The default API URL for the HashDB Lookup Service is `https://hashdb.openanalysi
 When a new hash is identified by HashDB the hash and its associated string are added to an **enum** in IDA. This enum can then be used to convert hash constants in IDA to their corresponding enum name. The enum name is configurable from the settings in the event that there is a conflict with an existing enum.
 
 ### Hash Lookup
-Once the plugin settings have been configured you can right-click on any constant in the IDA disassembly window and look up the constant as a hash. The right-click also provides a quick way to set the XOR value if needed.
+Once the plugin settings have been configured you can right-click on any constant in the IDA disassembly or Pseudocode (Hex-Rays) window and look up the constant as a hash. The right-click also provides a quick way to set the XOR value if needed.
 
 <p align="center">
     <img width="380" src="/assets/HashDB-Xor_Key.png?raw=true">
@@ -45,6 +45,9 @@ If a hash is part of a module a prompt will ask if you want to import all the ha
 <p align="center">
     <img width="367" src="/assets/HashDB-Bulk_Import.png?raw=true">
 </p>
+
+### Function-Wide Apply
+After a hash is resolved (or a module is bulk-imported), HashDB scans the current function and converts every matching constant to its enum name — across operands 0–2, with a 32-bit-mask fallback for sign-extended values. The disassembly and Hex-Rays views are refreshed automatically. Modules you've already imported are cached for the session, so you won't be re-prompted to import `kernel32` (etc.) on every new hash.
 
 ### Algorithm Search
 HashDB also includes a basic algorithm search that will attempt to identify the hash algorithm based on a hash value. **The search will return all algorithms that contain the hash value, it is up to the analyst to decide which (if any) algorithm is correct.** To use this functionality right-click on the hash constant and select `HashDB Hunt Algorithm`.
@@ -68,13 +71,14 @@ Instead of resolving API hashes individually (inline in code) some malware devel
 
 Simply select the import hash block, right-click and choose `HashDB Scan IAT`. HashDB will attempt to resolve each individual integer type (`DWORD/QWORD`) in the selected range.
 
-## Installing HashDB 
-Before using the plugin you must install the python **requests** module in your IDA environment. The simplest way to do this is to use pip from a shell outside of IDA.  
-`pip install requests`
+## Installing HashDB
+HashDB requires the python **requests** module. Install it from a shell outside of IDA with `pip install requests`.
 
-Once you have the requests module installed simply copy the latest release of [`hashdb.py`](https://github.com/OALabs/hashdb-ida/releases) into your IDA plugins directory and you are ready to start looking up hashes!
+You can then install the plugin in either of two ways:
+- **IDA Plugin Manager (IDA 7.5+):** install/update HashDB directly from the plugin manager.
+- **Manual:** copy the latest [`hashdb.py`](https://github.com/OALabs/hashdb-ida/releases) into your IDA `plugins` directory.
 
 
 ## ❗Compatibility Issues
-The HashDB plugin has been developed for use with the __IDA 7+__ and __Python 3__ it is not backwards compatible. 
+The HashDB plugin targets __IDA 7.5+__ (including IDA 9.0) with __Python 3__ and is not backwards compatible. 
 
