@@ -71,13 +71,13 @@ Instead of resolving API hashes individually (inline in code) some malware devel
 
 Simply select the import hash block, right-click and choose `HashDB Scan IAT`. HashDB will attempt to resolve each individual integer type (`DWORD/QWORD`) in the selected range.
 
-### Experimental Pseudocode Hints
+### Pseudocode Hints
 
 In pseudocode, select a numeric hash and run **HashDB Hunt Algorithm**. Choose an algorithm, then click **Resolve** to scan that function. **Apply inline hints** adds a muted label after each matched constant, such as `0x7C0DFCAA ror13_add: kernel32!GetProcAddress`. Use **HashDB: Show/hide pseudocode hints** to toggle the labels.
 
 ![Pseudocode suffix hints](assets/HashDB-Pseudocode-Hints.png)
 
-Only `hashdb.py` is needed. Algorithms come from the server through Hunt or **Refresh Algorithms**; none are bundled. The feature checks for the required IDA APIs and Python 3.9+ before loading. See the [short guide](docs/pseudocode-hints.md).
+Algorithms come from the server through Hunt or **Refresh Algorithms**; none are bundled. The feature checks for the required IDA APIs and Python 3.9+ before loading. See the [short guide](docs/pseudocode-hints.md).
 
 ## Installing HashDB
 HashDB requires the python **requests** module. Install it from a shell outside of IDA with `pip install requests`.
@@ -85,8 +85,6 @@ HashDB requires the python **requests** module. Install it from a shell outside 
 You can then install the plugin in either of two ways:
 - **IDA Plugin Manager (IDA 7.5+):** install/update HashDB directly from the plugin manager.
 - **Manual:** copy the latest [`hashdb.py`](https://github.com/OALabs/hashdb-ida/releases) into your IDA `plugins` directory.
-
-To test this draft branch, copy its `hashdb.py` into your plugin directory and restart IDA. It is not yet available through an upstream release.
 
 
 ## ❗Compatibility Issues
