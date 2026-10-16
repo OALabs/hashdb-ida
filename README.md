@@ -71,12 +71,24 @@ Instead of resolving API hashes individually (inline in code) some malware devel
 
 Simply select the import hash block, right-click and choose `HashDB Scan IAT`. HashDB will attempt to resolve each individual integer type (`DWORD/QWORD`) in the selected range.
 
+### Experimental Pseudocode Hints
+
+In a Hex-Rays pseudocode window, select a numeric hash and run **HashDB Hunt Algorithm**. After you choose an algorithm, an optional scan dialog lets you resolve all numeric expressions in that function and apply display-only suffix hints. Click **Resolve** to start the function scan; canceling the dialog leaves the function unchanged.
+
+For example, `0x7C0DFCAA` can display as `0x7C0DFCAA ror13: kernel32!GetProcAddress`. The annotation appears **after** the constant, in muted text without brackets or comment delimiters. It does not create an enum or stored comment. **Apply inline hints** controls whether a scan decorates the view, and **HashDB: Show/hide pseudocode hints** toggles existing hints from the pseudocode context menu or `Edit -> Plugins`.
+
+![Pseudocode suffix hints](assets/HashDB-Pseudocode-Hints.png)
+
+This is a POC tested with IDA 9.4 / Hex-Rays and Python 3.13. It needs Python 3.9+ and the companion files below. See [workflow, installation, verified hashes, and limitations](docs/pseudocode-hints.md) before testing it on other versions.
+
 ## Installing HashDB
 HashDB requires the python **requests** module. Install it from a shell outside of IDA with `pip install requests`.
 
 You can then install the plugin in either of two ways:
 - **IDA Plugin Manager (IDA 7.5+):** install/update HashDB directly from the plugin manager.
 - **Manual:** copy the latest [`hashdb.py`](https://github.com/OALabs/hashdb-ida/releases) into your IDA `plugins` directory.
+
+For the experimental pseudocode workflow on this branch, place `hashdb.py`, `hashdb_pseudocode.py`, `hashdb_inlay.py`, and `hashdb_algorithms.json` together in the same plugin directory, then restart IDA. Installing only `hashdb.py` retains the legacy workflows but does not enable the new scanner. This branch is not yet available through the plugin manager or an upstream release.
 
 
 ## ❗Compatibility Issues

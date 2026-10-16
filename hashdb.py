@@ -1978,21 +1978,38 @@ def hash_scan(convert_values = True):
 #--------------------------------------------------------------------------
 # Algorithm search function
 #--------------------------------------------------------------------------
-def hunt_algorithm_done(response: Union[None, list] = None):
+def hunt_algorithm_done(response: Union[None, list] = None, pseudocode_context=None):
     global HASHDB_REQUEST_LOCK
     logging.debug("hunt_algorithm_done callback invoked, result: {}".format("none" if response is None else "{}".format(response)))
 
-    # Display the result
-    if response is not None:
-        logging.debug("Displaying hash_result_form_t.")
-        hunt_result_form_callable = functools.partial(hunt_result_form_t.show, response)
-        ida_kernwin.execute_sync(hunt_result_form_callable, ida_kernwin.MFF_FAST)
-    else:
-        logging.debug("Couldn't find any algorithms that match the provided hash.")
-        idaapi.msg("HashDB: Couldn't find any algorithms that match the provided hash.")
-    
-    # Release the lock
-    HASHDB_REQUEST_LOCK.release()
+    selected = False
+    try:
+        if response is not None:
+            hunt_result_form_callable = functools.partial(hunt_result_form_t.show, response)
+            selected = bool(ida_kernwin.execute_sync(hunt_result_form_callable, ida_kernwin.MFF_FAST))
+        else:
+            idaapi.msg("HashDB: Couldn't find any algorithms that match the provided hash.")
+    except Exception:
+        logging.exception("Could not display HashDB Hunt results")
+    finally:
+        # The optional function scan acquires this same lock independently.
+        HASHDB_REQUEST_LOCK.release()
+
+    if selected and pseudocode_context is not None:
+        def offer_pseudocode_scan():
+            try:
+                scanner = getattr(HASHDB_PLUGIN_OBJECT, '_pseudocode', None)
+                if scanner is not None:
+                    scanner.open_dialog(pseudocode_context)
+            except Exception:
+                logging.exception("Could not offer HashDB pseudocode scan")
+                idaapi.msg("HashDB: Could not open pseudocode scan options; see the log.\n")
+            return 1
+        # Contain UI errors here: Worker must not release the Hunt lock twice.
+        try:
+            ida_kernwin.execute_sync(offer_pseudocode_scan, ida_kernwin.MFF_FAST)
+        except Exception:
+            logging.exception("Could not schedule HashDB pseudocode scan options")
 
 
 def hunt_algorithm_error(exception: Exception):
@@ -2059,9 +2076,21 @@ def hunt_algorithm_run(timeout: Union[int, float] = 0) -> bool:
     if HASHDB_USE_XOR:
         hash_value ^= HASHDB_XOR_VALUE
 
+    # Capture the originating function before Hunt's asynchronous request.
+    scanner = getattr(HASHDB_PLUGIN_OBJECT, '_pseudocode', None)
+    pseudocode_context = None
+    if scanner is not None:
+        try:
+            pseudocode_context = scanner.capture_context()
+        except Exception:
+            logging.exception("Could not capture HashDB pseudocode context")
+
+    def on_hunt_done(response=None):
+        hunt_algorithm_done(response, pseudocode_context)
+
     # Hunt the algorithm and show the hunt result form
     worker = Worker(target=hunt_algorithm_request, args=(hash_value, timeout),
-                    done_callback=hunt_algorithm_done, error_callback=hunt_algorithm_error)
+                    done_callback=on_hunt_done, error_callback=hunt_algorithm_error)
     worker.start()
     return False # Do not release the lock
 
@@ -2136,8 +2165,11 @@ class HashDB_Plugin_t(idaapi.plugin_t):
             self._init_action_set_xor()
             self._init_action_hunt()
             self._init_action_iat_scan()
-            # initialize plugin hooks
+            # Initialize UI hooks; loading from the menu may occur after ready_to_run.
+            self._pseudocode = None
+            self._hexrays_hooked = False
             self._init_hooks()
+            self._init_hexrays_hooks()
 
             HASHDB_PLUGIN_OBJECT = self
             return idaapi.PLUGIN_KEEP
@@ -2158,6 +2190,12 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         if self.terminated:
             return
         
+        if self._pseudocode is not None:
+            self._pseudocode.stop()
+        if self._hexrays_hooked:
+            idaapi.remove_hexrays_callback(self._hooks.hxe_callback)
+            self._hexrays_hooked = False
+
         # Save settings
         save_settings()
 
@@ -2279,8 +2317,26 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         Install Hex-Rays hooks (when available).
         NOTE: This is called when the ui_ready_to_run event fires.
         """
-        if idaapi.init_hexrays_plugin():
+        if not self._hexrays_hooked and idaapi.init_hexrays_plugin():
             idaapi.install_hexrays_callback(self._hooks.hxe_callback)
+            self._hexrays_hooked = True
+            # Experimental pseudocode scanning is optional. Keep legacy lookup
+            # and disassembly workflows available when its dependencies fail.
+            if sys.version_info < (3, 9):
+                idaapi.msg("HashDB: Pseudocode scanning requires Python 3.9+.\n")
+                return
+            try:
+                import importlib.util
+                from pathlib import Path
+                path = Path(__file__).resolve().parent / "hashdb_pseudocode.py"
+                spec = importlib.util.spec_from_file_location("_hashdb_pseudocode", path)
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[spec.name] = module
+                spec.loader.exec_module(module)
+                self._pseudocode = module.PseudocodeScanner(sys.modules[__name__])
+            except Exception:
+                idaapi.msg("HashDB: Pseudocode scanning unavailable; legacy actions remain enabled.\n"
+                           + traceback.format_exc())
 
 
 #------------------------------------------------------------------------------

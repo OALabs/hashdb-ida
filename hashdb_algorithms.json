@@ -1,0 +1,544 @@
+{
+  "algorithms": [
+    {
+      "algorithm": "tonepipeshell_alt",
+      "description": "TOnePipeShell hash with seed 0x4E44CB31 (1313131313)",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "shr1_shl7_2326",
+      "description": "Seed 0x2326 shift right 1 shift left 7",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "add_65599",
+      "description": "ADD 65599 and MULTIPLY",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "add_rol5_hash_again",
+      "description": "ADD and ROL 5 and ROL 5 the result",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "ror13_add_sub20",
+      "description": "ROR 13 and ADD and SUB 0x20",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "crc64_ecma_182",
+      "description": "crc64 has crc64_ecma_182",
+      "type": "unsigned_long"
+    },
+    {
+      "algorithm": "fnv1_64",
+      "description": "FNV1 hash (64-bit)",
+      "type": "unsigned_long"
+    },
+    {
+      "algorithm": "ror13_add_negative_seed",
+      "description": "ROR 13 and ADD with negative seed",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "fnv1a",
+      "description": "FNV1a hash",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "rol7_add",
+      "description": "ROL 7 and ADD",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "mul21_add",
+      "description": "MULTIPLY 21 and ADD",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "mul7_add",
+      "description": "\nMULTIPLY 7 and ADD.\nUsed in Darkside Win32/Tinba API hash.",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "conti_mm3",
+      "description": "Conti ransomware Murmur3 API hashing",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "conti_e9ff0077",
+      "description": "Conti ransomware api hash with seed 0xE9FF0077",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "mythic_unknown",
+      "description": "API hash find in an unknown Mythic agent, need a XOR key",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "tonepipeshell_1313",
+      "description": "TOnePipeShell hash with seed 0x521 (1313)",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "rol5_xor",
+      "description": "ROL 5 and XOR",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "zloader_bot",
+      "description": "API hashing used by the zloader bot on 2021-10-21",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "crc32",
+      "description": "Standard crc32 hash.",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "brc4_joaat",
+      "description": "Jenkins One At A Time (JOAAT) Hashing Algorithm Used by BRC4",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "smt_api_hashing",
+      "description": "\n\n    Author = 0x0d4y\n\n    Description = This is the API Hashing algorithm, of ScoringMathTea RAT used by Lazarus.\n\n    Sample_I    MD5: cc9cf047aec871cefb1c7d4b8d5d3432\n\n",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "shr2_shl5_xor",
+      "description": "SHIFT RIGHT 2 and SHIFT LEFT 5 and XOR",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "shl1_add",
+      "description": "SHIFT LEFT 1 and ADD",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "or23_xor_rol17",
+      "description": "OR 0x23 and XOR and ROL 17",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "ror13_add",
+      "description": "ROR 13 and ADD",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "conti",
+      "description": "Conti ransomware api hash",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "rol8_xor_b0d4d06",
+      "description": "ROL 8 and XOR 0xB0D4D06 used in smoke bot",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "djb2_lowercase",
+      "description": "A variant of the DJB2 hash algorithm that converts uppercase letters to lowercase",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "add1501_shl5",
+      "description": "ADD 0x1505 and SHIFT LEFT 5",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "cryptbot_ror13_add_10",
+      "description": "Add 10 to ror13 shift on data",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "fnv1_xor67f",
+      "description": "FNV1 and XOR 67 observed in Neutrino Bot launcher",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "mamon_hash",
+      "description": "Custom hash used in mamon ransomware",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "chrysalis_hybrid_murmur",
+      "description": "\n    A hybrid hashing algorithm that processes short strings with a standard \n    iterative loop and switches to a parallelized four-accumulator strategy for \n    strings of 16 bytes or more. The intermediate result is finalized using a \n    modified MurmurHash3 avalanche mixer to produce the output.\n",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "sdbm_65599_x64",
+      "description": "The original SDBM hash function with the constant 65599. Used by Emotet malware.",
+      "type": "unsigned_long"
+    },
+    {
+      "algorithm": "djb2_uppercase",
+      "description": "A variant of the DJB2 hash algorithm that converts lowercase letters to uppercase",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "add_ror13",
+      "description": "ADD and ROR 13",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "rol9_xor",
+      "description": "ROL 9 and XOR",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "shr2_shl5_xor_init_c4d5a97a_stealbit",
+      "description": "SHIFT RIGHT 2 and SHIFT LEFT 5 and XOR with initialization constant 0xc4d5a97a used in Stealbit malware.",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "emotet_mul_65599_xor_19ad760",
+      "description": "\n\n    Author = rfLENtlr\n\n    This algorithm was used by Emotet.\n\n    Sample SHA256: 5d267403191a8786db2062584f298478ba59aa7b4d23adcf850a2c14a55c6d97\n\n",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "metasploit",
+      "description": "\nMetasploit ROR13 hash used in a lot of shellcode.\nReference https://github.com/rapid7/metasploit-framework/blob/master/external/source/shellcode/windows/x86/src/hash.py\n",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "deedrat_export_name",
+      "description": "Hashing algorithm for library export name used by DeedRAT.",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "lockbit3_C8B32494_string",
+      "description": "\nModified ROR13 add algo used in the Lockbit 3.0 with a seed of 0x0 \nand a hard coded hash start of 0xC8B32494 this is for strings only\n\nReference: https://c3rb3ru5d3d53c.github.io/malware-blog/lockbit-v3-api-hashing/\n",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "rol5_add",
+      "description": "ROL 5 and ADD",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "conti_b801fcda",
+      "description": "Conti ransomware api hash with seed 0xB801FCDA",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "ch_add_rol8",
+      "description": "XOR and ROL 8 and SLICE hex",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "add_ror4",
+      "description": "ADD and ROR 4",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "shl7_shr19_xor",
+      "description": "SHIFT LEFT 7 and SHIFT RIGHT 19 and XOR",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "murmur2_lummas_v3",
+      "description": "\nMurMurhash2 used in LummaStealer v3.0\nseed 0x20\nReference: https://github.com/abrandoned/murmur2/blob/master/MurmurHash2.c\"\n",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "custom_shift_add",
+      "description": "shift+add with a custom initial value seen in a malware.",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "murmur3_4CDC03",
+      "description": "MurmurHash3 with seed 0x4CDC03",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "xor_rol9",
+      "description": "XOR and ROL 9",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "murmur3_93FB64",
+      "description": "MurmurHash3 with seed 0x93fb64",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "paradise_murmurhash3",
+      "description": "Paradise ransomware implementation of MurmurHash3 with custom seed (0xDEADC0DE) - adapted from https://github.com/wc-duck/pymmh3",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "mult21_add_170f",
+      "description": "MULTIPLY 21 and ADD (0x170F base)",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "lockbit4_0225",
+      "description": "\n    Author = 0x0d4y\n    Description: This is the Hash algorithm that was implemented in the new version of Lockbit, Lockbit Green or Lockbit4.0, with the aim of resolving DLLs and APIs dynamically.\n    Sample MD5: 15796971D60F9D71AD162060F0F76A02\n    The value of the Hash contained in TEST_1, was the result of the string: \"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\"\n    Reference: https://0x0d4y.blog/lockbit4-0-evasion-tales/\n",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "djb2_nokoyawa",
+      "description": "Variant of djb2 hash in use by Nokoyawa ransomware",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "smokeloader_rol8_xor",
+      "description": "ROL 8 and XOR used in smoke bot",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "ror13_add_sub1",
+      "description": "ROR 13 and ADD and SUB 1",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "permutations_82f63b78",
+      "description": "SHIFT and XOR with 0x82F63B78",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "dualacc_modfff1",
+      "description": "DUALACC and MOD 0xfff1",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "rol9_add",
+      "description": "ROL 9 and ADD",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "or21_xor_rol11",
+      "description": "OR 0x21 and XOR and ROL 11",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "rol6_add_sub20",
+      "description": "ROL 6 and ADD and SUB 0x20",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "tonepipeshell_feb_2025",
+      "description": "TOnePipeShell hash with seed 0x14096B (1313131)",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "ror9_add",
+      "description": "ROR 9 and ADD",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "revil_010F",
+      "description": "Lower 21 bits of an LFS with seed 0x2B and multiplier 0x10F",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "danabot",
+      "description": "\nDanabot API hashing algorithm.\n\nReference: https://malwareandstuff.com/deobfuscating-danabots-api-hashing/\n",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "lumma_fnv1a",
+      "description": "FNV1a hash with LummaStealer offset, seen in 0cf55c7e1a19a0631b0248fb0e699bbec1d321240208f2862e37f6c9e75894e7",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "mul83_add",
+      "description": "MULTIPLY 0x83 and ADD",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "tonepipeshell",
+      "description": "TOnePipeShell hash with seed 0xC85E31 (13131313)",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "rol3_xor_eax",
+      "description": "ROL 3 and XOR EAX",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "djb2_seed5385_upper",
+      "description": "DJB2 variant with seed 5385 and uppercase normalization",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "lokibot",
+      "description": "\n    Author= IlFranz\n\n    This algorithm was used by Loki/LokiBot for API hashing\n\n    Sample SHA256: 75af30d10a4a60bb1b260a0f4f9e3410448bd81328737678937145aa88eee108\n",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "shl7_sub",
+      "description": "SHIFT LEFT 7 and SUB used in DoublePulsar backdoor",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "emotet",
+      "description": "Emotet November 2021",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "crc32_bzip2",
+      "description": "bzip2 version of crc32",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "rol7_add_xor2",
+      "description": "ROL 7 and ADD and XOR 2",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "add_ror13_hash_again",
+      "description": "ADD and ROR 13 and ROR 13 the result",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "babbleloader_0125",
+      "description": "\n\n    Author = 0x0d4y\n\n    Description = This new algorithm was discovered during ongoing monitoring of BabbleLoader, which implements it to obfuscate APIs.\n\n    Sample_I    MD5: 06e1c0ee8a7f340d77c95be867c49284\n    Sample_II   MD5: 7d1a15fd3c17ad226b3516bea26d7a94\n\n    Reference: https://0x0d4y.blog/babbleloader-deep-dive-into-edr-and-machine-learning-based-endpoint-protection-evasion/\n\n",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "conti_5b2d",
+      "description": "Conti ransomware api hash with seed 0x5B2D",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "lockbit3_C8B32494_s0",
+      "description": "\nModified ROR13 add algo used in the Lockbit 3.0 with a seed of 0x0 \nand a hard coded hash start of 0xC8B32494\n\nReference: https://c3rb3ru5d3d53c.github.io/malware-blog/lockbit-v3-api-hashing/\n",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "xor_shr8",
+      "description": "XOR and SHIFT RIGHT 21",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "guloader_3C389ABC",
+      "description": "Guloader hash with seed 0x1505 and XOR 0x3C389ABC",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "brc4_1_4_5",
+      "description": "Hash algorithm used in BRC4 1.4.5",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "mul21_add_seed_8952",
+      "description": "MULTIPLY 0x21 and ADD (seed 8952), used in PikaBot in February 2024",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "carbanak",
+      "description": "Carbanak API hashing used by CARBON SPIDER aka FIN7",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "adler32_666",
+      "description": "Adler-32 checksum with 666 seed.",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "ror7_add",
+      "description": "ROR 7 and ADD",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "blister2",
+      "description": "Blister loader v2 api hash",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "babbleloader",
+      "description": "\n\n    Author = 0x0d4y\n\n    This hashing algorithm was found during my analysis of a BabbleLoader sample, with the goal of validating that the correct API function was obtained.\n\n    Sample MD5:FA3D03C319A7597712EEFF1338DABF92\n\n    Reference: https://0x0d4y.blog/babbleloader-deep-dive-into-edr-and-machine-learning-based-endpoint-protection-evasion/\n\n",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "or20_xor_rol19",
+      "description": "OR 0x20 and XOR and ROL 19",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "rol7_xor",
+      "description": "ROL 7 and XOR",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "add_hiword_add_lowword",
+      "description": "\nSum of characters in hi word and low word combined to DWORD.\nUsed in Darkside ransomware API hash.",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "djb2_vohuk_ransomware_dec_2022",
+      "description": "Vohuk Ransomware's variant of DJB2 as of December 2022",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "DJB2_Upper_3698",
+      "description": "Custom hash algorithm using initial value 3698 with multiplier 33",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "mul_1459",
+      "description": "Hash with seed 0x1459 (5209)",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "fnv1a_64",
+      "description": "FNV1a hash (64-bit)",
+      "type": "unsigned_long"
+    },
+    {
+      "algorithm": "mult3_add_init_9C",
+      "description": "MULTIPLY 3 and ADD, starting key 0x9C",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "deedrat",
+      "description": "Hashing algorithm used by newer variants of DeedRAT.",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "ror8_add_xor_ab832e83",
+      "description": "Hash based on ror8, add, xor with initial state 0x832E83AB",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "fnv1",
+      "description": "FNV1 hash",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "d0nut",
+      "description": "API Hashing as used by d0nut",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "single_camper_hash",
+      "description": "Custom API hash using ROR32, constant multiplier 0xBF2E2729, and seed 0xAE54C677",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "rol3_xor",
+      "description": "ROL 3 and XOR",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "crc32_mpeg_2",
+      "description": "MPEG-2 version of CRC-32.",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "ror11_add",
+      "description": "ROR 11 and ADD",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "permutations_e8677835",
+      "description": "Multiple permutations of 0xe8677835",
+      "type": "unsigned_int"
+    },
+    {
+      "algorithm": "mult21_add",
+      "description": "MULTIPLY 21 and ADD",
+      "type": "unsigned_int"
+    }
+  ]
+}
