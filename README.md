@@ -33,7 +33,7 @@ The default API URL for the HashDB Lookup Service is `https://hashdb.openanalysi
 When a new hash is identified by HashDB the hash and its associated string are added to an **enum** in IDA. This enum can then be used to convert hash constants in IDA to their corresponding enum name. The enum name is configurable from the settings in the event that there is a conflict with an existing enum.
 
 ### Hash Lookup
-Once the plugin settings have been configured you can right-click on any constant in the IDA disassembly or Pseudocode (Hex-Rays) window and look up the constant as a hash. The right-click also provides a quick way to set the XOR value if needed.
+Once the plugin settings have been configured you can right-click on any constant in the IDA disassembly or pseudocode window and look up the constant as a hash. The right-click also provides a quick way to set the XOR value if needed.
 
 <p align="center">
     <img width="380" src="/assets/HashDB-Xor_Key.png?raw=true">
@@ -47,7 +47,7 @@ If a hash is part of a module a prompt will ask if you want to import all the ha
 </p>
 
 ### Function-Wide Apply
-After a hash is resolved (or a module is bulk-imported), HashDB scans the current function and converts every matching constant to its enum name — across operands 0–2, with a 32-bit-mask fallback for sign-extended values. The disassembly and Hex-Rays views are refreshed automatically. Modules you've already imported are cached for the session, so you won't be re-prompted to import `kernel32` (etc.) on every new hash.
+After a hash is resolved (or a module is bulk-imported), HashDB scans the current function and converts every matching constant to its enum name — across operands 0–2, with a 32-bit-mask fallback for sign-extended values. The disassembly and pseudocode views are refreshed automatically. Modules you've already imported are cached for the session, so you won't be re-prompted to import `kernel32` (etc.) on every new hash.
 
 ### Algorithm Search
 HashDB also includes a basic algorithm search that will attempt to identify the hash algorithm based on a hash value. **The search will return all algorithms that contain the hash value, it is up to the analyst to decide which (if any) algorithm is correct.** To use this functionality right-click on the hash constant and select `HashDB Hunt Algorithm`.

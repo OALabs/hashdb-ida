@@ -37,4 +37,4 @@ python -m unittest discover -s tests -v
 
 ## Limits
 
-Tested on IDA 9.4 / Hex-Rays with Python 3.13 on Windows. Unsupported APIs disable the feature while keeping legacy HashDB actions available. Labels last for the session, are copied with pseudocode, and do not create enums or stored comments. All numeric expressions are candidates, including ordinary sizes and offsets. Scans default to 500 unique requests; cancellation waits for the current request (up to 15 seconds). Failed or canceled scans apply no partial hints.
+Tested on IDA 9.4 with the Hex-Rays decompiler and Python 3.13 on Windows. Unsupported APIs disable the feature while keeping legacy HashDB actions available. Labels last for the session, are copied with pseudocode, and do not create enums or stored comments. All numeric expressions are candidates, including ordinary sizes and offsets. Scans default to 500 unique requests; cancellation waits for the current request (up to 15 seconds). Failed or canceled scans apply no partial hints.

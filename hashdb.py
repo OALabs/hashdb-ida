@@ -1528,7 +1528,7 @@ def apply_bulk_enums(enum_id, enum_list):
 
 
 def _find_hexrays_vdui():
-    """Find and return a Hex-Rays vdui instance if available, otherwise None."""
+    """Return a Hex-Rays decompiler vdui instance if available, otherwise None."""
     if not idaapi.init_hexrays_plugin():
         return None
     try:
@@ -2242,11 +2242,14 @@ def _create_pseudocode_components():
     ]
     if missing:
         raise RuntimeError(
-            "This IDA does not support pseudocode hints: " + ", ".join(missing)
+            "This version of IDA does not support pseudocode hints. Missing APIs: "
+            + ", ".join(missing)
         )
     for event in ("func_printed", "refresh_pseudocode"):
         if not hasattr(hx.Hexrays_Hooks, event):
-            raise RuntimeError("This Hex-Rays does not support " + event)
+            raise RuntimeError(
+                "The Hex-Rays decompiler does not support the required event: " + event
+            )
 
     _NUMBER = re.compile(
         r"\s*[+-]?(?:0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+)"
@@ -2396,7 +2399,7 @@ def _create_pseudocode_components():
 
         def refresh(self):
             # Refresh generated text without redecompiling or changing ctree.
-            # Standard Hex-Rays windows are named Pseudocode-A through -Z.
+            # IDA pseudocode windows are named Pseudocode-A through -Z.
             widgets = [kw.get_current_widget()]
             widgets.extend(
                 kw.find_widget("Pseudocode-" + c) for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -2653,7 +2656,9 @@ def _create_pseudocode_components():
             self.last_algorithm = backend.HASHDB_ALGORITHM
             self.renderer = ScopedRenderer()
             if not self.renderer._hooks.hook():
-                raise RuntimeError("Could not hook Hex-Rays")
+                raise RuntimeError(
+                    "Could not enable pseudocode hints in the Hex-Rays decompiler"
+                )
             self.renderer._running = True
             self.actions = []
             self.context_actions = []
@@ -2677,7 +2682,9 @@ def _create_pseudocode_components():
                 )
                 self.hooks = UIHooks(self)
                 if not self.hooks.hook():
-                    raise RuntimeError("Could not hook the IDA UI")
+                    raise RuntimeError(
+                        "Could not enable the IDA controls for pseudocode hints"
+                    )
                 self.timer = kw.register_timer(100, self.poll)
                 if self.timer is None:
                     raise RuntimeError("Could not register scan completion timer")
@@ -3210,7 +3217,7 @@ class HashDB_Plugin_t(idaapi.plugin_t):
 
     def _init_hexrays_hooks(self):
         """
-        Install Hex-Rays hooks (when available).
+        Install hooks for the Hex-Rays decompiler (when available).
         NOTE: This is called when the ui_ready_to_run event fires.
         """
         if not self._hexrays_hooked and idaapi.init_hexrays_plugin():
@@ -3243,13 +3250,13 @@ class Hooks(idaapi.UI_Hooks):
 
     def hxe_callback(self, event, *args):
         """
-        HexRays event callback.
+        Hex-Rays decompiler event callback.
         We lump this under the (UI) Hooks class for organizational reasons.
         """
 
         #
         # if the event callback indicates that this is a popup menu event
-        # (in the hexrays window), we may want to install our menu
+        # (in the IDA pseudocode window), we may want to install our menu
         # actions depending on what the cursor right clicked.
         #
 
