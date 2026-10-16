@@ -1,7 +1,9 @@
 """Offline regression tests. IDA is not required; GUI boundaries are mocked."""
 
 import ast
+import contextlib
 import functools
+import io
 import json
 import logging
 from pathlib import Path
@@ -13,7 +15,7 @@ import traceback
 from typing import Union
 import unittest
 from dataclasses import dataclass, replace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 
 class DummyHook:
@@ -680,7 +682,9 @@ class CompatibilityTests(unittest.TestCase):
             SUPPORT,
             idaapi=types.SimpleNamespace(
                 init_hexrays_plugin=lambda: True,
-                install_hexrays_callback=lambda callback: callbacks.append(callback),
+                install_hexrays_callback=lambda callback: callbacks.append(callback)
+                or True,
+                remove_hexrays_callback=lambda callback: None,
                 msg=messages.append,
             ),
         )
@@ -699,6 +703,225 @@ class CompatibilityTests(unittest.TestCase):
         self.assertIsNone(plugin._pseudocode)
         self.assertEqual(callbacks, [plugin._hooks.hxe_callback])
         self.assertIn("legacy actions remain enabled", "".join(messages))
+
+
+class PluginStartupCompatibilityTests(unittest.TestCase):
+    """Exercise the real plugin lifecycle with failing optional SDK boundaries."""
+
+    def setUp(self):
+        self.actions = {}
+        self.callbacks = []
+        self.messages = []
+        self.settings = []
+        self.saved = []
+        self.stopped = []
+        self.unhooked = []
+
+        def install(callback):
+            self.callbacks.append(callback)
+            return True
+
+        def remove(callback):
+            if callback in self.callbacks:
+                self.callbacks.remove(callback)
+            return 1
+
+        self.api = types.SimpleNamespace(
+            plugin_t=object,
+            PLUGIN_KEEP=2,
+            init_hexrays_plugin=Mock(return_value=True),
+            install_hexrays_callback=Mock(side_effect=install),
+            remove_hexrays_callback=Mock(side_effect=remove),
+            action_desc_t=lambda name, *args: name,
+            register_action=lambda name: self.actions.setdefault(name, True),
+            unregister_action=lambda name: self.actions.pop(name),
+            msg=self.messages.append,
+        )
+        hooks = types.SimpleNamespace(
+            hxe_callback=object(),
+            hook=lambda: True,
+            unhook=lambda: self.unhooked.append(True),
+        )
+        self.scanner = types.SimpleNamespace(
+            stop=Mock(side_effect=lambda: self.stopped.append(True))
+        )
+        self.scanner_factory = Mock(return_value=self.scanner)
+        self.components = Mock(
+            return_value=types.SimpleNamespace(PseudocodeScanner=self.scanner_factory)
+        )
+        self.module = types.ModuleType("hashdb_startup_test")
+        self.env = self.module.__dict__
+        self.env.update(
+            sys=sys,
+            traceback=traceback,
+            idaapi=self.api,
+            PLUGIN_NAME="HashDB",
+            PLUGIN_HOTKEY="test",
+            VERSION="test",
+            p_initialized=False,
+            HASHDB_PLUGIN_OBJECT=None,
+            load_settings=lambda: None,
+            save_settings=lambda: self.saved.append(True),
+            global_settings=lambda: self.settings.append(True),
+            Hooks=lambda: hooks,
+            IDACtxEntry=lambda callback: callback,
+            HASH_ICON=0,
+            XOR_ICON=0,
+            HUNT_ICON=0,
+            SCAN_ICON=0,
+            hash_lookup=lambda: None,
+            set_xor_key=lambda: None,
+            hunt_algorithm=lambda: None,
+            hash_scan=lambda: None,
+            _create_pseudocode_components=self.components,
+        )
+        nodes = [
+            node
+            for node in TREE.body
+            if (isinstance(node, ast.ClassDef) and node.name == "HashDB_Plugin_t")
+            or (isinstance(node, ast.FunctionDef) and node.name == "_find_hexrays_vdui")
+        ]
+        exec(
+            compile(ast.Module(body=nodes, type_ignores=[]), "hashdb.py", "exec"),
+            self.env,
+        )
+        modules = patch.dict(sys.modules, {self.module.__name__: self.module})
+        modules.start()
+        self.addCleanup(modules.stop)
+        self.plugin = self.env["HashDB_Plugin_t"]()
+
+    def start(self, hints):
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(self.plugin.init(), self.api.PLUGIN_KEEP)
+        self.assertIs(self.env["HASHDB_PLUGIN_OBJECT"], self.plugin)
+        self.assertTrue(self.env["p_initialized"])
+        self.assertEqual(
+            set(self.actions),
+            {"hashdb:hash_lookup", "hashdb:set_xor", "hashdb:hunt", "hashdb:iat_scan"},
+        )
+        self.plugin.run(0)
+        self.assertEqual(self.settings, [True])
+        self.assertIs(self.plugin._pseudocode, self.scanner if hints else None)
+
+    def finish(self):
+        self.plugin.term()
+        self.assertTrue(self.plugin.terminated)
+        self.assertEqual(self.actions, {})
+        self.assertEqual(self.saved, [True])
+        self.assertEqual(self.unhooked, [True])
+        self.assertFalse(self.plugin._hexrays_hooked)
+        self.assertIsNone(self.plugin._pseudocode)
+        self.plugin.term()
+        self.assertEqual(self.saved, [True])
+
+    def test_missing_or_noncallable_decompiler_apis_leave_core_usable(self):
+        for name in (
+            "init_hexrays_plugin",
+            "install_hexrays_callback",
+            "remove_hexrays_callback",
+        ):
+            for missing in (True, False):
+                with self.subTest(name=name, missing=missing):
+                    case = type(self)()
+                    case.setUp()
+                    try:
+                        if missing:
+                            delattr(case.api, name)
+                        else:
+                            setattr(case.api, name, None)
+                        case.start(hints=False)
+                        case.components.assert_not_called()
+                        self.assertEqual(case.callbacks, [])
+                        case.finish()
+                    finally:
+                        case.doCleanups()
+
+    def test_unavailable_decompiler_leaves_core_usable(self):
+        self.api.init_hexrays_plugin.return_value = False
+        self.start(hints=False)
+        self.api.install_hexrays_callback.assert_not_called()
+        self.components.assert_not_called()
+        self.finish()
+
+    def test_failing_decompiler_probe_leaves_core_usable(self):
+        self.api.init_hexrays_plugin.side_effect = RuntimeError("probe failed")
+        self.start(hints=False)
+        self.api.install_hexrays_callback.assert_not_called()
+        self.components.assert_not_called()
+        self.assertIn(
+            "existing HashDB actions remain available", "".join(self.messages)
+        )
+        self.finish()
+
+    def test_partial_callback_install_is_cleaned_up_after_exception(self):
+        def install_then_fail(callback):
+            self.callbacks.append(callback)
+            raise RuntimeError("installer failed")
+
+        self.api.install_hexrays_callback.side_effect = install_then_fail
+        self.start(hints=False)
+        self.api.remove_hexrays_callback.assert_called_once()
+        self.assertEqual(self.callbacks, [])
+        self.components.assert_not_called()
+        self.finish()
+
+    def test_false_callback_install_result_disables_hints(self):
+        self.api.install_hexrays_callback.side_effect = None
+        self.api.install_hexrays_callback.return_value = False
+        self.start(hints=False)
+        self.api.remove_hexrays_callback.assert_called_once()
+        self.components.assert_not_called()
+        self.finish()
+
+    def test_failed_install_and_failed_cleanup_do_not_abort_startup(self):
+        self.api.install_hexrays_callback.side_effect = RuntimeError("installer failed")
+        self.api.remove_hexrays_callback.side_effect = RuntimeError("cleanup failed")
+        self.start(hints=False)
+        self.components.assert_not_called()
+        self.assertIn("cleanup failed", "".join(self.messages))
+        self.finish()
+
+    def test_successful_initialization_is_not_repeated(self):
+        self.start(hints=True)
+        self.plugin._init_hexrays_hooks()
+        self.api.init_hexrays_plugin.assert_called_once()
+        self.api.install_hexrays_callback.assert_called_once()
+        self.components.assert_called_once()
+        self.scanner_factory.assert_called_once_with(self.module)
+        self.finish()
+        self.assertEqual(self.stopped, [True])
+        self.assertEqual(self.callbacks, [])
+
+    def test_missing_hint_dependency_retains_legacy_callback(self):
+        self.components.side_effect = ModuleNotFoundError("optional module missing")
+        self.start(hints=False)
+        self.assertTrue(self.plugin._hexrays_hooked)
+        self.finish()
+        self.assertEqual(self.callbacks, [])
+
+    def test_failed_decompiler_callback_removal_does_not_abort_unload(self):
+        self.start(hints=True)
+        self.api.remove_hexrays_callback.side_effect = RuntimeError("remove failed")
+        self.finish()
+        self.assertIn("remove failed", "".join(self.messages))
+
+    def test_callback_removal_api_disappears_before_unload(self):
+        self.start(hints=True)
+        del self.api.remove_hexrays_callback
+        self.finish()
+
+    def test_failed_hint_cleanup_does_not_abort_legacy_unload(self):
+        self.start(hints=True)
+        self.scanner.stop.side_effect = RuntimeError("hint cleanup failed")
+        self.finish()
+        self.assertEqual(self.callbacks, [])
+        self.assertIn("hint cleanup failed", "".join(self.messages))
+
+    def test_legacy_view_lookup_tolerates_missing_or_failing_probe(self):
+        self.api.init_hexrays_plugin.side_effect = RuntimeError("probe failed")
+        self.assertIsNone(self.env["_find_hexrays_vdui"]())
+        del self.api.init_hexrays_plugin
+        self.assertIsNone(self.env["_find_hexrays_vdui"]())
 
 
 if __name__ == "__main__":

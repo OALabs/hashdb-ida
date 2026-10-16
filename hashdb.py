@@ -1529,9 +1529,9 @@ def apply_bulk_enums(enum_id, enum_list):
 
 def _find_hexrays_vdui():
     """Return a Hex-Rays decompiler vdui instance if available, otherwise None."""
-    if not idaapi.init_hexrays_plugin():
-        return None
     try:
+        if not idaapi.init_hexrays_plugin():
+            return None
         import ida_hexrays
     except Exception:
         return None
@@ -3094,10 +3094,24 @@ class HashDB_Plugin_t(idaapi.plugin_t):
             return
         
         if self._pseudocode is not None:
-            self._pseudocode.stop()
+            try:
+                self._pseudocode.stop()
+            except Exception as exception:
+                idaapi.msg(
+                    "HashDB: Could not clean up pseudocode hints: %s\n" % exception
+                )
+            finally:
+                self._pseudocode = None
         if self._hexrays_hooked:
-            idaapi.remove_hexrays_callback(self._hooks.hxe_callback)
-            self._hexrays_hooked = False
+            try:
+                idaapi.remove_hexrays_callback(self._hooks.hxe_callback)
+            except Exception as exception:
+                idaapi.msg(
+                    "HashDB: Could not remove the IDA decompiler callback: %s\n"
+                    % exception
+                )
+            finally:
+                self._hexrays_hooked = False
 
         # Save settings
         save_settings()
@@ -3220,20 +3234,53 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         Install hooks for the Hex-Rays decompiler (when available).
         NOTE: This is called when the ui_ready_to_run event fires.
         """
-        if not self._hexrays_hooked and idaapi.init_hexrays_plugin():
-            idaapi.install_hexrays_callback(self._hooks.hxe_callback)
-            self._hexrays_hooked = True
-            # Optional APIs are checked before defining or registering hint hooks.
-            try:
-                components = _create_pseudocode_components()
-                self._pseudocode = components.PseudocodeScanner(sys.modules[__name__])
-            except (ImportError, RuntimeError) as exception:
-                idaapi.msg("HashDB: %s; legacy actions remain enabled.\n" % exception)
-            except Exception:
-                idaapi.msg(
-                    "HashDB: Pseudocode hints unavailable; legacy actions remain enabled.\n"
-                    + traceback.format_exc()
-                )
+        if self._hexrays_hooked:
+            return
+        install_attempted = False
+        try:
+            api_names = (
+                "init_hexrays_plugin",
+                "install_hexrays_callback",
+                "remove_hexrays_callback",
+            )
+            apis = tuple(getattr(idaapi, name, None) for name in api_names)
+            missing = [name for name, api in zip(api_names, apis) if not callable(api)]
+            if missing:
+                raise RuntimeError("Missing IDA decompiler APIs: " + ", ".join(missing))
+            initialize, install, remove = apis
+            if not initialize():
+                return
+            install_attempted = True
+            if not install(self._hooks.hxe_callback):
+                raise RuntimeError("IDA could not register the decompiler callback")
+        except Exception as exception:
+            if install_attempted:
+                # An installer may register a callback before raising an error.
+                try:
+                    remove(self._hooks.hxe_callback)
+                except Exception as cleanup_exception:
+                    idaapi.msg(
+                        "HashDB: Could not clean up the IDA decompiler callback: %s\n"
+                        % cleanup_exception
+                    )
+            idaapi.msg(
+                "HashDB: IDA decompiler support is unavailable (%s); "
+                "existing HashDB actions remain available.\n" % exception
+            )
+            return
+
+        self._hexrays_hooked = True
+        # Optional APIs are checked before defining or registering hint hooks.
+        try:
+            components = _create_pseudocode_components()
+            self._pseudocode = components.PseudocodeScanner(sys.modules[__name__])
+        except (ImportError, RuntimeError) as exception:
+            idaapi.msg("HashDB: %s; legacy actions remain enabled.\n" % exception)
+        except Exception:
+            idaapi.msg(
+                "HashDB: Pseudocode hints unavailable; legacy actions remain enabled.\n"
+                + traceback.format_exc()
+            )
 
 
 #------------------------------------------------------------------------------
