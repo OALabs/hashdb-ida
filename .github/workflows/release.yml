@@ -23,7 +23,7 @@ jobs:
     - name: Create Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "hashdb.py,hashdb_pseudocode.py,hashdb_inlay.py,hashdb_algorithms.json"
+        artifacts: "hashdb.py"
         omitBody: true
         tag: ${{ steps.get_tag.outputs.tag }}
         token: ${{ secrets.GITHUB_TOKEN }}
