@@ -3,7 +3,7 @@
   "plugin": {
     "name": "HashDB",
     "entryPoint": "hashdb.py",
-    "version": "1.10.0",
+    "version": "1.13.0",
     "description": "Malware string hash lookup plugin connecting to the OALABS HashDB service for algorithm identification and bulk import.",
     "license": "BSD-3-Clause",
     "idaVersions": ">=7.5",
