@@ -600,6 +600,7 @@ def get_algorithms(api_url='https://hashdb.openanalysis.net', timeout=None):
         if size == 'Unknown':
             idaapi.msg("ERROR: Unknown algorithm type encountered when fetching algorithms: %s" % size)
         algorithms.append([algorithm.get('algorithm'), size])
+    _remember_pseudocode_algorithms(api_url, algorithms)
     return algorithms
 
 
@@ -1527,10 +1528,10 @@ def apply_bulk_enums(enum_id, enum_list):
 
 
 def _find_hexrays_vdui():
-    """Find and return a Hex-Rays vdui instance if available, otherwise None."""
-    if not idaapi.init_hexrays_plugin():
-        return None
+    """Return a Hex-Rays decompiler vdui instance if available, otherwise None."""
     try:
+        if not idaapi.init_hexrays_plugin():
+            return None
         import ida_hexrays
     except Exception:
         return None
@@ -1978,21 +1979,50 @@ def hash_scan(convert_values = True):
 #--------------------------------------------------------------------------
 # Algorithm search function
 #--------------------------------------------------------------------------
-def hunt_algorithm_done(response: Union[None, list] = None):
+def hunt_algorithm_done(response: Union[None, list] = None, pseudocode_context=None):
     global HASHDB_REQUEST_LOCK
     logging.debug("hunt_algorithm_done callback invoked, result: {}".format("none" if response is None else "{}".format(response)))
 
-    # Display the result
-    if response is not None:
-        logging.debug("Displaying hash_result_form_t.")
-        hunt_result_form_callable = functools.partial(hunt_result_form_t.show, response)
-        ida_kernwin.execute_sync(hunt_result_form_callable, ida_kernwin.MFF_FAST)
-    else:
-        logging.debug("Couldn't find any algorithms that match the provided hash.")
-        idaapi.msg("HashDB: Couldn't find any algorithms that match the provided hash.")
-    
-    # Release the lock
-    HASHDB_REQUEST_LOCK.release()
+    selected = False
+    try:
+        if response is not None:
+            hunt_result_form_callable = functools.partial(
+                hunt_result_form_t.show, response
+            )
+            selected = bool(
+                ida_kernwin.execute_sync(
+                    hunt_result_form_callable, ida_kernwin.MFF_FAST
+                )
+            )
+        else:
+            idaapi.msg(
+                "HashDB: Couldn't find any algorithms that match the provided hash."
+            )
+    except Exception:
+        logging.exception("Could not display HashDB Hunt results")
+    finally:
+        # The optional function scan acquires this same lock independently.
+        HASHDB_REQUEST_LOCK.release()
+
+    if selected and pseudocode_context is not None:
+
+        def offer_pseudocode_scan():
+            try:
+                scanner = getattr(HASHDB_PLUGIN_OBJECT, "_pseudocode", None)
+                if scanner is not None:
+                    scanner.open_dialog(pseudocode_context)
+            except Exception:
+                logging.exception("Could not offer HashDB pseudocode scan")
+                idaapi.msg(
+                    "HashDB: Could not open pseudocode scan options; see the log.\n"
+                )
+            return 1
+
+        # Contain UI errors here: Worker must not release the Hunt lock twice.
+        try:
+            ida_kernwin.execute_sync(offer_pseudocode_scan, ida_kernwin.MFF_FAST)
+        except Exception:
+            logging.exception("Could not schedule HashDB pseudocode scan options")
 
 
 def hunt_algorithm_error(exception: Exception):
@@ -2059,9 +2089,25 @@ def hunt_algorithm_run(timeout: Union[int, float] = 0) -> bool:
     if HASHDB_USE_XOR:
         hash_value ^= HASHDB_XOR_VALUE
 
+    # Capture the originating function before Hunt's asynchronous request.
+    scanner = getattr(HASHDB_PLUGIN_OBJECT, "_pseudocode", None)
+    pseudocode_context = None
+    if scanner is not None:
+        try:
+            pseudocode_context = scanner.capture_context()
+        except Exception:
+            logging.exception("Could not capture HashDB pseudocode context")
+
+    def on_hunt_done(response=None):
+        hunt_algorithm_done(response, pseudocode_context)
+
     # Hunt the algorithm and show the hunt result form
-    worker = Worker(target=hunt_algorithm_request, args=(hash_value, timeout),
-                    done_callback=hunt_algorithm_done, error_callback=hunt_algorithm_error)
+    worker = Worker(
+        target=hunt_algorithm_request,
+        args=(hash_value, timeout),
+        done_callback=on_hunt_done,
+        error_callback=hunt_algorithm_error,
+    )
     worker.start()
     return False # Do not release the lock
 
@@ -2088,6 +2134,892 @@ def hunt_algorithm():
     release_lock = hunt_algorithm_run(timeout=HASHDB_REQUEST_TIMEOUT)
     if release_lock:
         HASHDB_REQUEST_LOCK.release()
+
+
+# --------------------------------------------------------------------------
+# Optional pseudocode hints
+# --------------------------------------------------------------------------
+_PSEUDOCODE_ALGORITHMS = {}
+
+
+def _remember_pseudocode_algorithms(api_url, algorithms):
+    """Keep only metadata explicitly fetched from this server this session."""
+    rows = {
+        (name, int(bits))
+        for name, bits in algorithms
+        if isinstance(name, str) and name and str(bits) in ("32", "64")
+    }
+    _PSEUDOCODE_ALGORITHMS[api_url.rstrip("/")] = tuple(sorted(rows))
+
+
+def _create_pseudocode_components():
+    """Load the optional feature only when the required IDAPython APIs exist."""
+    if sys.version_info < (3, 9):
+        raise RuntimeError("Pseudocode hints require Python 3.9+")
+
+    import queue
+    import re
+    import threading
+    from types import SimpleNamespace
+
+    import ida_hexrays as hx
+    import ida_kernwin as kw
+    import ida_lines as lines
+    import ida_nalt
+
+    required = (
+        (
+            hx,
+            (
+                "Hexrays_Hooks",
+                "get_widget_vdui",
+                "cot_num",
+                "ANCHOR_MASK",
+                "ANCHOR_INDEX",
+                "ANCHOR_CITEM",
+                "has_cached_cfunc",
+                "decompile",
+            ),
+        ),
+        (
+            kw,
+            (
+                "Form",
+                "Choose",
+                "UI_Hooks",
+                "action_handler_t",
+                "action_desc_t",
+                "register_action",
+                "unregister_action",
+                "register_timer",
+                "unregister_timer",
+                "get_current_widget",
+                "get_widget_type",
+                "find_widget",
+                "attach_action_to_menu",
+                "attach_action_to_popup",
+                "BWN_PSEUDOCODE",
+                "SETMENU_APP",
+                "AST_ENABLE_ALWAYS",
+                "AST_ENABLE_FOR_WIDGET",
+                "AST_DISABLE_FOR_WIDGET",
+            ),
+        ),
+        (
+            lines,
+            (
+                "SCOLOR_ON",
+                "SCOLOR_OFF",
+                "SCOLOR_ESC",
+                "SCOLOR_INV",
+                "SCOLOR_ADDR",
+                "SCOLOR_AUTOCMT",
+                "SCOLOR_REGCMT",
+                "SCOLOR_RPTCMT",
+                "COLOR_ADDR_SIZE",
+                "COLSTR",
+            ),
+        ),
+        (
+            kw.Form,
+            (
+                "DropdownListControl",
+                "StringInput",
+                "NumericInput",
+                "ChkGroupControl",
+                "ButtonInput",
+                "FT_RAWHEX",
+                "FT_DEC",
+            ),
+        ),
+        (ida_nalt, ("get_input_file_path",)),
+    )
+    missing = [
+        module.__name__ + "." + name
+        for module, names in required
+        for name in names
+        if not hasattr(module, name)
+    ]
+    if missing:
+        raise RuntimeError(
+            "This version of IDA does not support pseudocode hints. Missing APIs: "
+            + ", ".join(missing)
+        )
+    for event in ("func_printed", "refresh_pseudocode"):
+        if not hasattr(hx.Hexrays_Hooks, event):
+            raise RuntimeError(
+                "The Hex-Rays decompiler does not support the required event: " + event
+            )
+
+    _NUMBER = re.compile(
+        r"\s*[+-]?(?:0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+)"
+        r"(?:[uU][iI]64|[iI]64|[uU][lL]{1,2}|[lL]{1,2}[uU]?|[uU])?"
+        r"(?![\w.])"
+    )
+
+    _ANCHOR = re.compile(
+        re.escape(lines.SCOLOR_ON + lines.SCOLOR_ADDR)
+        + r"([0-9a-fA-F]{%d})" % lines.COLOR_ADDR_SIZE
+    )
+
+    _COMMENT_COLORS = {lines.SCOLOR_AUTOCMT, lines.SCOLOR_REGCMT, lines.SCOLOR_RPTCMT}
+
+    def _literal_end(text, start, end):
+        """Map a visible numeric token's end back to a raw tagged-line offset.
+
+        Ignore existing comment-colored prefixes (e.g. HexInlay's argument name).
+        Keep all original tags, including the number's closing color tag.
+        """
+        visible, offsets, stack = [], [], []
+        pos = start
+        while pos < end:
+            ch = text[pos]
+            if ch in (lines.SCOLOR_ON, lines.SCOLOR_OFF) and pos + 1 < end:
+                color = text[pos + 1]
+                if ch == lines.SCOLOR_ON:
+                    stack.append(color)
+                elif color in stack:
+                    # Tags normally nest, but tolerate other decorators' output.
+                    stack.pop(len(stack) - 1 - stack[::-1].index(color))
+                pos += 2
+                continue
+            if ch == lines.SCOLOR_INV:
+                pos += 1
+                continue
+            quoted = ch == lines.SCOLOR_ESC and pos + 1 < end
+            if quoted:
+                pos += 1
+                ch = text[pos]
+            if not any(color in _COMMENT_COLORS for color in stack):
+                visible.append(ch)
+                offsets.append(pos + 1)
+            pos += 1
+        match = _NUMBER.match("".join(visible))
+        if not match:
+            return None
+        pos = offsets[match.end() - 1]
+        # Finish the numeric color span before starting the hint's color span.
+        while text.startswith(lines.SCOLOR_OFF, pos) and pos + 1 < end:
+            pos += 2
+        return pos
+
+    def decorate_line(text, index_to_suffix):
+        """Pure string transformation; never changes or removes ctree anchors."""
+        anchors = list(_ANCHOR.finditer(text))
+        edits = []
+        for n, anchor in enumerate(anchors):
+            value = int(anchor.group(1), 16)
+            if value & hx.ANCHOR_MASK != hx.ANCHOR_CITEM:
+                continue
+            suffix = index_to_suffix.get(value & hx.ANCHOR_INDEX)
+            if suffix is None:
+                continue
+            end = anchors[n + 1].start() if n + 1 < len(anchors) else len(text)
+            insertion = _literal_end(text, anchor.end(), end)
+            if insertion is not None:
+                edits.append((insertion, suffix))
+        for pos, suffix in reversed(edits):
+            text = text[:pos] + suffix + text[pos:]
+        return text
+
+    def _number_key(expr):
+        bits = int(expr.type.get_size()) * 8
+        if bits not in (8, 16, 32, 64):
+            return None
+        return bits, int(expr.numval()) & ((1 << bits) - 1)
+
+    def _clean_label(text):
+        # Do not allow a lookup result to inject line breaks or IDA color codes.
+        text = " ".join(str(text).split())
+        text = "".join(ch for ch in text if ord(ch) >= 32 and ord(ch) != 127)
+        if not text:
+            raise ValueError("Hint text must not be empty")
+        return text[:240]
+
+    class _Hooks(hx.Hexrays_Hooks):
+        def __init__(self, owner):
+            super().__init__()
+            self.owner = owner
+
+        def func_printed(self, cfunc):
+            try:
+                self.owner.decorate(cfunc)
+            except Exception:
+                kw.msg("HashDB Decoration failed:\n" + traceback.format_exc())
+            return 0
+
+        def refresh_pseudocode(self, vu):
+            # A view can reuse cached text without printing the function again.
+            # We change characters only; this event forbids changing line counts.
+            return self.func_printed(vu.cfunc) if vu.cfunc else 0
+
+    class HintRenderer:
+        def __init__(self):
+            self.hints = {}
+            self.enabled = True
+            self._owned_spans = set()
+            self._hooks = _Hooks(self)
+            self._busy = False
+            self._running = False
+            self._visited = set()
+
+        def _suffix(self, label):
+            suffix = lines.COLSTR(" " + label, lines.SCOLOR_AUTOCMT)
+            self._owned_spans.add(suffix)
+            return suffix
+
+        def decorate(self, cfunc):
+            if self._busy:
+                return
+            self._busy = True
+            try:
+                entry_ea = getattr(cfunc, "entry_ea", None)
+                if entry_ea is not None:
+                    self._visited.add(entry_ea)
+                ps = cfunc.get_pseudocode()
+                mapping = {}
+                if self.enabled:
+                    for index, item in enumerate(cfunc.treeitems):
+                        if item.op == hx.cot_num:
+                            label = self.hints.get(_number_key(item.cexpr))
+                            if label is not None:
+                                mapping[index] = self._suffix(label)
+                for line in ps:
+                    original = line.line
+                    clean = original
+                    # Remove only exact colored spans previously emitted by us.
+                    # This also makes repeated callbacks and changing styles safe.
+                    for suffix in self._owned_spans:
+                        clean = clean.replace(suffix, "")
+                    updated = decorate_line(clean, mapping) if mapping else clean
+                    if updated != original:
+                        line.line = updated
+            finally:
+                self._busy = False
+
+        def refresh(self):
+            # Refresh generated text without redecompiling or changing ctree.
+            # IDA pseudocode windows are named Pseudocode-A through -Z.
+            widgets = [kw.get_current_widget()]
+            widgets.extend(
+                kw.find_widget("Pseudocode-" + c) for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            )
+            seen = set()
+            for widget in widgets:
+                if not widget or kw.get_widget_type(widget) != kw.BWN_PSEUDOCODE:
+                    continue
+                vu = hx.get_widget_vdui(widget)
+                if vu and vu.view_idx not in seen:
+                    seen.add(vu.view_idx)
+                    vu.refresh_ctext(False)
+
+        def toggle(self):
+            self.enabled = not self.enabled
+            self.refresh()
+            kw.msg("HashDB %s\n" % ("Enabled" if self.enabled else "Hidden"))
+            return self.enabled
+
+        def stop(self):
+            if not self._running:
+                return
+            self.enabled = False
+            # Closed views can leave decorated functions in the decompiler cache.
+            # Clean every visited function still cached, without forcing new work.
+            for ea in tuple(self._visited):
+                if hx.has_cached_cfunc(ea):
+                    cfunc = hx.decompile(ea)
+                    if cfunc:
+                        self.decorate(cfunc)
+            self.refresh()
+            self._hooks.unhook()
+            self._running = False
+
+    def normalize_for_algorithm(bits, value, algorithm_bits):
+        """Accept exact unsigned or sign-extended values; do not truncate addresses."""
+        mask = (1 << algorithm_bits) - 1
+        if value <= mask:
+            return value
+        if bits > algorithm_bits:
+            low = value & mask
+            high = value >> algorithm_bits
+            if (
+                low & (1 << (algorithm_bits - 1))
+                and high == (1 << (bits - algorithm_bits)) - 1
+            ):
+                return low
+        return None
+
+    def candidates_from_response(response, preferred_dll=""):
+        """Keep collisions/module ambiguity; a preference only selects real modules."""
+        candidates = set()
+        preferred = preferred_dll.lower().removesuffix(".dll")
+        for hit in response.get("hashes", []):
+            item = hit.get("string", {})
+            if item.get("is_api", False):
+                name = item.get("api") or item.get("string")
+                if not name:
+                    continue
+                modules = sorted(set(item.get("modules") or ["?"]))
+                selected = [
+                    dll
+                    for dll in modules
+                    if dll.lower().removesuffix(".dll") == preferred
+                ]
+                for dll in selected or modules:
+                    candidates.add((str(dll), str(name)))
+            elif item.get("string"):
+                candidates.add(("", str(item["string"])))
+        return sorted(candidates)
+
+    def format_candidates(algorithm, candidates):
+        targets = [
+            "%s!%s" % pair if pair[0] else json.dumps(pair[1]) for pair in candidates
+        ]
+        return "%s: %s" % (algorithm, " | ".join(targets)) if targets else None
+
+    @dataclass(frozen=True)
+    class ScanSpec:
+        entry_ea: int
+        database: str
+        epoch: int
+        algorithm: str
+        algorithm_bits: int
+        xor: int
+        api_url: str
+        preferred_dll: str
+        apply_hints: bool
+        keys: tuple
+        max_requests: int = 500
+
+    class ScopedRenderer(HintRenderer):
+        def __init__(self):
+            super().__init__()
+            self.by_function = {}
+            self.enabled = False
+
+        def decorate(self, cfunc):
+            previous = self.hints
+            self.hints = self.by_function.get(cfunc.entry_ea, {})
+            try:
+                super().decorate(cfunc)
+            finally:
+                self.hints = previous
+
+    class ScanForm(kw.Form):
+        def __init__(self, owner, entry_ea, keys):
+            self.owner = owner
+            self.entry_ea = entry_ea
+            self.keys = keys
+            self.rows = list(owner.algorithms)
+            self.catalog_request = None
+            self.alive = False
+            F = kw.Form
+            chosen = owner.last_algorithm
+            index = next((i for i, row in enumerate(self.rows) if row[0] == chosen), 0)
+            super().__init__(
+                "BUTTON YES* Resolve\nBUTTON CANCEL Cancel\nHashDB - Resolve pseudocode immediates\n\n"
+                "Scans numeric expressions in the entire current function.\n"
+                "Only Resolve starts hash lookups. Existing enums/types are preserved.\n\n"
+                "<Algorithm:{algorithm}> <Refresh algorithms:{refresh_algorithms}>\n"
+                "<API URL:{server}>\n<Prefer DLL (optional):{preferred}>\n"
+                "<XOR (hex):{xor}>\n<Maximum unique requests:{limit}>\n"
+                "<Apply inline hints:{inline}>{options}>\n"
+                "\nSuffix: algorithm: dll!function (plain muted text)\n",
+                {
+                    "algorithm": F.DropdownListControl(
+                        items=["%s (%d-bit)" % row for row in self.rows],
+                        readonly=True,
+                        selval=index,
+                    ),
+                    "refresh_algorithms": F.ButtonInput(self.refresh_catalog),
+                    "server": F.StringInput(value=owner.backend.HASHDB_API_URL),
+                    "preferred": F.StringInput(value=owner.preferred_dll),
+                    "xor": F.NumericInput(
+                        tp=F.FT_RAWHEX,
+                        value=(
+                            owner.backend.HASHDB_XOR_VALUE
+                            if owner.backend.HASHDB_USE_XOR
+                            else 0
+                        ),
+                    ),
+                    "limit": F.NumericInput(tp=F.FT_DEC, value=500),
+                    "options": F.ChkGroupControl(
+                        ("inline",), value=1 if owner.inline_default else 0
+                    ),
+                },
+            )
+
+        def refresh_catalog(self, code=0):
+            server = self.GetControlValue(self.server).strip().rstrip("/")
+            self.owner.refresh_catalog(server, self)
+
+        def update_catalog(self, rows):
+            if not self.alive:
+                return
+            old = self.rows[self.GetControlValue(self.algorithm)][0]
+            self.rows = rows
+            self.algorithm.set_items(["%s (%d-bit)" % row for row in rows])
+            self.RefreshField(self.algorithm)
+            self.SetControlValue(
+                self.algorithm,
+                next((i for i, row in enumerate(rows) if row[0] == old), 0),
+            )
+
+        def ask(self):
+            self.Compile()
+            self.alive = True
+            try:
+                if self.Execute() != 1:
+                    return None
+                algorithm, bits = self.rows[self.algorithm.value]
+                return ScanSpec(
+                    self.entry_ea,
+                    self.owner.database,
+                    self.owner.epoch,
+                    algorithm,
+                    bits,
+                    int(self.xor.value),
+                    self.server.value.strip().rstrip("/"),
+                    self.preferred.value.strip(),
+                    bool(self.options.value & 1),
+                    tuple(self.keys),
+                    int(self.limit.value),
+                )
+            finally:
+                self.alive = False
+                self.Free()
+
+    class Results(kw.Choose):
+        def __init__(self, owner, spec, rows):
+            self.owner, self.spec, self.rows = owner, spec, rows
+            super().__init__(
+                "HashDB pseudocode results - %X" % spec.entry_ea,
+                [["Constant", 18], ["Algorithm", 20], ["Result", 70]],
+            )
+
+        def OnGetSize(self):
+            return len(self.rows)
+
+        def OnGetLine(self, n):
+            return self.rows[n]
+
+    class Action(kw.action_handler_t):
+        def __init__(self, callback, pseudocode_only=True):
+            super().__init__()
+            self.callback, self.pseudocode_only = callback, pseudocode_only
+
+        def activate(self, ctx):
+            try:
+                self.callback()
+            except Exception:
+                kw.msg("HashDB: " + traceback.format_exc())
+            return 1
+
+        def update(self, ctx):
+            if not self.pseudocode_only:
+                return kw.AST_ENABLE_ALWAYS
+            return (
+                kw.AST_ENABLE_FOR_WIDGET
+                if ctx.widget_type == kw.BWN_PSEUDOCODE
+                else kw.AST_DISABLE_FOR_WIDGET
+            )
+
+    class UIHooks(kw.UI_Hooks):
+        def __init__(self, owner):
+            super().__init__()
+            self.owner = owner
+
+        def finish_populating_widget_popup(self, widget, popup):
+            if kw.get_widget_type(widget) == kw.BWN_PSEUDOCODE:
+                for name in self.owner.context_actions:
+                    kw.attach_action_to_popup(widget, popup, name, "HashDB/")
+
+        def database_closed(self):
+            self.owner.invalidate()
+
+    class PseudocodeScanner:
+        def __init__(self, backend):
+            self.backend = backend
+            self.database = ida_nalt.get_input_file_path()
+            self.epoch = 0
+            self.alive = True
+            self.events = queue.Queue()
+            self.job = None
+            self.cancel_event = None
+            self.last_result = None
+            self.last_error = None
+            self.choosers = []
+            self.preferred_dll = ""
+            self._instance_token = object()
+            self.inline_default = True
+            self.algorithms = []
+            self.last_algorithm = backend.HASHDB_ALGORITHM
+            self.renderer = ScopedRenderer()
+            if not self.renderer._hooks.hook():
+                raise RuntimeError(
+                    "Could not enable pseudocode hints in the Hex-Rays decompiler"
+                )
+            self.renderer._running = True
+            self.actions = []
+            self.context_actions = []
+            self.hooks = None
+            self.timer = None
+            try:
+                self.register(
+                    "hashdb:toggle_pseudocode_hints",
+                    "HashDB: Show/hide pseudocode hints",
+                    self.renderer.toggle,
+                )
+                self.register(
+                    "hashdb:clear_pseudocode_hints",
+                    "Clear hints in this function",
+                    self.clear_current,
+                )
+                self.register(
+                    "hashdb:cancel_pseudocode_scan",
+                    "Cancel pseudocode scan",
+                    self.cancel,
+                )
+                self.hooks = UIHooks(self)
+                if not self.hooks.hook():
+                    raise RuntimeError(
+                        "Could not enable the IDA controls for pseudocode hints"
+                    )
+                self.timer = kw.register_timer(100, self.poll)
+                if self.timer is None:
+                    raise RuntimeError("Could not register scan completion timer")
+            except Exception:
+                self.stop()
+                raise
+
+        def register(self, name, title, callback):
+            handler = Action(callback)
+            if not kw.register_action(kw.action_desc_t(name, title, handler)):
+                raise RuntimeError("Action already registered: " + name)
+            self.actions.append((name, handler))
+            if name == "hashdb:toggle_pseudocode_hints":
+                kw.attach_action_to_menu("Edit/Plugins/", name, kw.SETMENU_APP)
+            self.context_actions.append(name)
+
+        def current(self, quiet=False):
+            widget = kw.get_current_widget()
+            if not widget or kw.get_widget_type(widget) != kw.BWN_PSEUDOCODE:
+                if not quiet:
+                    kw.msg("HashDB: Focus the pseudocode function to scan.\n")
+                return None
+            vu = hx.get_widget_vdui(widget)
+            if not vu or not vu.cfunc:
+                return None
+            return vu.cfunc
+
+        @staticmethod
+        def collect(cfunc):
+            cfunc.get_pseudocode()
+            return tuple(
+                sorted(
+                    {
+                        _number_key(item.cexpr)
+                        for item in cfunc.treeitems
+                        if item.op == hx.cot_num
+                    }
+                    - {None}
+                )
+            )
+
+        def capture_context(self):
+            """Snapshot the Hunt origin on the UI thread, without retaining ctree."""
+            cfunc = self.current(quiet=True) if self.alive else None
+            if cfunc is None:
+                return None
+            return (
+                self._instance_token,
+                int(cfunc.entry_ea),
+                self.database,
+                self.epoch,
+                self.collect(cfunc),
+            )
+
+        def open_dialog(self, context=None):
+            if not self.alive:
+                kw.msg(
+                    "HashDB: The database changed. Reopen the database to restart the scanner.\n"
+                )
+                return
+            if self.job is not None:
+                kw.msg(
+                    "HashDB: A pseudocode scan is running; wait or cancel it first.\n"
+                )
+                return
+            context = context if context is not None else self.capture_context()
+            if context is None:
+                return
+            token, entry_ea, database, epoch, keys = context
+            if (
+                token is not self._instance_token
+                or database != self.database
+                or epoch != self.epoch
+            ):
+                return
+            server = self.backend.HASHDB_API_URL.rstrip("/")
+            self.algorithms = list(self.backend._PSEUDOCODE_ALGORITHMS.get(server, ()))
+            if not self.algorithms:
+                kw.msg(
+                    "HashDB: Fetch algorithms first using Hunt Algorithm or Refresh Algorithms in settings.\n"
+                )
+                return
+            selected = self.backend.HASHDB_ALGORITHM
+            if selected:
+                self.last_algorithm = selected
+                bits = int(self.backend.HASHDB_ALGORITHM_SIZE)
+                if (selected, bits) not in self.algorithms:
+                    kw.msg(
+                        "HashDB: The selected algorithm is not in the fetched list. Refresh algorithms first.\n"
+                    )
+                    return
+            if not keys:
+                kw.msg("HashDB: No numeric expressions in this pseudocode function.\n")
+                return
+            spec = ScanForm(self, entry_ea, keys).ask()
+            if spec is not None:
+                self.scan(spec)
+
+        def scan(self, spec):
+            """Manual entry point, also usable from the test console with a snapshot."""
+            if not self.alive or self.job is not None:
+                raise RuntimeError("Scanner is unloaded or already busy")
+            if spec.database != self.database or spec.epoch != self.epoch:
+                raise ValueError("The database changed; invoke the scan again")
+            if (
+                spec.algorithm_bits not in (32, 64)
+                or not 0 <= spec.xor < 1 << spec.algorithm_bits
+            ):
+                raise ValueError("Invalid algorithm width or XOR value")
+            if not spec.api_url.startswith(("http://", "https://")):
+                raise ValueError("API URL must start with http:// or https://")
+            self.require_algorithm(spec)
+            normalized = {
+                key: normalize_for_algorithm(*key, spec.algorithm_bits)
+                for key in spec.keys
+            }
+            values = sorted({v for v in normalized.values() if v is not None})
+            if not 1 <= spec.max_requests <= 10000 or len(values) > spec.max_requests:
+                raise ValueError(
+                    "%d unique values exceed the request limit (%d); raise the limit to scan all"
+                    % (len(values), spec.max_requests)
+                )
+            request_lock = self.backend.HASHDB_REQUEST_LOCK
+            if not request_lock.acquire(blocking=False):
+                raise RuntimeError(
+                    "Another HashDB request is running; wait or cancel it first"
+                )
+            self.last_algorithm, self.preferred_dll = spec.algorithm, spec.preferred_dll
+            self.inline_default = spec.apply_hints
+            self.last_error = None
+            self.last_result = None
+            self.cancel_event = threading.Event()
+            self.job = object()
+            token, cancel = self.job, self.cancel_event
+            kw.msg(
+                "HashDB: Manually scanning %d unique values in function %X with %s; %d out-of-range expressions skipped.\n"
+                % (
+                    len(values),
+                    spec.entry_ea,
+                    spec.algorithm,
+                    sum(v is None for v in normalized.values()),
+                )
+            )
+            try:
+                threading.Thread(
+                    target=self.worker,
+                    args=(token, cancel, spec, normalized, values, request_lock),
+                    daemon=True,
+                    name="HashDB-pseudocode-scan",
+                ).start()
+            except Exception:
+                self.job = None
+                self.cancel_event = None
+                request_lock.release()
+                raise
+
+        def worker(self, token, cancel, spec, normalized, values, request_lock=None):
+            results = {}
+            error = None
+            try:
+                for index, value in enumerate(values):
+                    if cancel.is_set() or (index and cancel.wait(0.65)):
+                        break
+                    # Reuse HashDB-IDA's API client. Configuration is captured per job.
+                    response = self.backend.get_strings_from_hash(
+                        spec.algorithm, value, spec.xor, spec.api_url, timeout=15
+                    )
+                    results[value] = candidates_from_response(
+                        response, spec.preferred_dll
+                    )
+            except Exception as exc:
+                error = "%s: %s" % (type(exc).__name__, exc)
+            finally:
+                if request_lock is not None:
+                    request_lock.release()
+            self.events.put(
+                ("scan", token, spec, normalized, results, error, cancel.is_set())
+            )
+
+        def refresh_catalog(self, server, form):
+            token = form.catalog_request = object()
+
+            def fetch():
+                try:
+                    self.backend.get_algorithms(api_url=server, timeout=15)
+                    rows = list(self.backend._PSEUDOCODE_ALGORITHMS.get(server, ()))
+                    if not rows:
+                        raise ValueError("The server returned no supported algorithms")
+                    self.events.put(("catalog", form, server, token, rows, None))
+                except Exception as exc:
+                    self.events.put(("catalog", form, server, token, None, str(exc)))
+
+            threading.Thread(
+                target=fetch, daemon=True, name="HashDB-algorithms"
+            ).start()
+
+        def poll(self):
+            if not self.alive:
+                return -1
+            try:
+                while True:
+                    event = self.events.get_nowait()
+                    if event[0] == "catalog":
+                        _, form, server, token, rows, error = event
+                        if not form.alive or token is not form.catalog_request:
+                            continue
+                        if (
+                            form.GetControlValue(form.server).strip().rstrip("/")
+                            != server
+                        ):
+                            continue
+                        if error:
+                            kw.msg("HashDB: Algorithm refresh failed: %s\n" % error)
+                        else:
+                            self.algorithms = rows
+                            form.update_catalog(rows)
+                            kw.msg("HashDB: Refreshed %d algorithms.\n" % len(rows))
+                        continue
+                    _, token, spec, normalized, results, error, cancelled = event
+                    if token is not self.job:
+                        continue
+                    self.job = None
+                    self.cancel_event = None
+                    if spec.epoch != self.epoch or spec.database != self.database:
+                        continue
+                    if cancelled or error:
+                        self.last_error = "Cancelled" if cancelled else error
+                        kw.msg(
+                            "HashDB: Pseudocode scan %s; no partial hints applied.\n"
+                            % self.last_error
+                        )
+                        continue
+                    self.publish(spec, normalized, results)
+            except queue.Empty:
+                pass
+            except Exception:
+                self.last_error = traceback.format_exc()
+                kw.msg("HashDB completion error: " + self.last_error)
+            return 100
+
+        def require_algorithm(self, spec):
+            rows = self.backend._PSEUDOCODE_ALGORITHMS.get(spec.api_url.rstrip("/"), ())
+            if (spec.algorithm, spec.algorithm_bits) not in rows:
+                raise ValueError(
+                    "Fetch algorithms from this API URL first, then select an algorithm from that list"
+                )
+
+        def publish(self, spec, normalized, results):
+            self.require_algorithm(spec)
+            scoped, rows = {}, []
+            for key, value in normalized.items():
+                if value is None:
+                    rows.append(
+                        [
+                            "%d:0x%X" % key,
+                            spec.algorithm,
+                            "Skipped: outside algorithm width",
+                        ]
+                    )
+                    continue
+                candidates = results.get(value, [])
+                label = format_candidates(spec.algorithm, candidates)
+                if label is not None:
+                    scoped[key] = _clean_label(label)
+                rows.append(["%d:0x%X" % key, spec.algorithm, label or "No match"])
+            self.renderer.by_function.pop(spec.entry_ea, None)
+            if spec.apply_hints:
+                self.renderer.by_function[spec.entry_ea] = scoped
+                self.renderer.enabled = True
+            self.renderer.refresh()
+            self.last_result = {
+                "spec": spec,
+                "results": results,
+                "hints": scoped,
+                "rows": rows,
+            }
+            kw.msg(
+                "HashDB: Finished %d lookups; %d expression values matched. Inline hints %s.\n"
+                % (len(results), len(scoped), "applied" if spec.apply_hints else "off")
+            )
+            chooser = Results(self, spec, rows)
+            self.choosers.append(chooser)
+            chooser.Show(False)
+
+        def clear_current(self):
+            cfunc = self.current()
+            if cfunc is not None:
+                self.renderer.by_function.pop(cfunc.entry_ea, None)
+                self.renderer.refresh()
+
+        def cancel(self):
+            if self.cancel_event:
+                self.cancel_event.set()
+                kw.msg(
+                    "HashDB: Cancelling after the current request (15 second timeout).\n"
+                )
+
+        def invalidate(self):
+            self.cancel()
+            self.alive = False
+            self.epoch += 1
+            self.job = None
+            self.renderer.by_function.clear()
+            self.renderer._visited.clear()
+            self.database = ""
+
+        def stop(self):
+            self.cancel()
+            self.alive = False
+            self.job = None
+            if getattr(self, "timer", None) is not None:
+                kw.unregister_timer(self.timer)
+                self.timer = None
+            if self.hooks is not None:
+                self.hooks.unhook()
+            self.renderer.stop()
+            for chooser in self.choosers:
+                chooser.Close()
+            for name, handler in self.actions:
+                kw.unregister_action(name)
+            self.actions.clear()
+
+    return SimpleNamespace(
+        PseudocodeScanner=PseudocodeScanner,
+        ScanSpec=ScanSpec,
+        ScanForm=ScanForm,
+        HintRenderer=HintRenderer,
+        normalize_for_algorithm=normalize_for_algorithm,
+        candidates_from_response=candidates_from_response,
+        format_candidates=format_candidates,
+        decorate_line=decorate_line,
+        _number_key=_number_key,
+        _clean_label=_clean_label,
+        _ANCHOR=_ANCHOR,
+    )
 
 
 #--------------------------------------------------------------------------
@@ -2136,8 +3068,11 @@ class HashDB_Plugin_t(idaapi.plugin_t):
             self._init_action_set_xor()
             self._init_action_hunt()
             self._init_action_iat_scan()
-            # initialize plugin hooks
+            # Initialize UI hooks; loading from the menu may occur after ready_to_run.
+            self._pseudocode = None
+            self._hexrays_hooked = False
             self._init_hooks()
+            self._init_hexrays_hooks()
 
             HASHDB_PLUGIN_OBJECT = self
             return idaapi.PLUGIN_KEEP
@@ -2158,6 +3093,26 @@ class HashDB_Plugin_t(idaapi.plugin_t):
         if self.terminated:
             return
         
+        if self._pseudocode is not None:
+            try:
+                self._pseudocode.stop()
+            except Exception as exception:
+                idaapi.msg(
+                    "HashDB: Could not clean up pseudocode hints: %s\n" % exception
+                )
+            finally:
+                self._pseudocode = None
+        if self._hexrays_hooked:
+            try:
+                idaapi.remove_hexrays_callback(self._hooks.hxe_callback)
+            except Exception as exception:
+                idaapi.msg(
+                    "HashDB: Could not remove the IDA decompiler callback: %s\n"
+                    % exception
+                )
+            finally:
+                self._hexrays_hooked = False
+
         # Save settings
         save_settings()
 
@@ -2276,11 +3231,56 @@ class HashDB_Plugin_t(idaapi.plugin_t):
 
     def _init_hexrays_hooks(self):
         """
-        Install Hex-Rays hooks (when available).
+        Install hooks for the Hex-Rays decompiler (when available).
         NOTE: This is called when the ui_ready_to_run event fires.
         """
-        if idaapi.init_hexrays_plugin():
-            idaapi.install_hexrays_callback(self._hooks.hxe_callback)
+        if self._hexrays_hooked:
+            return
+        install_attempted = False
+        try:
+            api_names = (
+                "init_hexrays_plugin",
+                "install_hexrays_callback",
+                "remove_hexrays_callback",
+            )
+            apis = tuple(getattr(idaapi, name, None) for name in api_names)
+            missing = [name for name, api in zip(api_names, apis) if not callable(api)]
+            if missing:
+                raise RuntimeError("Missing IDA decompiler APIs: " + ", ".join(missing))
+            initialize, install, remove = apis
+            if not initialize():
+                return
+            install_attempted = True
+            if not install(self._hooks.hxe_callback):
+                raise RuntimeError("IDA could not register the decompiler callback")
+        except Exception as exception:
+            if install_attempted:
+                # An installer may register a callback before raising an error.
+                try:
+                    remove(self._hooks.hxe_callback)
+                except Exception as cleanup_exception:
+                    idaapi.msg(
+                        "HashDB: Could not clean up the IDA decompiler callback: %s\n"
+                        % cleanup_exception
+                    )
+            idaapi.msg(
+                "HashDB: IDA decompiler support is unavailable (%s); "
+                "existing HashDB actions remain available.\n" % exception
+            )
+            return
+
+        self._hexrays_hooked = True
+        # Optional APIs are checked before defining or registering hint hooks.
+        try:
+            components = _create_pseudocode_components()
+            self._pseudocode = components.PseudocodeScanner(sys.modules[__name__])
+        except (ImportError, RuntimeError) as exception:
+            idaapi.msg("HashDB: %s; legacy actions remain enabled.\n" % exception)
+        except Exception:
+            idaapi.msg(
+                "HashDB: Pseudocode hints unavailable; legacy actions remain enabled.\n"
+                + traceback.format_exc()
+            )
 
 
 #------------------------------------------------------------------------------
@@ -2297,13 +3297,13 @@ class Hooks(idaapi.UI_Hooks):
 
     def hxe_callback(self, event, *args):
         """
-        HexRays event callback.
+        Hex-Rays decompiler event callback.
         We lump this under the (UI) Hooks class for organizational reasons.
         """
 
         #
         # if the event callback indicates that this is a popup menu event
-        # (in the hexrays window), we may want to install our menu
+        # (in the IDA pseudocode window), we may want to install our menu
         # actions depending on what the cursor right clicked.
         #
 
